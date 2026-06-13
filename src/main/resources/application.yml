@@ -13,6 +13,13 @@ spring:
   profiles:
     default: local
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+
 management:
   server:
     port: ${MANAGEMENT_SERVER_PORT:9082}

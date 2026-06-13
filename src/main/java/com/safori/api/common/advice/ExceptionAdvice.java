@@ -4,6 +4,7 @@ import com.safori.api.common.dto.ApiResponseDto;
 import com.safori.common.exception.ErrorStatus;
 import com.safori.common.exception.GeneralException;
 import com.safori.common.exception.Reason;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.time.format.DateTimeParseException;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
+@Hidden
 @RequiredArgsConstructor
 @RestControllerAdvice(annotations = {RestController.class})
 public class ExceptionAdvice extends ResponseEntityExceptionHandler {
