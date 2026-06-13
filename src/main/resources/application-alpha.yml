@@ -1,0 +1,14 @@
+# alpha(개발) 서버 프로파일
+logging:
+  level:
+    root: INFO
+    com.safori: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

@@ -1,0 +1,14 @@
+# 로컬 개발 프로파일
+logging:
+  level:
+    root: INFO
+    com.safori: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
