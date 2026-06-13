@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'com.safori'
@@ -42,8 +43,65 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+// 커버리지 측정 대상 = 비즈니스 로직 레이어만.
+// DTO, config, advice(thin), 예외/핸들러, MapStruct 생성코드 등은 제외.
+def jacocoExcludes = [
+        'com/safori/SaforiServerApplication*',
+        '**/config/**',
+        '**/*Config*',
+        '**/dto/**',
+        '**/*Request*',
+        '**/*Response*',
+        '**/*Dto*',
+        '**/advice/**',
+        '**/controller/**',
+        '**/exception/**',
+        '**/*Handler*',
+        '**/*ErrorStatus*',
+        '**/*SuccessStatus*',
+        '**/*Exception*',
+        '**/*MapperImpl*',
+]
+
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                // 베이스라인 측정 후 단계적 상향. 최종 목표 0.70.
+                minimum = 0.00
+            }
+        }
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
