@@ -1,0 +1,237 @@
+name: test-and-deploy
+
+# 브랜치 → 환경/프로파일 매핑
+#   main    → environment: prod,  SPRING_PROFILES_ACTIVE=prod
+#   develop → environment: alpha, SPRING_PROFILES_ACTIVE=alpha
+# 환경별 ECR/SSM/포트/컨테이너 값은 GitHub Environments(prod/alpha)의
+# vars/secrets 로 분리해서 주입한다. (필요 키 목록: docs/CICD-SETUP.md)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ssm-deploy-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-22.04
+    outputs:
+      environment: ${{ steps.map.outputs.environment }}
+      profile: ${{ steps.map.outputs.profile }}
+    steps:
+      - name: Map branch to environment/profile
+        id: map
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "environment=prod"  >> "$GITHUB_OUTPUT"
+            echo "profile=prod"      >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=alpha" >> "$GITHUB_OUTPUT"
+            echo "profile=alpha"     >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: setup
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run tests
+        run: ./gradlew test
+
+  push-image:
+    needs: [setup, test]
+    runs-on: ubuntu-22.04
+    environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      image_uri: ${{ steps.image-uri.outputs.image_uri }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-ecr-push
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image to Amazon ECR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export image URI
+        id: image-uri
+        run: echo "image_uri=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+  deploy-via-ssm:
+    needs: [setup, push-image]
+    runs-on: ubuntu-22.04
+    environment: ${{ needs.setup.outputs.environment }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      SSM_TARGET_KEY: ${{ vars.SSM_TARGET_KEY }}
+      SSM_TARGET_VALUE: ${{ vars.SSM_TARGET_VALUE }}
+      APP_DIR: ${{ vars.APP_DIR }}
+      CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
+      APP_PORT: ${{ vars.APP_PORT }}
+      MGMT_PORT: ${{ vars.MGMT_PORT }}
+      DOCKER_NETWORK: ${{ vars.DOCKER_NETWORK }}
+      SPRING_PROFILE: ${{ needs.setup.outputs.profile }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-ssm-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run deployment via SSM
+        env:
+          IMAGE_URI: ${{ needs.push-image.outputs.image_uri }}
+        run: |
+          jq -n \
+            --arg imageUri "$IMAGE_URI" \
+            --arg awsRegion "$AWS_REGION" \
+            --arg appDir "$APP_DIR" \
+            --arg containerName "$CONTAINER_NAME" \
+            --arg appPort "$APP_PORT" \
+            --arg mgmtPort "$MGMT_PORT" \
+            --arg network "$DOCKER_NETWORK" \
+            --arg profile "$SPRING_PROFILE" \
+            '{
+              commands: [
+                "set -euo pipefail",
+                "IMAGE_URI=\"\($imageUri)\"",
+                "AWS_REGION=\"\($awsRegion)\"",
+                "APP_DIR=\"\($appDir)\"",
+                "CONTAINER_NAME=\"\($containerName)\"",
+                "APP_PORT=\"\($appPort)\"",
+                "MGMT_PORT=\"\($mgmtPort)\"",
+                "DOCKER_NETWORK=\"\($network)\"",
+                "SPRING_PROFILE=\"\($profile)\"",
+                "ECR_REGISTRY=\"${IMAGE_URI%%/*}\"",
+                "mkdir -p \"${APP_DIR}\"",
+                "if [ ! -f \"${APP_DIR}/.env\" ]; then echo \"Missing ${APP_DIR}/.env on target\"; exit 1; fi",
+                "aws ecr get-login-password --region \"${AWS_REGION}\" | docker login --username AWS --password-stdin \"${ECR_REGISTRY}\"",
+                "docker pull \"${IMAGE_URI}\"",
+                "if docker ps -a --format '\''{{.Names}}'\'' | grep -Fxq \"${CONTAINER_NAME}\"; then docker rm -f \"${CONTAINER_NAME}\"; fi",
+                "docker network create \"${DOCKER_NETWORK}\" 2>/dev/null || true",
+                "docker run -d --name \"${CONTAINER_NAME}\" --restart unless-stopped --network \"${DOCKER_NETWORK}\" --env-file \"${APP_DIR}/.env\" -e SPRING_PROFILES_ACTIVE=\"${SPRING_PROFILE}\" -p \"${APP_PORT}:8080\" -p \"${MGMT_PORT}:9082\" \"${IMAGE_URI}\"",
+                "for attempt in $(seq 1 20); do if curl -fsS http://localhost:${MGMT_PORT}/actuator/health >/dev/null; then exit 0; fi; sleep 5; done",
+                "echo \"Application health check failed\"",
+                "docker logs \"${CONTAINER_NAME}\" --tail 100",
+                "exit 1"
+              ]
+            }' > /tmp/ssm-parameters.json
+
+          COMMAND_ID=$(aws ssm send-command \
+            --targets "Key=${SSM_TARGET_KEY},Values=${SSM_TARGET_VALUE}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy ${GITHUB_REPOSITORY}@${GITHUB_SHA} (${SPRING_PROFILE})" \
+            --parameters file:///tmp/ssm-parameters.json \
+            --query 'Command.CommandId' \
+            --output text)
+
+          echo "SSM command id: ${COMMAND_ID}"
+
+          TARGET_INSTANCE_ID=""
+          for attempt in $(seq 1 12); do
+            TARGET_INSTANCE_ID=$(aws ssm list-command-invocations \
+              --command-id "$COMMAND_ID" \
+              --details \
+              --query 'CommandInvocations[0].InstanceId' \
+              --output text 2>/dev/null || true)
+
+            if [ -n "$TARGET_INSTANCE_ID" ] && [ "$TARGET_INSTANCE_ID" != "None" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          if [ -z "$TARGET_INSTANCE_ID" ] || [ "$TARGET_INSTANCE_ID" = "None" ]; then
+            echo "Could not resolve SSM target instance for command: ${COMMAND_ID}"
+            exit 1
+          fi
+
+          echo "Resolved target instance: ${TARGET_INSTANCE_ID}"
+
+          for attempt in $(seq 1 60); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$TARGET_INSTANCE_ID" \
+              --query 'Status' \
+              --output text 2>/dev/null || true)
+
+            case "$STATUS" in
+              Success)
+                aws ssm get-command-invocation \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "$TARGET_INSTANCE_ID" \
+                  --query 'StandardOutputContent' \
+                  --output text
+                exit 0
+                ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                echo "SSM deployment failed with status: $STATUS"
+                aws ssm get-command-invocation \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "$TARGET_INSTANCE_ID" \
+                  --query 'StandardOutputContent' \
+                  --output text || true
+                aws ssm get-command-invocation \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "$TARGET_INSTANCE_ID" \
+                  --query 'StandardErrorContent' \
+                  --output text || true
+                exit 1
+                ;;
+              Pending|InProgress|Delayed|"")
+                sleep 5
+                ;;
+              *)
+                echo "Unexpected SSM status: $STATUS"
+                sleep 5
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for SSM command completion"
+          exit 1
