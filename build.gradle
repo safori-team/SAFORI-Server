@@ -37,12 +37,8 @@ dependencies {
     // Spring Actuator (기동/헬스 확인)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-    // Spring Security Crypto (PasswordEncoder / BCrypt)
-    implementation 'org.springframework.security:spring-security-crypto'
-    // Spring Security Core (UserDetails / Authentication) — 인증 필터(SecurityConfig)는 #49에서 추가
-    implementation 'org.springframework.security:spring-security-core'
-    // Spring Security Web (FilterChainProxy) — springdoc security 연동 클래스 로딩용. SecurityFilterChain은 #49
-    implementation 'org.springframework.security:spring-security-web'
+    // Spring Security (PasswordEncoder, UserDetails/Authentication, JWT 인증 필터)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
