@@ -15,7 +15,12 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 
 @Entity
@@ -25,7 +30,7 @@ import java.util.Objects;
 @SuperBuilder
 @EqualsAndHashCode(of = "id", callSuper = false)
 @Table(name = "users")
-public class User extends BaseTimeEntity {
+public class User extends BaseTimeEntity implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +49,16 @@ public class User extends BaseTimeEntity {
     private String password;
 
     private String name;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return Collections.singleton(new SimpleGrantedAuthority(this.role.getKey()));
+    }
+
+    @Override
+    public String getUsername() {
+        return this.username;
+    }
 
     public boolean isSamePassword(String encodedPassword) {
         return Objects.equals(this.password, encodedPassword);

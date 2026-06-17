@@ -28,6 +28,10 @@ spring:
         format_sql: true
     show-sql: ${JPA_SHOW_SQL:false}
 
+# JWT 서명 시크릿 (Base64 인코딩된 HMAC-SHA256 키)
+token:
+  secret-user: ${TOKEN_SECRET_USER}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
