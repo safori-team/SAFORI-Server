@@ -39,6 +39,8 @@ dependencies {
     implementation 'org.springframework.security:spring-security-crypto'
     // Spring Security Core (UserDetails / Authentication) — 인증 필터(SecurityConfig)는 #49에서 추가
     implementation 'org.springframework.security:spring-security-core'
+    // Spring Security Web (FilterChainProxy) — springdoc security 연동 클래스 로딩용. SecurityFilterChain은 #49
+    implementation 'org.springframework.security:spring-security-web'
 
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
