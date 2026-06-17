@@ -16,4 +16,6 @@ public class JwtToken {
     private String grantType;
     @Schema(description = "API 요청에 사용할 Access Token (Authorization 헤더에 포함)", example = "eyJhbGciOiJIUzI1NiJ9...")
     private String accessToken;
+    @Schema(description = "Access Token 갱신에 사용할 Refresh Token", example = "eyJhbGciOiJIUzI1NiJ9...")
+    private String refreshToken;
 }

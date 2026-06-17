@@ -28,6 +28,11 @@ spring:
         format_sql: true
     show-sql: ${JPA_SHOW_SQL:false}
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
 # JWT 서명 시크릿 (Base64 인코딩된 HMAC-SHA256 키)
 token:
   secret-user: ${TOKEN_SECRET_USER}
