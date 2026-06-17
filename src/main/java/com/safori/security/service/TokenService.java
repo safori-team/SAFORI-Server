@@ -1,6 +1,6 @@
-package com.safori.common.interfaces;
+package com.safori.security.service;
 
-import com.safori.common.dto.JwtToken;
+import com.safori.security.dto.JwtToken;
 import org.springframework.security.core.Authentication;
 
 public interface TokenService {

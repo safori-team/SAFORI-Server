@@ -1,4 +1,4 @@
-package com.safori.common.dto;
+package com.safori.security.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
