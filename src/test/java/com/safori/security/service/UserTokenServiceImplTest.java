@@ -1,10 +1,12 @@
 package com.safori.security.service;
 
+import com.safori.common.service.RedisService;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.Role;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.user.exception.UserHandler;
 import com.safori.security.dto.JwtToken;
+import com.safori.security.exception.AuthHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class UserTokenServiceImplTest {
@@ -31,6 +34,7 @@ class UserTokenServiceImplTest {
     private static final String RAW_PASSWORD = "myPass1234";
 
     @Mock UserAdaptor userAdaptor;
+    @Mock RedisService redisService;
 
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
     private UserTokenServiceImpl userTokenService;
@@ -40,7 +44,7 @@ class UserTokenServiceImplTest {
     void setUp() {
         MockEnvironment env = new MockEnvironment();
         env.setProperty("token.secret-user", SECRET);
-        userTokenService = new UserTokenServiceImpl(env, passwordEncoder, userAdaptor);
+        userTokenService = new UserTokenServiceImpl(env, passwordEncoder, userAdaptor, redisService);
 
         user = User.builder()
                 .username("user01")
@@ -52,14 +56,16 @@ class UserTokenServiceImplTest {
     }
 
     @Test
-    @DisplayName("로그인 성공 - Bearer accessToken 발급, 클레임에 username·권한 포함")
-    void login_success_issuesAccessToken() {
+    @DisplayName("로그인 성공 - access/refresh 발급, refresh를 Redis 화이트리스트에 저장")
+    void login_success_issuesTokensAndStoresRefresh() {
         given(userAdaptor.queryUserByUsername("user01")).willReturn(user);
 
         JwtToken token = userTokenService.login("user01", RAW_PASSWORD);
 
         assertThat(token.getGrantType()).isEqualTo("Bearer");
         assertThat(token.getAccessToken()).isNotBlank();
+        assertThat(token.getRefreshToken()).isNotBlank();
+        verify(redisService).setValue(token.getRefreshToken(), "user01");
 
         Authentication authentication = userTokenService.getAuthentication(token.getAccessToken());
         assertThat(authentication.getName()).isEqualTo("user01");
@@ -75,5 +81,38 @@ class UserTokenServiceImplTest {
 
         assertThatThrownBy(() -> userTokenService.login("user01", "wrongPass123"))
                 .isEqualTo(UserHandler.PASSWORD_NOT_MATCH);
+    }
+
+    @Test
+    @DisplayName("토큰 재발급 성공 - 기존 refresh 삭제(회전) 후 새 토큰 발급")
+    void reissue_success_rotatesRefreshToken() {
+        given(userAdaptor.queryUserByUsername("user01")).willReturn(user);
+        JwtToken issued = userTokenService.login("user01", RAW_PASSWORD);
+        String oldRefresh = issued.getRefreshToken();
+        given(redisService.getValue(oldRefresh)).willReturn("user01");
+
+        JwtToken reissued = userTokenService.reissueToken(oldRefresh);
+
+        verify(redisService).deleteValue(oldRefresh);
+        assertThat(reissued.getAccessToken()).isNotBlank();
+        assertThat(reissued.getRefreshToken()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("토큰 재발급 실패 - Redis에 없는 refresh면 INVALID_REFRESH_TOKEN 예외")
+    void reissue_unknownRefresh_throws() {
+        given(redisService.getValue("ghost")).willReturn(null);
+
+        assertThatThrownBy(() -> userTokenService.reissueToken("ghost"))
+                .isEqualTo(AuthHandler.INVALID_REFRESH_TOKEN);
+    }
+
+    @Test
+    @DisplayName("로그아웃 - refresh를 Redis에서 삭제하고 true 반환")
+    void logout_deletesRefreshToken() {
+        boolean result = userTokenService.logout("some-refresh");
+
+        assertThat(result).isTrue();
+        verify(redisService).deleteValue("some-refresh");
     }
 }
