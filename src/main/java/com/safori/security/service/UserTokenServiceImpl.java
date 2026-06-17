@@ -1,6 +1,8 @@
 package com.safori.security.service;
 
+import com.safori.common.service.RedisService;
 import com.safori.security.dto.JwtToken;
+import com.safori.security.exception.AuthHandler;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
 import io.jsonwebtoken.Claims;
@@ -32,19 +34,23 @@ import static com.safori.domain.user.exception.UserHandler.PASSWORD_NOT_MATCH;
 @Service
 public class UserTokenServiceImpl implements UserTokenService {
 
-    private static final long ACCESS_TOKEN_VALIDITY_MS = 1800000L; // 30분
+    private static final long ACCESS_TOKEN_VALIDITY_MS = 1800000L;    // 30분
+    private static final long REFRESH_TOKEN_VALIDITY_MS = 604800000L; // 7일
 
     private final Key key;
     private final PasswordEncoder passwordEncoder;
     private final UserAdaptor userAdaptor;
+    private final RedisService redisService;
 
     public UserTokenServiceImpl(Environment environment,
                                PasswordEncoder passwordEncoder,
-                               UserAdaptor userAdaptor) {
+                               UserAdaptor userAdaptor,
+                               RedisService redisService) {
         byte[] keyBytes = Decoders.BASE64.decode(environment.getProperty("token.secret-user"));
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.passwordEncoder = passwordEncoder;
         this.userAdaptor = userAdaptor;
+        this.redisService = redisService;
     }
 
     @Override
@@ -56,6 +62,26 @@ public class UserTokenServiceImpl implements UserTokenService {
         return generateToken(
                 new UsernamePasswordAuthenticationToken(user, "", user.getAuthorities())
         );
+    }
+
+    @Override
+    public JwtToken reissueToken(String refreshToken) {
+        // 1. Refresh Token 유효성 검사 (Redis 화이트리스트 존재 여부)
+        if (!existsRefreshToken(refreshToken)) {
+            throw AuthHandler.INVALID_REFRESH_TOKEN;
+        }
+
+        // 2. 회전: 이전 리프레시 토큰 삭제
+        redisService.deleteValue(refreshToken);
+
+        // 3. 새 Authentication 생성 후 재발급
+        Claims claims = parseClaims(refreshToken);
+        String username = claims.getSubject();
+        User user = userAdaptor.queryUserByUsername(username);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user, "",
+                user.getAuthorities());
+
+        return generateToken(authentication);
     }
 
     @Override
@@ -78,9 +104,22 @@ public class UserTokenServiceImpl implements UserTokenService {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
+        // Refresh Token 생성
+        String refreshToken = Jwts.builder()
+                .setSubject(authentication.getName())
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now + REFRESH_TOKEN_VALIDITY_MS))
+                .setId(UUID.randomUUID().toString())
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+
+        // 새 리프레시 토큰을 Redis 화이트리스트에 저장
+        redisService.setValue(refreshToken, authentication.getName());
+
         return JwtToken.builder()
                 .grantType("Bearer")
                 .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .build();
     }
 
@@ -102,6 +141,17 @@ public class UserTokenServiceImpl implements UserTokenService {
         UserDetails principal = new org.springframework.security.core.userdetails.User(
                 claims.getSubject(), "", authorities);
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
+    }
+
+    @Override
+    public boolean logout(String refreshToken) {
+        redisService.deleteValue(refreshToken);
+        return true;
+    }
+
+    @Override
+    public boolean existsRefreshToken(String refreshToken) {
+        return redisService.getValue(refreshToken) != null;
     }
 
     private Claims parseClaims(String token) {
