@@ -24,7 +24,15 @@ public enum ErrorStatus implements BaseErrorCode {
     // 일반 요청 오류 (4000번대)
     _BAD_REQUEST(BAD_REQUEST, 4000, "잘못된 요청입니다."),
     _UNAUTHORIZED(UNAUTHORIZED, 4001, "로그인이 필요합니다."),
-    _FORBIDDEN(FORBIDDEN, 4002, "금지된 요청입니다.");
+    _FORBIDDEN(FORBIDDEN, 4002, "금지된 요청입니다."),
+
+    // 유저 오류 (4050번대)
+    USER_USERNAME_ALREADY_EXISTS(BAD_REQUEST, 4050, "이미 존재하는 username입니다."),
+    USER_NOT_FOUND(BAD_REQUEST, 4052, "존재하지 않는 유저입니다."),
+    USER_PASSWORD_NOT_MATCH(BAD_REQUEST, 4053, "비밀번호가 일치하지 않습니다."),
+
+    // 인증/토큰 오류 (4060번대)
+    AUTH_INVALID_REFRESH_TOKEN(UNAUTHORIZED, 4060, "유효하지 않은 리프레시 토큰입니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

@@ -13,6 +13,30 @@ spring:
   profiles:
     default: local
 
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# JWT 서명 시크릿 (Base64 인코딩된 HMAC-SHA256 키)
+token:
+  secret-user: ${TOKEN_SECRET_USER}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
