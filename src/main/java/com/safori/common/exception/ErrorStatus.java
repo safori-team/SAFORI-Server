@@ -32,7 +32,11 @@ public enum ErrorStatus implements BaseErrorCode {
     USER_PASSWORD_NOT_MATCH(BAD_REQUEST, 4053, "비밀번호가 일치하지 않습니다."),
 
     // 인증/토큰 오류 (4060번대)
-    AUTH_INVALID_REFRESH_TOKEN(UNAUTHORIZED, 4060, "유효하지 않은 리프레시 토큰입니다.");
+    AUTH_INVALID_REFRESH_TOKEN(UNAUTHORIZED, 4060, "유효하지 않은 리프레시 토큰입니다."),
+
+    // 음성 오류 (4150번대)
+    VOICE_NOT_FOUND(BAD_REQUEST, 4150, "존재하지 않는 음성파일입니다."),
+    VOICE_NO_PERMISSION(BAD_REQUEST, 4151, "음성파일의 접근권한이 없습니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;
