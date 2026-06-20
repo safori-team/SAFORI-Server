@@ -33,6 +33,17 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  # AWS S3 (음성 파일 업로드 Presigned URL)
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY:}
+        secret-key: ${AWS_SECRET_KEY:}
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
+      s3:
+        bucket: ${AWS_S3_BUCKET:}
+
 # JWT 서명 시크릿 (Base64 인코딩된 HMAC-SHA256 키)
 token:
   secret-user: ${TOKEN_SECRET_USER}

@@ -48,6 +48,10 @@ dependencies {
     // Swagger / OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
 
+    // AWS SDK S3 (Presigned URL 발급)
+    implementation platform('software.amazon.awssdk:bom:2.26.22')
+    implementation 'software.amazon.awssdk:s3'
+
     // MySQL
     runtimeOnly 'com.mysql:mysql-connector-j'
 
