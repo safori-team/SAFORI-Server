@@ -57,6 +57,8 @@ dependencies {
 
     // H2 (test)
     testImplementation 'com.h2database:h2'
+    // H2 (apidocs 프로파일 전용 — generateOpenApiDocs bootRun에만 포함, bootJar에는 제외)
+    developmentOnly 'com.h2database:h2'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -74,6 +76,10 @@ openApi {
     outputDir = layout.buildDirectory.dir("docs")
     outputFileName = "openapi.json"
     waitTimeInSeconds = 60
+    // 외부 DB 없이 H2 인메모리로 부팅해 스펙만 추출
+    customBootRun {
+        jvmArgs = ["-Dspring.profiles.active=apidocs"]
+    }
 }
 
 jacoco {
