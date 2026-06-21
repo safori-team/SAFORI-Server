@@ -2,8 +2,12 @@ package com.safori.api.voice.controller;
 
 import com.safori.api.common.dto.ApiResponseDto;
 import com.safori.api.voice.dto.PresignedUrlResponse;
+import com.safori.api.voice.dto.VoiceDetailResponse;
+import com.safori.api.voice.dto.VoiceListResponse;
 import com.safori.api.voice.service.DeleteVoiceUseCase;
 import com.safori.api.voice.service.GenerateVoicePresignedUrlUseCase;
+import com.safori.api.voice.service.GetUserVoiceDetailUseCase;
+import com.safori.api.voice.service.GetUserVoiceListUseCase;
 import com.safori.api.voice.service.UploadVoiceFileUseCase;
 import com.safori.common.annotation.UserCode;
 import com.safori.domain.question.entity.QuestionCategory;
@@ -29,6 +33,34 @@ public class VoiceApiController {
     private final GenerateVoicePresignedUrlUseCase generateVoicePresignedUrlUseCase;
     private final UploadVoiceFileUseCase uploadVoiceFileUseCase;
     private final DeleteVoiceUseCase deleteVoiceUseCase;
+    private final GetUserVoiceListUseCase getUserVoiceListUseCase;
+    private final GetUserVoiceDetailUseCase getUserVoiceDetailUseCase;
+
+    @Operation(summary = "마음일기 목록 조회",
+            description = """
+                    사용자의 마음일기 목록을 반환합니다.
+                    - `date` 미전달 시: 전체 목록
+                    - `date=yyyy-MM-dd` 전달 시: 해당 날짜의 일기만 반환
+                    """)
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping
+    public ApiResponseDto<VoiceListResponse> getUserVoiceList(@UserCode String username,
+                                                              @Parameter(description = "날짜 필터 (yyyy-MM-dd). 생략 시 전체 목록")
+                                                              @RequestParam(required = false) String date) {
+        VoiceListResponse result = (date == null) ?
+                getUserVoiceListUseCase.execute(username) : getUserVoiceListUseCase.execute(username, date);
+        return ApiResponseDto.onSuccess(result);
+    }
+
+    @Operation(summary = "마음일기 상세 조회",
+            description = "voiceId에 해당하는 마음일기의 상세 정보(감정, STT 내용 등)를 반환합니다.")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음")
+    @GetMapping("/{voiceId}")
+    public ApiResponseDto<VoiceDetailResponse> getUserVoiceDetail(@PathVariable Long voiceId,
+                                                                  @UserCode String username) {
+        return ApiResponseDto.onSuccess(getUserVoiceDetailUseCase.execute(voiceId, username));
+    }
 
     @Operation(summary = "음성 파일 업로드용 Presigned URL 발급",
             description = "S3에 음성 파일을 직접 업로드하기 위한 Presigned PUT URL과 voiceKey를 발급합니다. (유효시간 10분)")
