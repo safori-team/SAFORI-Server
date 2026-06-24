@@ -39,6 +39,12 @@ public class VoiceAdaptorImpl implements VoiceAdaptor {
 
     @Override
     @Transactional
+    public Voice save(Voice voice) {
+        return voiceRepository.save(voice);
+    }
+
+    @Override
+    @Transactional
     public void deleteById(Long voiceId) {
         voiceRepository.deleteById(voiceId);
     }

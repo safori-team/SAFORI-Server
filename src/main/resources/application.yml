@@ -48,6 +48,11 @@ spring:
 token:
   secret-user: ${TOKEN_SECRET_USER}
 
+# Gemini (음성 분석 어댑터). api-key 비우면 분석 비활성화(서버는 정상 기동)
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
