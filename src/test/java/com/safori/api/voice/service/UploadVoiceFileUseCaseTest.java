@@ -6,6 +6,7 @@ import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.service.VoiceDomainService;
+import com.safori.infra.ai.gemini.GeminiVoiceAnalyzer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,7 @@ class UploadVoiceFileUseCaseTest {
 
     @Mock UserAdaptor userAdaptor;
     @Mock VoiceDomainService voiceDomainService;
+    @Mock GeminiVoiceAnalyzer geminiVoiceAnalyzer;
     @Mock User user;
     @Mock Voice voice;
 
@@ -38,19 +40,22 @@ class UploadVoiceFileUseCaseTest {
         given(voiceDomainService.uploadVoiceFile(user, voiceKey)).willReturn(voice);
         given(voice.getId()).willReturn(1L);
 
-        UploadVoiceFileUseCase useCase = new UploadVoiceFileUseCase(userAdaptor, voiceDomainService);
+        UploadVoiceFileUseCase useCase =
+                new UploadVoiceFileUseCase(userAdaptor, voiceDomainService, geminiVoiceAnalyzer);
 
         Long voiceId = useCase.execute(username, category, index, voiceKey);
 
         assertThat(voiceId).isEqualTo(1L);
         verify(voiceDomainService).uploadVoiceFile(user, voiceKey);
         verify(voiceDomainService).linkVoiceQuestion(voice, category, index);
+        verify(geminiVoiceAnalyzer).analyzeAsync(1L, voiceKey);
     }
 
     @Test
     @DisplayName("유효하지 않은 질문 인덱스 - QUESTION_NOT_FOUND, 저장 안 함")
     void execute_invalidQuestionIndex_throws() {
-        UploadVoiceFileUseCase useCase = new UploadVoiceFileUseCase(userAdaptor, voiceDomainService);
+        UploadVoiceFileUseCase useCase =
+                new UploadVoiceFileUseCase(userAdaptor, voiceDomainService, geminiVoiceAnalyzer);
 
         assertThatThrownBy(() ->
                 useCase.execute("testUser", QuestionCategory.EMOTION, 999, "voices/u/uuid.m4a"))
