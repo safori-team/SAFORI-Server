@@ -8,6 +8,7 @@ import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.service.VoiceDomainService;
+import com.safori.infra.ai.gemini.GeminiVoiceAnalyzer;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class UploadVoiceFileUseCase {
 
     private final UserAdaptor userAdaptor;
     private final VoiceDomainService voiceDomainService;
+    private final GeminiVoiceAnalyzer geminiVoiceAnalyzer;
 
     public Long execute(String username, QuestionCategory questionCategory, int questionIndex,
                         String voiceKey) {
@@ -25,6 +27,8 @@ public class UploadVoiceFileUseCase {
         User user = userAdaptor.queryUserByUsername(username);
         Voice voice = voiceDomainService.uploadVoiceFile(user, voiceKey);
         voiceDomainService.linkVoiceQuestion(voice, questionCategory, questionIndex);
+
+        geminiVoiceAnalyzer.analyzeAsync(voice.getId(), voiceKey);
 
         return voice.getId();
     }
