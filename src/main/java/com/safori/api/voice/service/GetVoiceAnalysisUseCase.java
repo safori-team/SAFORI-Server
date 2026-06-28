@@ -1,12 +1,16 @@
 package com.safori.api.voice.service;
 
 import com.safori.common.annotation.UseCase;
+import com.safori.domain.emotion.entity.EmotionType;
+import com.safori.domain.emotion.service.EmotionResolver;
 import com.safori.domain.voice.adaptor.VoiceAdaptor;
 import com.safori.domain.voice.adaptor.VoiceCompositeAdaptor;
 import com.safori.domain.voice.adaptor.VoiceEmotionLabelAdaptor;
+import com.safori.domain.voice.adaptor.VoiceEmotionReportAdaptor;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.entity.VoiceComposite;
 import com.safori.domain.voice.entity.VoiceEmotionLabel;
+import com.safori.domain.voice.entity.VoiceEmotionReport;
 import com.safori.domain.voice.exception.VoiceHandler;
 import com.safori.api.voice.dto.DiaryAnalysisResponse;
 import com.safori.api.voice.dto.EmotionBreakdownItem;
@@ -112,6 +116,7 @@ public class GetVoiceAnalysisUseCase {
     private final VoiceAdaptor voiceAdaptor;
     private final VoiceCompositeAdaptor voiceCompositeAdaptor;
     private final VoiceEmotionLabelAdaptor voiceEmotionLabelAdaptor;
+    private final VoiceEmotionReportAdaptor voiceEmotionReportAdaptor;
 
     public DiaryAnalysisResponse execute(Long voiceId, String username) {
         Voice voice = voiceAdaptor.queryById(voiceId);
@@ -127,9 +132,13 @@ public class GetVoiceAnalysisUseCase {
 
         List<VoiceEmotionLabel> labels = voiceEmotionLabelAdaptor.findByVoiceId(voiceId);
 
+        EmotionType reportedEmotion = voiceEmotionReportAdaptor.findByVoiceIdAndUsername(voiceId, username)
+                .map(VoiceEmotionReport::getReportedEmotion)
+                .orElse(null);
+
         return DiaryAnalysisResponse.builder()
                 .voiceId(voiceId)
-                .topEmotion(composite.getTopEmotion())
+                .topEmotion(EmotionResolver.effectiveTopEmotion(composite.getTopEmotion(), reportedEmotion))
                 .summary(composite.getSummary())
                 .breakdown(buildBreakdown(labels))
                 .chatSessionId(null)
