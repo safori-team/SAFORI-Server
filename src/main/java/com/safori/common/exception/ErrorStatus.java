@@ -39,7 +39,9 @@ public enum ErrorStatus implements BaseErrorCode {
 
     // 음성 오류 (4150번대)
     VOICE_NOT_FOUND(BAD_REQUEST, 4150, "존재하지 않는 음성파일입니다."),
-    VOICE_NO_PERMISSION(BAD_REQUEST, 4151, "음성파일의 접근권한이 없습니다.");
+    VOICE_NO_PERMISSION(BAD_REQUEST, 4151, "음성파일의 접근권한이 없습니다."),
+    VOICE_ANALYSIS_NOT_COMPLETED(BAD_REQUEST, 4152, "분석이 완료되지 않은 음성파일입니다."),
+    VOICE_ANALYSIS_RESULT_NOT_FOUND(BAD_REQUEST, 4153, "분석 결과가 존재하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

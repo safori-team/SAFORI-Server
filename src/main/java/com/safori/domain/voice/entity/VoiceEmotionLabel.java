@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 /**
  * 세부 감정 레이블 저장 테이블.
@@ -45,6 +47,7 @@ public class VoiceEmotionLabel extends BaseTimeEntity {
             nullable = false,
             foreignKey = @ForeignKey(name = "fk_vel_voice")
     )
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Voice voice;
 
     /**

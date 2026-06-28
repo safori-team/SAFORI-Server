@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Getter
@@ -26,6 +28,7 @@ public class VoiceQuestion {
             nullable = false,
             foreignKey = @ForeignKey(name = "fk_vq_voice")
     )
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Voice voice;
 
     @Enumerated(EnumType.STRING)

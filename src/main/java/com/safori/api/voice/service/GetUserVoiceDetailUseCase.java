@@ -3,6 +3,8 @@ package com.safori.api.voice.service;
 import com.safori.common.annotation.UseCase;
 import com.safori.common.consts.UserServiceQuestionStaticValues;
 import com.safori.common.service.S3PresignService;
+import com.safori.domain.emotion.entity.EmotionType;
+import com.safori.domain.emotion.service.EmotionResolver;
 import com.safori.domain.voice.adaptor.VoiceAdaptor;
 import com.safori.domain.voice.adaptor.VoiceCompositeAdaptor;
 import com.safori.domain.voice.adaptor.VoiceEmotionReportAdaptor;
@@ -55,15 +57,18 @@ public class GetUserVoiceDetailUseCase {
 
         Optional<VoiceEmotionReport> report = voiceEmotionReportAdaptor.findByVoiceIdAndUsername(voiceId, username);
 
+        EmotionType aiTopEmotion = composite != null ? composite.getTopEmotion() : null;
+        EmotionType reportedEmotion = report.map(VoiceEmotionReport::getReportedEmotion).orElse(null);
+
         return VoiceDetailResponse.builder()
                 .voiceId(voiceId)
                 .createdAt(voice.getCreatedDate().toLocalDate())
                 .analysisStatus(voice.getAnalysisStatus())
-                .topEmotion(composite != null ? composite.getTopEmotion() : null)
+                .topEmotion(EmotionResolver.effectiveTopEmotion(aiTopEmotion, reportedEmotion))
                 .questionTitle(resolveQuestionTitle(voiceQuestion))
                 .content(voiceContent != null ? voiceContent.getContent() : null)
                 .s3Url(s3PresignService.map(svc -> svc.generateGetUrl(voice.getVoiceKey())).orElse(null))
-                .reportedEmotion(report.map(VoiceEmotionReport::getReportedEmotion).orElse(null))
+                .reportedEmotion(reportedEmotion)
                 .reportMessage(report.map(VoiceEmotionReport::getMessage).orElse(null))
                 .build();
     }
