@@ -6,6 +6,7 @@ import com.safori.api.voice.dto.PresignedUrlResponse;
 import com.safori.api.voice.dto.RecentVoiceItem;
 import com.safori.api.voice.dto.ReportVoiceEmotionRequest;
 import com.safori.api.voice.dto.VoiceDetailResponse;
+import com.safori.api.voice.dto.VoiceDiaryStatusResponse;
 import com.safori.api.voice.dto.VoiceListResponse;
 import com.safori.api.voice.service.DeleteVoiceUseCase;
 import com.safori.api.voice.service.GenerateVoicePresignedUrlUseCase;
@@ -13,6 +14,7 @@ import com.safori.api.voice.service.GetRecentVoicesUseCase;
 import com.safori.api.voice.service.GetUserVoiceDetailUseCase;
 import com.safori.api.voice.service.GetUserVoiceListUseCase;
 import com.safori.api.voice.service.GetVoiceAnalysisUseCase;
+import com.safori.api.voice.service.GetVoiceDiaryStatusUseCase;
 import com.safori.api.voice.service.ReportVoiceEmotionUseCase;
 import com.safori.api.voice.service.UploadVoiceFileUseCase;
 import com.safori.common.annotation.UserCode;
@@ -46,6 +48,7 @@ public class VoiceApiController {
     private final GetUserVoiceListUseCase getUserVoiceListUseCase;
     private final GetUserVoiceDetailUseCase getUserVoiceDetailUseCase;
     private final GetVoiceAnalysisUseCase getVoiceAnalysisUseCase;
+    private final GetVoiceDiaryStatusUseCase getVoiceDiaryStatusUseCase;
     private final GetRecentVoicesUseCase getRecentVoicesUseCase;
     private final ReportVoiceEmotionUseCase reportVoiceEmotionUseCase;
 
@@ -55,6 +58,16 @@ public class VoiceApiController {
     @GetMapping("/recent")
     public ApiResponseDto<List<RecentVoiceItem>> getRecentVoices(@UserCode String username) {
         return ApiResponseDto.onSuccess(getRecentVoicesUseCase.execute(username));
+    }
+
+    @Operation(summary = "마음일기 분석 처리 상태 조회",
+            description = "음성 분석 진행 상황을 조회합니다. 분석 완료 폴링에 사용합니다. (보호 엔드포인트)")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음")
+    @GetMapping("/{voiceId}/status")
+    public ApiResponseDto<VoiceDiaryStatusResponse> getVoiceDiaryStatus(@PathVariable Long voiceId,
+                                                                        @UserCode String username) {
+        return ApiResponseDto.onSuccess(getVoiceDiaryStatusUseCase.execute(voiceId, username));
     }
 
     @Operation(summary = "AI 감정 분석 결과 오류 신고",
