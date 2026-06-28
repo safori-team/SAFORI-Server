@@ -4,6 +4,7 @@ import com.safori.common.annotation.Adaptor;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.repository.VoiceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -35,6 +36,12 @@ public class VoiceAdaptorImpl implements VoiceAdaptor {
         LocalDateTime start = createdAt.atStartOfDay();
         LocalDateTime end = createdAt.plusDays(1).atStartOfDay();
         return voiceRepository.findByUser_UsernameAndCreatedDateBetween(username, start, end);
+    }
+
+    @Override
+    public List<Voice> queryLatestByUsername(String username, int limit) {
+        if (limit <= 0) return List.of();
+        return voiceRepository.findByUser_UsernameOrderByCreatedDateDesc(username, PageRequest.of(0, limit));
     }
 
     @Override

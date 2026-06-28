@@ -3,11 +3,13 @@ package com.safori.api.voice.controller;
 import com.safori.api.common.dto.ApiResponseDto;
 import com.safori.api.voice.dto.DiaryAnalysisResponse;
 import com.safori.api.voice.dto.PresignedUrlResponse;
+import com.safori.api.voice.dto.RecentVoiceItem;
 import com.safori.api.voice.dto.ReportVoiceEmotionRequest;
 import com.safori.api.voice.dto.VoiceDetailResponse;
 import com.safori.api.voice.dto.VoiceListResponse;
 import com.safori.api.voice.service.DeleteVoiceUseCase;
 import com.safori.api.voice.service.GenerateVoicePresignedUrlUseCase;
+import com.safori.api.voice.service.GetRecentVoicesUseCase;
 import com.safori.api.voice.service.GetUserVoiceDetailUseCase;
 import com.safori.api.voice.service.GetUserVoiceListUseCase;
 import com.safori.api.voice.service.GetVoiceAnalysisUseCase;
@@ -30,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "[마음일기(음성)]", description = "마음일기(음성) 업로드 · 등록 · 삭제 API.")
 @RestController
 @RequiredArgsConstructor
@@ -42,7 +46,16 @@ public class VoiceApiController {
     private final GetUserVoiceListUseCase getUserVoiceListUseCase;
     private final GetUserVoiceDetailUseCase getUserVoiceDetailUseCase;
     private final GetVoiceAnalysisUseCase getVoiceAnalysisUseCase;
+    private final GetRecentVoicesUseCase getRecentVoicesUseCase;
     private final ReportVoiceEmotionUseCase reportVoiceEmotionUseCase;
+
+    @Operation(summary = "최근 마음일기 3건 조회 (홈화면용)",
+            description = "홈화면에 표시할 최근 마음일기 3건을 반환합니다. 분석 전이면 topEmotion·content는 null입니다. (보호 엔드포인트)")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping("/recent")
+    public ApiResponseDto<List<RecentVoiceItem>> getRecentVoices(@UserCode String username) {
+        return ApiResponseDto.onSuccess(getRecentVoicesUseCase.execute(username));
+    }
 
     @Operation(summary = "AI 감정 분석 결과 오류 신고",
             description = "AI가 분석한 감정이 실제와 다를 때 사용자가 실제 감정을 신고합니다. 동일 voiceId 재신고 시 기존 내용을 덮어씁니다. (보호 엔드포인트)")

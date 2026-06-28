@@ -13,6 +13,8 @@ public interface VoiceAdaptor {
 
     List<Voice> queryByUsernameAndCreatedAt(String username, LocalDate createdAt);
 
+    List<Voice> queryLatestByUsername(String username, int limit);
+
     Voice save(Voice voice);
 
     void deleteById(Long voiceId);
