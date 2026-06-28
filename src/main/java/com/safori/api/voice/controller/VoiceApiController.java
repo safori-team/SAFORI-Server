@@ -1,6 +1,7 @@
 package com.safori.api.voice.controller;
 
 import com.safori.api.common.dto.ApiResponseDto;
+import com.safori.api.voice.dto.DiaryAnalysisResponse;
 import com.safori.api.voice.dto.PresignedUrlResponse;
 import com.safori.api.voice.dto.VoiceDetailResponse;
 import com.safori.api.voice.dto.VoiceListResponse;
@@ -8,6 +9,7 @@ import com.safori.api.voice.service.DeleteVoiceUseCase;
 import com.safori.api.voice.service.GenerateVoicePresignedUrlUseCase;
 import com.safori.api.voice.service.GetUserVoiceDetailUseCase;
 import com.safori.api.voice.service.GetUserVoiceListUseCase;
+import com.safori.api.voice.service.GetVoiceAnalysisUseCase;
 import com.safori.api.voice.service.UploadVoiceFileUseCase;
 import com.safori.common.annotation.UserCode;
 import com.safori.domain.question.entity.QuestionCategory;
@@ -35,6 +37,17 @@ public class VoiceApiController {
     private final DeleteVoiceUseCase deleteVoiceUseCase;
     private final GetUserVoiceListUseCase getUserVoiceListUseCase;
     private final GetUserVoiceDetailUseCase getUserVoiceDetailUseCase;
+    private final GetVoiceAnalysisUseCase getVoiceAnalysisUseCase;
+
+    @Operation(summary = "마음일기 감정 분석 결과 조회",
+            description = "분석 완료된 마음일기의 대표 감정·요약·세부 감정 breakdown을 반환합니다. (보호 엔드포인트)")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음 / `4152`: 분석 미완료 / `4153`: 분석 결과 없음")
+    @GetMapping("/{voiceId}/analysis")
+    public ApiResponseDto<DiaryAnalysisResponse> getVoiceAnalysis(@PathVariable Long voiceId,
+                                                                  @UserCode String username) {
+        return ApiResponseDto.onSuccess(getVoiceAnalysisUseCase.execute(voiceId, username));
+    }
 
     @Operation(summary = "마음일기 목록 조회",
             description = """
