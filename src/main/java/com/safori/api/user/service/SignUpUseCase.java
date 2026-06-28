@@ -21,7 +21,9 @@ public class SignUpUseCase {
         User user = userDomainService.registerUser(
                 userRegisterRequest.getUsername(),
                 userRegisterRequest.getPassword(),
-                userRegisterRequest.getName());
+                userRegisterRequest.getName(),
+                userRegisterRequest.getGender(),
+                userRegisterRequest.getNickname());
         return user.getId();
     }
 }

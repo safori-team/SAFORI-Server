@@ -1,5 +1,6 @@
 package com.safori.domain.user.service;
 
+import com.safori.domain.user.entity.Gender;
 import com.safori.domain.user.entity.Role;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.user.exception.UserHandler;
@@ -40,15 +41,34 @@ class UserDomainServiceImplTest {
         given(passwordEncoder.encode(rawPassword)).willReturn("ENCODED");
         given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        userDomainService.registerUser(username, rawPassword, name);
+        userDomainService.registerUser(username, rawPassword, name, Gender.MALE, "길동이");
 
         verify(userRepository).save(userCaptor.capture());
         User saved = userCaptor.getValue();
         assertThat(saved.getUsername()).isEqualTo(username);
         assertThat(saved.getPassword()).isEqualTo("ENCODED");
         assertThat(saved.getName()).isEqualTo(name);
+        assertThat(saved.getGender()).isEqualTo(Gender.MALE);
+        assertThat(saved.getNickname()).isEqualTo("길동이");
         assertThat(saved.getRole()).isEqualTo(Role.USER);
         assertThat(saved.getUserUuid()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("회원가입 성공 - 별명은 선택, null 그대로 저장")
+    void registerUser_nullNickname_savesWithNull() {
+        String username = "user02";
+        given(userRepository.existsByUsername(username)).willReturn(false);
+        given(passwordEncoder.encode("myPass1234")).willReturn("ENCODED");
+        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        userDomainService.registerUser(username, "myPass1234", "김영희", Gender.FEMALE, null);
+
+        verify(userRepository).save(userCaptor.capture());
+        User saved = userCaptor.getValue();
+        assertThat(saved.getGender()).isEqualTo(Gender.FEMALE);
+        assertThat(saved.getNickname()).isNull();
+        assertThat(saved.getPassword()).isEqualTo("ENCODED");
     }
 
     @Test
@@ -57,7 +77,7 @@ class UserDomainServiceImplTest {
         String username = "user01";
         given(userRepository.existsByUsername(username)).willReturn(true);
 
-        assertThatThrownBy(() -> userDomainService.registerUser(username, "myPass1234", "홍길동"))
+        assertThatThrownBy(() -> userDomainService.registerUser(username, "myPass1234", "홍길동", Gender.MALE, "길동이"))
                 .isEqualTo(UserHandler.USERNAME_ALREADY_EXISTS);
 
         verify(userRepository, never()).save(any(User.class));
