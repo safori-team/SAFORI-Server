@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Getter
@@ -32,6 +34,7 @@ public class VoiceComposite extends BaseTimeEntity {
             nullable = false,
             foreignKey = @ForeignKey(name = "fk_vc_voice2")
     )
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Voice voice;
 
     // text sentiment (nullable)

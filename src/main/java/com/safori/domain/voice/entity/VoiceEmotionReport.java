@@ -9,6 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 /**
  * 사용자가 AI 감정 분석 결과가 잘못됐다고 신고한 내역.
@@ -35,6 +37,7 @@ public class VoiceEmotionReport extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "voice_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_ver_voice"))
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Voice voice;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
