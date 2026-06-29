@@ -17,4 +17,10 @@ public class VoiceContentAdaptorImpl implements VoiceContentAdaptor {
     public VoiceContent save(VoiceContent voiceContent) {
         return voiceContentRepository.save(voiceContent);
     }
+
+    @Override
+    @Transactional
+    public void deleteByVoiceId(Long voiceId) {
+        voiceContentRepository.deleteByVoice_Id(voiceId);
+    }
 }

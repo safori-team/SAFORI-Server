@@ -10,4 +10,6 @@ public interface VoiceContentRepository extends JpaRepository<VoiceContent, Long
     Optional<VoiceContent> findByVoice_Id(Long voiceId);
 
     List<VoiceContent> findByVoice_IdIn(List<Long> voiceIds);
+
+    void deleteByVoice_Id(Long voiceId);
 }

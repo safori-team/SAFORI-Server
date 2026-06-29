@@ -1,6 +1,7 @@
 package com.safori.infra.ai.gemini;
 
 import com.safori.common.event.VoiceAnalysisCompletedEvent;
+import com.safori.domain.emotion.entity.EmotionType;
 import com.safori.domain.voice.adaptor.VoiceAdaptor;
 import com.safori.domain.voice.adaptor.VoiceCompositeAdaptor;
 import com.safori.domain.voice.adaptor.VoiceContentAdaptor;
@@ -118,7 +119,7 @@ public class GeminiVoiceAnalyzer {
             voiceAdaptor.save(voice);
 
             byte[] audioBytes = downloadFromS3(voiceKey);
-            String analysisJson = analyzeWithGemini(audioBytes, voiceKey);
+            String analysisJson = analyzeWithGemini(audioBytes, voiceKey, PROMPT);
             GeminiAnalysisResult result = objectMapper.readValue(analysisJson, GeminiAnalysisResult.class);
             VoiceComposite composite = emotionMapper.toVoiceComposite(result, voice);
             voiceCompositeAdaptor.save(composite);
@@ -164,6 +165,68 @@ public class GeminiVoiceAnalyzer {
         }
     }
 
+    /**
+     * 사용자 감정 신고 반영 재분석.
+     * <p>정정 신고({@code reportedEmotion} + {@code message})를 프롬프트에 주입해 다시 분석하고,
+     * <b>성공 시에만</b> 기존 분석 결과(composite/content/label)를 삭제 후 새 결과로 덮어쓴다.
+     * Gemini 호출이 실패하면 삭제 이전이므로 기존 분석 결과가 보존된다.
+     * <p>최초 분석과 달리 {@link VoiceAnalysisCompletedEvent}는 발행하지 않는다(이미 발행됨).
+     */
+    @Async
+    public void reanalyzeAsync(Long voiceId, String voiceKey, EmotionType reportedEmotion, String message) {
+        if (geminiClient.isEmpty() || s3Client.isEmpty()) {
+            log.debug("Gemini or S3 client not configured, skipping reanalysis for voiceId={}", voiceId);
+            return;
+        }
+
+        try {
+            Voice voice = voiceAdaptor.queryById(voiceId);
+
+            // Gemini 호출 먼저 — 실패 시 아래 삭제/저장에 도달하지 않아 기존 결과 보존
+            byte[] audioBytes = downloadFromS3(voiceKey);
+            String analysisJson = analyzeWithGemini(audioBytes, voiceKey, buildReanalysisPrompt(reportedEmotion, message));
+            GeminiAnalysisResult result = objectMapper.readValue(analysisJson, GeminiAnalysisResult.class);
+
+            // 덮어쓰기: 기존 분석 결과 제거 후 재저장
+            voiceCompositeAdaptor.deleteByVoiceId(voiceId);
+            voiceEmotionLabelAdaptor.deleteByVoiceId(voiceId);
+            voiceContentAdaptor.deleteByVoiceId(voiceId);
+
+            voiceCompositeAdaptor.save(emotionMapper.toVoiceComposite(result, voice));
+            List<VoiceEmotionLabel> labels = emotionMapper.toEmotionLabels(result, voice);
+            if (!labels.isEmpty()) {
+                voiceEmotionLabelAdaptor.saveAll(labels);
+            }
+            if (result.transcript() != null && !result.transcript().isBlank()) {
+                voiceContentAdaptor.save(VoiceContent.builder()
+                        .voice(voice)
+                        .content(result.transcript())
+                        .locale("ko-KR")
+                        .provider("gemini")
+                        .modelVersion(modelName)
+                        .build());
+            }
+            voice.markAnalysisCompleted();
+            voiceAdaptor.save(voice);
+            log.info("Gemini reanalysis saved for voiceId={}, reportedEmotion={}", voiceId, reportedEmotion);
+        } catch (Exception e) {
+            // 실패 시 기존 분석 결과 보존 (상태/데이터 변경 없음)
+            log.error("Gemini reanalysis failed for voiceId={} (기존 분석 결과 유지)", voiceId, e);
+        }
+    }
+
+    private String buildReanalysisPrompt(EmotionType reportedEmotion, String message) {
+        StringBuilder sb = new StringBuilder(PROMPT);
+        sb.append("\n\n[중요·사용자 정정] 사용자가 이 음성의 실제 대표 감정을 '")
+                .append(reportedEmotion.name().toLowerCase())
+                .append("'(으)로 정정했습니다.");
+        if (message != null && !message.isBlank()) {
+            sb.append(" 사용자 설명: ").append(message);
+        }
+        sb.append(" 이 정정을 우선 반영하여 다시 분석하세요.");
+        return sb.toString();
+    }
+
     private byte[] downloadFromS3(String voiceKey) {
         ResponseBytes<GetObjectResponse> responseBytes = s3Client.get().getObjectAsBytes(
                 GetObjectRequest.builder()
@@ -174,7 +237,7 @@ public class GeminiVoiceAnalyzer {
         return responseBytes.asByteArray();
     }
 
-    private String analyzeWithGemini(byte[] audioBytes, String voiceKey) throws Exception {
+    private String analyzeWithGemini(byte[] audioBytes, String voiceKey, String promptText) throws Exception {
         Client client = geminiClient.get();
         String mimeType = resolveMimeType(voiceKey);
 
@@ -199,7 +262,7 @@ public class GeminiVoiceAnalyzer {
                                     Part.builder().fileData(
                                             FileData.builder().fileUri(fileUri).build()
                                     ).build(),
-                                    Part.builder().text(PROMPT).build()
+                                    Part.builder().text(promptText).build()
                             ))
                             .build(),
                     GenerateContentConfig.builder()

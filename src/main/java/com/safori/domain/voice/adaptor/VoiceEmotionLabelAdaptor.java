@@ -11,6 +11,8 @@ public interface VoiceEmotionLabelAdaptor {
 
     List<VoiceEmotionLabel> findByVoiceId(Long voiceId);
 
+    void deleteByVoiceId(Long voiceId);
+
     /**
      * 특정 월의 label별 집계 데이터 반환 (버블차트용).
      * Object[] = { label, category, diaryCount(Long), avgIntensity(Double) }

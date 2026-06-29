@@ -18,4 +18,6 @@ public interface VoiceCompositeRepository extends JpaRepository<VoiceComposite, 
     List<VoiceComposite> findByVoice_IdIn(List<Long> voiceIds);
 
     Optional<VoiceComposite> findByVoice_Id(Long voiceId);
+
+    void deleteByVoice_Id(Long voiceId);
 }

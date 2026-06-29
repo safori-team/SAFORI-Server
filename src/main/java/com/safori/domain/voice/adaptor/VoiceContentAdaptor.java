@@ -4,4 +4,5 @@ import com.safori.domain.voice.entity.VoiceContent;
 
 public interface VoiceContentAdaptor {
     VoiceContent save(VoiceContent voiceContent);
+    void deleteByVoiceId(Long voiceId);
 }
