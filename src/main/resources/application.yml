@@ -53,6 +53,11 @@ gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-2.5-flash}
 
+# OpenAI (주간 감정 리포트). api-key 비우면 리포트 생성 시 예외(서버는 정상 기동)
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  model: ${OPENAI_MODEL:gpt-4o-mini}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
