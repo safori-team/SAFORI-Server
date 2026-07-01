@@ -12,4 +12,5 @@ public interface VoiceCompositeAdaptor {
     List<VoiceComposite> queryByVoiceIds(List<Long> voiceIds);
     Optional<VoiceComposite> findByVoiceId(Long voiceId);
     VoiceComposite save(VoiceComposite voiceComposite);
+    void deleteByVoiceId(Long voiceId);
 }

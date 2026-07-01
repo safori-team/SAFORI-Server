@@ -14,6 +14,8 @@ public class VoiceHandler extends GeneralException {
             new VoiceHandler(ErrorStatus.VOICE_ANALYSIS_NOT_COMPLETED);
     public static final GeneralException ANALYSIS_RESULT_NOT_FOUND =
             new VoiceHandler(ErrorStatus.VOICE_ANALYSIS_RESULT_NOT_FOUND);
+    public static final GeneralException ALREADY_EXISTS_TODAY =
+            new VoiceHandler(ErrorStatus.VOICE_ALREADY_EXISTS_TODAY);
 
     public VoiceHandler(BaseErrorCode code) {
         super(code);

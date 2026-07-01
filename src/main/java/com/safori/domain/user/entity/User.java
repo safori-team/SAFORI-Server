@@ -50,6 +50,11 @@ public class User extends BaseTimeEntity implements UserDetails {
 
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
+
+    private String nickname;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singleton(new SimpleGrantedAuthority(this.role.getKey()));

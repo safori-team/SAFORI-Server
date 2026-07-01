@@ -1,7 +1,9 @@
 package com.safori.api.user.dto;
 
+import com.safori.domain.user.entity.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -29,4 +31,11 @@ public class UserRegisterRequest {
     @Size(min = 8, max = 20, message = "비밀번호는 8~20자로 입력해 주세요")
     @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).+$", message = "비밀번호는 영문, 숫자를 혼합하여 입력해 주세요")
     private final String password;
+
+    @Schema(description = "성별 (MALE / FEMALE)", example = "MALE")
+    @NotNull(message = "성별은 필수입니다")
+    private final Gender gender;
+
+    @Schema(description = "별명 (선택)", example = "길동이")
+    private final String nickname;
 }

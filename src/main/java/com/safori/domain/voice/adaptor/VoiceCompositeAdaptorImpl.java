@@ -42,4 +42,10 @@ public class VoiceCompositeAdaptorImpl implements VoiceCompositeAdaptor {
     public VoiceComposite save(VoiceComposite voiceComposite) {
         return voiceCompositeRepository.save(voiceComposite);
     }
+
+    @Override
+    @Transactional
+    public void deleteByVoiceId(Long voiceId) {
+        voiceCompositeRepository.deleteByVoice_Id(voiceId);
+    }
 }

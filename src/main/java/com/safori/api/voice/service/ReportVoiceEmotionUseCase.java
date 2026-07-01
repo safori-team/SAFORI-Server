@@ -9,6 +9,7 @@ import com.safori.domain.voice.adaptor.VoiceEmotionReportAdaptor;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.entity.VoiceEmotionReport;
 import com.safori.domain.voice.exception.VoiceHandler;
+import com.safori.infra.ai.gemini.GeminiVoiceAnalyzer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class ReportVoiceEmotionUseCase {
     private final VoiceAdaptor voiceAdaptor;
     private final UserAdaptor userAdaptor;
     private final VoiceEmotionReportAdaptor voiceEmotionReportAdaptor;
+    private final GeminiVoiceAnalyzer geminiVoiceAnalyzer;
 
     @Transactional
     public void execute(Long voiceId, String username, EmotionType reportedEmotion, String message) {
@@ -48,5 +50,8 @@ public class ReportVoiceEmotionUseCase {
                                     .build());
                         }
                 );
+
+        // 신고 반영 재분석 (비동기). 실패해도 기존 분석 결과는 보존된다.
+        geminiVoiceAnalyzer.reanalyzeAsync(voiceId, voice.getVoiceKey(), reportedEmotion, message);
     }
 }

@@ -1,6 +1,7 @@
 package com.safori.domain.user.service;
 
 import com.safori.common.annotation.DomainService;
+import com.safori.domain.user.entity.Gender;
 import com.safori.domain.user.entity.Role;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.user.repository.UserRepository;
@@ -21,7 +22,7 @@ public class UserDomainServiceImpl implements UserDomainService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public User registerUser(String username, String password, String name) {
+    public User registerUser(String username, String password, String name, Gender gender, String nickname) {
         if (userRepository.existsByUsername(username)) {
             throw USERNAME_ALREADY_EXISTS;
         }
@@ -29,6 +30,8 @@ public class UserDomainServiceImpl implements UserDomainService {
                 .username(username)
                 .password(passwordEncoder.encode(password))
                 .name(name)
+                .gender(gender)
+                .nickname(nickname)
                 .role(Role.USER)
                 .userUuid(UUID.randomUUID().toString())
                 .build();

@@ -17,6 +17,8 @@ public class GetUserInfoUseCase {
         return UserInfoResponse.builder()
                 .name(user.getName())
                 .username(user.getUsername())
+                .gender(user.getGender())
+                .nickname(user.getNickname())
                 .build();
     }
 }

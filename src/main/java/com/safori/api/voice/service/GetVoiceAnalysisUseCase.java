@@ -13,7 +13,8 @@ import com.safori.domain.voice.entity.VoiceEmotionLabel;
 import com.safori.domain.voice.entity.VoiceEmotionReport;
 import com.safori.domain.voice.exception.VoiceHandler;
 import com.safori.api.voice.dto.DiaryAnalysisResponse;
-import com.safori.api.voice.dto.EmotionBreakdownItem;
+import com.safori.api.voice.dto.MajorEmotionItem;
+import com.safori.api.voice.dto.SubEmotionItem;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Comparator;
@@ -140,34 +141,69 @@ public class GetVoiceAnalysisUseCase {
                 .voiceId(voiceId)
                 .topEmotion(EmotionResolver.effectiveTopEmotion(composite.getTopEmotion(), reportedEmotion))
                 .summary(composite.getSummary())
-                .breakdown(buildBreakdown(labels))
+                .majorEmotions(buildMajorEmotions(composite))
+                .subEmotions(buildSubEmotions(labels))
                 .chatSessionId(null)
                 .chatStatus("pending")
                 .build();
     }
 
+    private static final int SUB_EMOTION_LIMIT = 6;
+
     /**
-     * VoiceEmotionLabel 목록 → EmotionBreakdownItem 리스트 변환.
+     * 6대 감정 분포(VoiceComposite의 *_bps) → MajorEmotionItem 리스트.
      *
      * <ul>
-     *   <li>비율 = 해당 label의 intensityX1000 / 전체 합계 × 100 (소수점 1자리)</li>
-     *   <li>정렬 기준: 비율 내림차순</li>
-     *   <li>레이블 표시명: {@link #LABEL_KO} 매핑, 미등록 시 원문 그대로</li>
-     *   <li>질문: {@link #CATEGORY_QUESTION} 매핑, category 기준</li>
+     *   <li>항상 6개 (happy/sad/neutral/angry/anxiety/surprise)</li>
+     *   <li>비율 = bps / 100 (0~100, 소수점 1자리). 6개 합 ≈ 100</li>
+     *   <li>정렬: 비율 내림차순</li>
+     *   <li>질문: {@link #CATEGORY_QUESTION} 매핑 (감정 카테고리 기준)</li>
      * </ul>
      */
-    private List<EmotionBreakdownItem> buildBreakdown(List<VoiceEmotionLabel> labels) {
+    private List<MajorEmotionItem> buildMajorEmotions(VoiceComposite composite) {
+        Map<EmotionType, Integer> bpsByEmotion = new java.util.EnumMap<>(EmotionType.class);
+        bpsByEmotion.put(EmotionType.HAPPY, composite.getHappyBps());
+        bpsByEmotion.put(EmotionType.SAD, composite.getSadBps());
+        bpsByEmotion.put(EmotionType.NEUTRAL, composite.getNeutralBps());
+        bpsByEmotion.put(EmotionType.ANGRY, composite.getAngryBps());
+        bpsByEmotion.put(EmotionType.ANXIETY, composite.getAnxietyBps());
+        bpsByEmotion.put(EmotionType.SURPRISE, composite.getSurpriseBps());
+
+        return bpsByEmotion.entrySet().stream()
+                .sorted(Comparator.<Map.Entry<EmotionType, Integer>>comparingInt(e ->
+                        e.getValue() == null ? 0 : e.getValue()).reversed())
+                .map(e -> {
+                    int bps = e.getValue() == null ? 0 : e.getValue();
+                    return MajorEmotionItem.builder()
+                            .emotion(e.getKey())
+                            .percentage(Math.round(bps / 10.0) / 10.0)
+                            .build();
+                })
+                .toList();
+    }
+
+    /**
+     * 세부 감정 레이블 → SubEmotionItem 리스트.
+     *
+     * <ul>
+     *   <li>intensity 내림차순 상위 {@value #SUB_EMOTION_LIMIT}개 (label 수 적으면 그만큼)</li>
+     *   <li>비율 = 해당 label intensityX1000 / 전체 label 합계 × 100 (소수점 1자리). 잘린 만큼 합 < 100</li>
+     *   <li>레이블 표시명: {@link #LABEL_KO} 매핑, 미등록 시 원문 그대로</li>
+     * </ul>
+     */
+    private List<SubEmotionItem> buildSubEmotions(List<VoiceEmotionLabel> labels) {
         if (labels.isEmpty()) {
             return List.of();
         }
 
         double total = labels.stream()
-                .mapToLong(l -> l.getIntensityX1000())
+                .mapToLong(VoiceEmotionLabel::getIntensityX1000)
                 .sum();
 
         return labels.stream()
                 .sorted(Comparator.comparingInt(VoiceEmotionLabel::getIntensityX1000).reversed())
-                .map(l -> EmotionBreakdownItem.builder()
+                .limit(SUB_EMOTION_LIMIT)
+                .map(l -> SubEmotionItem.builder()
                         .label(LABEL_KO.getOrDefault(l.getLabel(), l.getLabel()))
                         .percentage(total > 0
                                 ? Math.round(l.getIntensityX1000() / total * 1000.0) / 10.0

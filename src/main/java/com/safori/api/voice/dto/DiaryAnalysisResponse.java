@@ -24,8 +24,10 @@ public class DiaryAnalysisResponse {
     private final EmotionType topEmotion;
     @Schema(description = "도란이 말풍선용 감정 요약 텍스트", example = "오늘 하루 행복한 감정을 많이 느끼셨군요!")
     private final String summary;
-    @Schema(description = "6개 대 감정별 비율 및 탐색 질문 목록")
-    private final List<EmotionBreakdownItem> breakdown;
+    @Schema(description = "6대 감정별 비율 및 탐색 질문 (비율 내림차순, 합 ≈ 100)")
+    private final List<MajorEmotionItem> majorEmotions;
+    @Schema(description = "세부 감정 상위 6개 비율 (전체 세부 감정 대비, 비율 내림차순)")
+    private final List<SubEmotionItem> subEmotions;
     @Schema(description = "연결된 챗봇 세션 ID (chatStatus=ready 일 때 유효)", example = "550e8400-e29b-41d4-a716-446655440000")
     private final String chatSessionId;
     @Schema(description = "챗봇 세션 상태 (pending: 생성 전·중 / ready: 준비 완료 / failed: 생성 실패)", example = "ready")
