@@ -20,6 +20,16 @@ public final class DateRangeUtil {
     }
 
     /**
+     * 해당 월 전체 범위를 반환한다. end는 다음 달 1일 00:00(exclusive).
+     */
+    public static DateRange monthRange(String month) {
+        YearMonth yearMonth = YearMonth.parse(month, YEAR_MONTH_FORMATTER);
+        LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime end = yearMonth.atEndOfMonth().plusDays(1).atStartOfDay();
+        return new DateRange(start, end);
+    }
+
+    /**
      * 캘린더 행(일요일 시작) 기준 주간 범위를 반환한다.
      * week=1 은 해당 월 1일이 속한 캘린더 행의 일요일 00:00 부터 시작한다.
      * 요청 월의 범위로 clamp 한다.
