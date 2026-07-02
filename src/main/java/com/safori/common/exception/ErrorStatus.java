@@ -25,6 +25,8 @@ public enum ErrorStatus implements BaseErrorCode {
     _BAD_REQUEST(BAD_REQUEST, 4000, "잘못된 요청입니다."),
     _UNAUTHORIZED(UNAUTHORIZED, 4001, "로그인이 필요합니다."),
     _FORBIDDEN(FORBIDDEN, 4002, "금지된 요청입니다."),
+    DATE_RANGE_INVALID_WEEK(BAD_REQUEST, 4003, "유효하지 않은 주차 값입니다."),
+    DATE_RANGE_INVALID_CALENDAR_WEEK_RANGE(BAD_REQUEST, 4004, "유효하지 않은 주간 날짜 범위입니다."),
 
     // 유저 오류 (4050번대)
     USER_USERNAME_ALREADY_EXISTS(BAD_REQUEST, 4050, "이미 존재하는 username입니다."),
