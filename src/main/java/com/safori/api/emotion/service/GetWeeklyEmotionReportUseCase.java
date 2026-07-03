@@ -52,7 +52,7 @@ public class GetWeeklyEmotionReportUseCase {
             return cached.getReportMessage();
         }
 
-        String reportMessage = openAiWeeklyReportClient.generateWeeklyReport(user.getName(), weeklyEmotions);
+        String reportMessage = openAiWeeklyReportClient.generateWeeklyReport(user.getName(), user.getGender(), weeklyEmotions);
         return saveOrUpdate(cached, user, month, week, latestVoiceCompositeId, reportMessage).getReportMessage();
     }
 

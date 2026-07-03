@@ -51,7 +51,7 @@ public class GetMonthlyEmotionReportUseCase {
             return cached.getReportMessage();
         }
 
-        String reportMessage = openAiMonthlyReportClient.generateMonthlyReport(user.getName(), emotionCounts);
+        String reportMessage = openAiMonthlyReportClient.generateMonthlyReport(user.getName(), user.getGender(), emotionCounts);
         return saveOrUpdate(cached, user, month, latestVoiceCompositeId, reportMessage).getReportMessage();
     }
 

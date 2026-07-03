@@ -50,7 +50,7 @@ class GetMonthlyEmotionReportUseCaseTest {
         String msg = useCase.execute("user01", "2024-01", Map.of(), List.of());
 
         assertThat(msg).isEqualTo(NO_DATA_MESSAGE);
-        verify(openAiMonthlyReportClient, never()).generateMonthlyReport(any(), any());
+        verify(openAiMonthlyReportClient, never()).generateMonthlyReport(any(), any(), any());
         verify(monthlyEmotionReportRepository).save(any());
     }
 
@@ -70,7 +70,7 @@ class GetMonthlyEmotionReportUseCaseTest {
         String msg = useCase.execute("user01", "2024-01", COUNTS, List.of(vc));
 
         assertThat(msg).isEqualTo("캐시된 월간 리포트");
-        verify(openAiMonthlyReportClient, never()).generateMonthlyReport(any(), any());
+        verify(openAiMonthlyReportClient, never()).generateMonthlyReport(any(), any(), any());
         verify(monthlyEmotionReportRepository, never()).save(any());
     }
 
@@ -84,13 +84,13 @@ class GetMonthlyEmotionReportUseCaseTest {
         given(user.getName()).willReturn("홍길동");
         given(monthlyEmotionReportRepository.findByUser_IdAndReportMonth(1L, "2024-01"))
                 .willReturn(Optional.empty());
-        given(openAiMonthlyReportClient.generateMonthlyReport(eq("홍길동"), any())).willReturn("AI 월간 리포트");
+        given(openAiMonthlyReportClient.generateMonthlyReport(eq("홍길동"), any(), any())).willReturn("AI 월간 리포트");
         given(monthlyEmotionReportRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         String msg = useCase.execute("user01", "2024-01", COUNTS, List.of(vc));
 
         assertThat(msg).isEqualTo("AI 월간 리포트");
-        verify(openAiMonthlyReportClient).generateMonthlyReport(eq("홍길동"), any());
+        verify(openAiMonthlyReportClient).generateMonthlyReport(eq("홍길동"), any(), any());
         verify(monthlyEmotionReportRepository).save(any());
     }
 
@@ -107,7 +107,7 @@ class GetMonthlyEmotionReportUseCaseTest {
         given(user.getName()).willReturn("홍길동");
         given(monthlyEmotionReportRepository.findByUser_IdAndReportMonth(1L, "2024-01"))
                 .willReturn(Optional.of(cached));
-        given(openAiMonthlyReportClient.generateMonthlyReport(eq("홍길동"), any())).willReturn("새 월간 리포트");
+        given(openAiMonthlyReportClient.generateMonthlyReport(eq("홍길동"), any(), any())).willReturn("새 월간 리포트");
 
         String msg = useCase.execute("user01", "2024-01", COUNTS, List.of(vc));
 
