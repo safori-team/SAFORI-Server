@@ -37,10 +37,12 @@ class GetMonthlyEmotionBubbleUseCaseTest {
         assertThat(resp.getYearMonth()).isEqualTo("2024-01");
         assertThat(resp.getLabels()).hasSize(2);
         assertThat(resp.getLabels().get(0).getLabel()).isEqualTo("joy");
+        assertThat(resp.getLabels().get(0).getLabelKr()).isEqualTo("기쁨");
         assertThat(resp.getLabels().get(0).getCategory()).isEqualTo("happy");
         assertThat(resp.getLabels().get(0).getDiaryCount()).isEqualTo(5L);
         assertThat(resp.getLabels().get(0).getAvgIntensityX1000()).isEqualTo(7523);
         assertThat(resp.getLabels().get(1).getLabel()).isEqualTo("anxiety");
+        assertThat(resp.getLabels().get(1).getLabelKr()).isEqualTo("불안");
         assertThat(resp.getLabels().get(1).getAvgIntensityX1000()).isEqualTo(4000);
     }
 

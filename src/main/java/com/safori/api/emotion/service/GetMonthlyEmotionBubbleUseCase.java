@@ -3,6 +3,7 @@ package com.safori.api.emotion.service;
 import com.safori.api.emotion.dto.EmotionLabelItem;
 import com.safori.api.emotion.dto.MonthlyEmotionBubbleResponse;
 import com.safori.common.annotation.UseCase;
+import com.safori.common.consts.EmotionLabelStaticValues;
 import com.safori.domain.voice.adaptor.VoiceEmotionLabelAdaptor;
 
 import java.time.YearMonth;
@@ -29,6 +30,7 @@ public class GetMonthlyEmotionBubbleUseCase {
         List<EmotionLabelItem> labels = rows.stream()
                 .map(row -> EmotionLabelItem.builder()
                         .label((String) row[0])
+                        .labelKr(EmotionLabelStaticValues.toKorean((String) row[0]))
                         .category((String) row[1])
                         .diaryCount(((Number) row[2]).longValue())
                         .avgIntensityX1000(((Number) row[3]).intValue())
