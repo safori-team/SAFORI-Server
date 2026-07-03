@@ -47,7 +47,7 @@ class GetWeeklyEmotionReportUseCaseTest {
         String msg = useCase.execute("user01", "2024-01", 3, List.of(), List.of());
 
         assertThat(msg).isEqualTo(NO_DATA_MESSAGE);
-        verify(openAiWeeklyReportClient, never()).generateWeeklyReport(any(), any());
+        verify(openAiWeeklyReportClient, never()).generateWeeklyReport(any(), any(), any());
         verify(weeklyEmotionReportRepository).save(any());
     }
 
@@ -67,7 +67,7 @@ class GetWeeklyEmotionReportUseCaseTest {
         String msg = useCase.execute("user01", "2024-01", 3, List.of(), List.of(vc));
 
         assertThat(msg).isEqualTo("캐시된 리포트");
-        verify(openAiWeeklyReportClient, never()).generateWeeklyReport(any(), any());
+        verify(openAiWeeklyReportClient, never()).generateWeeklyReport(any(), any(), any());
         verify(weeklyEmotionReportRepository, never()).save(any());
     }
 
@@ -81,13 +81,13 @@ class GetWeeklyEmotionReportUseCaseTest {
         given(user.getName()).willReturn("홍길동");
         given(weeklyEmotionReportRepository.findByUser_IdAndReportMonthAndReportWeek(1L, "2024-01", 3))
                 .willReturn(Optional.empty());
-        given(openAiWeeklyReportClient.generateWeeklyReport(eq("홍길동"), any())).willReturn("AI 리포트");
+        given(openAiWeeklyReportClient.generateWeeklyReport(eq("홍길동"), any(), any())).willReturn("AI 리포트");
         given(weeklyEmotionReportRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         String msg = useCase.execute("user01", "2024-01", 3, List.of(), List.of(vc));
 
         assertThat(msg).isEqualTo("AI 리포트");
-        verify(openAiWeeklyReportClient).generateWeeklyReport(eq("홍길동"), any());
+        verify(openAiWeeklyReportClient).generateWeeklyReport(eq("홍길동"), any(), any());
         verify(weeklyEmotionReportRepository).save(any());
     }
 
@@ -104,7 +104,7 @@ class GetWeeklyEmotionReportUseCaseTest {
         given(user.getName()).willReturn("홍길동");
         given(weeklyEmotionReportRepository.findByUser_IdAndReportMonthAndReportWeek(1L, "2024-01", 3))
                 .willReturn(Optional.of(cached));
-        given(openAiWeeklyReportClient.generateWeeklyReport(eq("홍길동"), any())).willReturn("새 리포트");
+        given(openAiWeeklyReportClient.generateWeeklyReport(eq("홍길동"), any(), any())).willReturn("새 리포트");
 
         String msg = useCase.execute("user01", "2024-01", 3, List.of(), List.of(vc));
 
