@@ -25,6 +25,13 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        mavenBom 'io.opentelemetry:opentelemetry-bom:1.60.1'
+        mavenBom 'io.opentelemetry:opentelemetry-bom-alpha:1.60.1-alpha'
+    }
+}
+
 dependencies {
     // Spring Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -46,7 +53,11 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
     // Swagger / OpenAPI
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
+
+    // Sentry: 에러 자동수집(스타터) + OTel OTLP 트레이스 export
+    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.47.0'
+    implementation 'io.sentry:sentry-opentelemetry-otlp-spring:8.47.0'
 
     // AWS SDK S3 (Presigned URL 발급)
     implementation platform('software.amazon.awssdk:bom:2.26.22')
@@ -85,7 +96,7 @@ openApi {
     waitTimeInSeconds = 60
     // 외부 DB 없이 H2 인메모리로 부팅해 스펙만 추출
     customBootRun {
-        jvmArgs = ["-Dspring.profiles.active=apidocs"]
+        jvmArgs = ["-Dspring.profiles.active=apidocs", "-Dotel.sdk.disabled=true"]
     }
 }
 

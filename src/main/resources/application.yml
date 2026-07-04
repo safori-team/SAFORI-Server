@@ -58,6 +58,14 @@ openai:
   api-key: ${OPENAI_API_KEY:}
   model: ${OPENAI_MODEL:gpt-4o-mini}
 
+# Sentry 에러. dsn 비면 비활성. 트레이스는 OTEL_* 환경변수(.env.example) 참고.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:local}
+  send-default-pii: false
+  logs:
+    enabled: false
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

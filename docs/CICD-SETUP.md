@@ -5,7 +5,7 @@
 | 브랜치 | GitHub Environment | Spring 프로파일 | 서버 | DB |
 |---|---|---|---|---|
 | `main` | `prod` | `prod` | prod EC2 | prod RDS |
-| `develop` | `alpha` | `alpha` | alpha EC2 (별도 인스턴스) | alpha RDS |
+| `develop` | `alpha` | `alpha` | alpha EC2 | alpha RDS |
 
 ## 워크플로
 
@@ -15,8 +15,6 @@
 배포 잡은 `github.ref_name` 으로 `prod`/`alpha` Environment 를 선택하고, 컨테이너에 `SPRING_PROFILES_ACTIVE` 를 주입한다.
 
 ## 환경 변수 관리 (Safori-Back-Env)
-
-런타임 환경 변수(`.env`)는 조직 하위 **`Safori-Back-Env`** private 레포에서 단일 소스로 관리한다. alpha / prod 를 디렉토리로 분리한다.
 
 ```
 Safori-Back-Env/
@@ -63,6 +61,47 @@ Settings → Environments 에서 **`prod`**, **`alpha`** 두 개 생성 후 각�
 - ECR: `GetAuthorizationToken`, push/pull
 - SSM: `SendCommand`, `ListCommandInvocations`, `GetCommandInvocation`
 - 신뢰 정책: `token.actions.githubusercontent.com`, 레포 + 환경(`prod`/`alpha`) 조건
+
+## 모니터링 (Sentry + OpenTelemetry)
+
+에러와 트레이스를 **하이브리드**로 수집한다.
+
+| 신호 | 경로 | 근거 |
+|---|---|---|
+| 에러(Issue) | 앱 → Sentry SDK → DSN 직결 | Issue 그룹핑/스택트레이스/알림은 SDK 만 제대로 됨 |
+| 트레이스(응답시간·처리량·에러율) | 앱 → OTLP → `otel-collector` 사이드카 → Sentry OTLP | collector 가 앱과 별도 프로세스라 앱이 죽어도 이미 받은 스팬 유실 안 됨. 영속 큐로 재시작에도 버퍼 보존 |
+
+배포 시 `deploy.yml` 이 앱 컨테이너와 함께 `otel-collector` 컨테이너를 **같은 `DOCKER_NETWORK`** 에 띄운다.
+앱은 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector:4318/v1/traces` 로 스팬을 보내고,
+collector 가 `x-sentry-auth` 헤더를 붙여 Sentry 로 forward 한다.
+
+### Safori-Back-Env 에 추가할 것 (환경별)
+
+1. **`otel-collector-config.yaml`** — 이 레포 `docker/otel-collector-config.yaml` 을 env-repo **루트**에 복사(비밀 아님, `${env:}` 치환). alpha/prod 공용.
+2. 각 `${SPRING_PROFILE}.env` 에 아래 키 추가 (`.env.example` 의 "모니터링" 섹션 참고):
+
+| 키 | 설명 | 예시 |
+|---|---|---|
+| `SENTRY_DSN` | Sentry 프로젝트 DSN | `https://<key>@o<org>.ingest.us.sentry.io/<proj>` |
+| `SENTRY_ENVIRONMENT` | Sentry environment 태그 | `alpha` / `prod` |
+| `OTEL_SDK_DISABLED` | OTel 마스터 스위치 | `false` |
+| `OTEL_SERVICE_NAME` | 서비스명 | `safori-server` |
+| `OTEL_PROPAGATORS` | 전파기 | `sentry` |
+| `OTEL_TRACES_EXPORTER` | 익스포터 | `otlp` |
+| `OTEL_LOGS_EXPORTER` / `OTEL_METRICS_EXPORTER` | 로그/메트릭 익스포터 | `none` |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | collector 주소 | `http://otel-collector:4318/v1/traces` |
+| `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` | 프로토콜 | `http/protobuf` |
+| `OTEL_TRACES_SAMPLER` / `OTEL_TRACES_SAMPLER_ARG` | 샘플러/비율 | `parentbased_traceidratio` / `1.0` |
+| `SENTRY_OTLP_TRACES_ENDPOINT` | collector→Sentry OTLP endpoint | `https://o<org>.ingest.us.sentry.io/api/<proj>/integration/otlp/v1/traces` |
+| `SENTRY_OTLP_AUTH_HEADER` | `x-sentry-auth` 헤더값 | `sentry sentry_key=<publicKey>` |
+
+> alpha/prod 를 Sentry 프로젝트로 분리하려면 프로젝트 2개 만들어 각 `.env` 에 서로 다른 DSN/OTLP 값을 넣는다.
+
+### 타겟 EC2 참고
+
+- collector 는 docker hub `otel/opentelemetry-collector-contrib:0.155.0` 를 pull(공개 이미지, ECR 불필요).
+- 영속 큐 디렉토리 `${APP_DIR}/otelcol-storage` 를 컨테이너 uid 10001 소유로 생성(스크립트가 처리).
+- collector 는 4318(HTTP)/4317(gRPC) 를 docker network 내부에서만 노출, 호스트 포트 매핑 없음.
 
 ## 현재 미포함 (추후 도입 예정)
 
