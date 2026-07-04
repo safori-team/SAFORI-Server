@@ -1,0 +1,46 @@
+# 트레이스 사이드카: 앱(OTLP) → collector → Sentry. env: SENTRY_OTLP_TRACES_ENDPOINT, SENTRY_OTLP_AUTH_HEADER
+
+extensions:
+  file_storage/otlp:
+    directory: /var/lib/otelcol/storage
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 128
+    spike_limit_mib: 32
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+
+exporters:
+  otlphttp/sentry:
+    traces_endpoint: ${env:SENTRY_OTLP_TRACES_ENDPOINT}
+    headers:
+      x-sentry-auth: ${env:SENTRY_OTLP_AUTH_HEADER}
+    compression: gzip
+    encoding: proto
+    sending_queue:
+      enabled: true
+      storage: file_storage/otlp
+    retry_on_failure:
+      enabled: true
+
+service:
+  extensions: [file_storage/otlp]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/sentry]
+  telemetry:
+    logs:
+      level: warn
