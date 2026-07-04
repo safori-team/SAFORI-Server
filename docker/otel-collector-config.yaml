@@ -22,7 +22,7 @@ processors:
     timeout: 5s
 
 exporters:
-  otlphttp/sentry:
+  otlp_http/sentry:
     traces_endpoint: ${env:SENTRY_OTLP_TRACES_ENDPOINT}
     headers:
       x-sentry-auth: ${env:SENTRY_OTLP_AUTH_HEADER}
@@ -40,7 +40,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlphttp/sentry]
+      exporters: [otlp_http/sentry]
   telemetry:
     logs:
       level: warn
