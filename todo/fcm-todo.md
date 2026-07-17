@@ -30,12 +30,13 @@
 
 **검토 포인트**: 테이블/컬럼 네이밍 기존 컨벤션 일치 여부, 동일 토큰 재등록(다른 유저로 기기 양도) 시 처리
 
-### Task 3. 토큰 등록/삭제 API
-- [ ] `POST /v1/api/users/device-tokens` — 등록/갱신 (upsert)
-- [ ] `DELETE /v1/api/users/device-tokens` — 삭제 (로그아웃 시)
-- [ ] Controller/UseCase/DTO — 기존 `api/` 레이어 구조 따름
-- [ ] Swagger 문서화 (기존 어노테이션 컨벤션)
-- [ ] 테스트 코드
+### Task 3. 토큰 등록/삭제 API ✅
+- [x] `POST /v1/api/users/device-tokens` — 등록/갱신 (upsert: 동일 토큰 존재 시 소유자 교체)
+- [x] `DELETE /v1/api/users/device-tokens?token=` — 삭제, 본인 소유만 + 멱등 (기존 sign-out처럼 @RequestParam)
+- [x] `api/notification/{controller,service,dto}` — 기존 레이어 구조, `@UserCode`로 인증 사용자 추출
+- [x] Swagger 문서화 (@Tag/@Operation/@ApiResponse 컨벤션)
+- [x] 테스트 5개 (신규 저장/upsert 소유자 교체/본인 삭제/타인 무시/멱등) — 전체 테스트 통과
+- [x] 시큐리티: permitAll 목록에 없음 → JWT 보호 확인
 
 **검토 포인트**: URL 컨벤션(`/v1/api/users/...`) 일치, 인증 사용자 컨텍스트에서 user 추출 방식 기존과 동일한지
 
