@@ -19,12 +19,14 @@
 
 **검토 포인트**: 키 없이 부트 정상 기동하는지, 키 주입 방식(파일 경로 vs base64 JSON)이 배포 환경(docker)과 맞는지
 
-### Task 2. 디바이스 토큰 엔티티 + 저장소
-- [ ] `DeviceToken` 엔티티 (`domain/` 하위 신규 패키지)
-  - 사용자 1:N (멀티 디바이스), 토큰 unique 제약
-  - 필드: token, user FK, createdAt/updatedAt 등 기존 엔티티 컨벤션 따름
-- [ ] Repository 작성
-- [ ] 사용자 탈퇴 시 cascade 삭제 정합성 확인 (기존 삭제 cascade 방식 참고 — #108)
+### Task 2. 디바이스 토큰 엔티티 + 저장소 ✅
+- [x] `DeviceToken` 엔티티 (`domain/notification/entity`) — #116 알림 도메인도 이 패키지로 확장
+  - 사용자 1:N (멀티 디바이스), 토큰 전역 unique (length 512)
+  - `BaseTimeEntity` 상속, `@SuperBuilder`/`@EqualsAndHashCode(of="id")` 기존 컨벤션
+  - `reassignTo(User)` — 기기 양도 시 소유자 교체
+- [x] `DeviceTokenRepository` — findByToken, findAllByUser_Id, deleteByToken, deleteAllByTokenIn(무효 토큰 일괄 삭제용)
+- [x] 사용자 탈퇴 시 cascade: `@OnDelete(CASCADE)` — Voice/VoiceContent 동일 패턴 (DB FK 레벨)
+- [x] 검증: 컨텍스트 로드 시 `device_token` DDL 생성 확인
 
 **검토 포인트**: 테이블/컬럼 네이밍 기존 컨벤션 일치 여부, 동일 토큰 재등록(다른 유저로 기기 양도) 시 처리
 
