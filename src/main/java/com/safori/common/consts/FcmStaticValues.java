@@ -1,5 +1,7 @@
 package com.safori.common.consts;
 
+import lombok.experimental.UtilityClass;
+
 /**
  * FCM 전송 관련 고정 상수.
  */

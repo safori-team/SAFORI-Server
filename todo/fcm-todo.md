@@ -59,12 +59,12 @@
 
 **검토 포인트**: 포트 시그니처가 #116 이벤트 로직에서 쓰기 충분한지 (title/body/data payload), 무효 토큰 삭제 트랜잭션 처리
 
-### Task 5. 문서 + 배포 반영
-- [ ] `docs/CICD-SETUP.md`에 Firebase 시크릿 설정 절차 추가
-- [ ] `deploy.yml` 등 배포 파이프라인에 키 주입 반영 (필요 시)
-- [ ] 실기기/테스트 토큰으로 전송 스모크 테스트
+### Task 5. 문서 + 배포 반영 ✅
+- [x] `docs/CICD-SETUP.md`에 "푸시 알림 (Firebase FCM)" 섹션 추가 — env-repo `.env`에 `FIREBASE_CREDENTIALS_BASE64` 추가 + 키 발급/base64 생성 절차
+- [x] `deploy.yml` 변경 불필요 확인 — env는 env-repo `{profile}.env` → `--env-file`로 앱 컨테이너에 주입. Sentry/Gemini 시크릿과 동일 경로
+- [ ] 실기기/테스트 토큰 전송 스모크 테스트 — **Firebase 프로젝트+실토큰 필요, 배포 후 수동 확인** (env-repo에 키 세팅 후)
 
-**검토 포인트**: 시크릿 관리 방식이 기존(Sentry DSN 등)과 일관적인지
+**검토 결과**: 시크릿 관리 = base64 env, env-repo `.env` 단일 소스. Sentry DSN/Gemini API 키와 동일 방식 → 일관적
 
 ---
 
