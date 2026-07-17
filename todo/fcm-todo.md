@@ -41,14 +41,21 @@
 
 **검토 포인트**: URL 컨벤션(`/v1/api/users/...`) 일치, 인증 사용자 컨텍스트에서 user 추출 방식 기존과 동일한지
 
-### Task 4. 푸시 전송 포트 + FCM 어댑터
-- [ ] 전송 포트 인터페이스 정의 (예: `PushNotificationPort`) — 비즈니스 로직이 FCM에 직접 의존하지 않도록
-- [ ] FCM 구현 어댑터 (`infra/fcm`) — 기존 `infra/openai` 어댑터 패턴 참고
-  - 단건 전송 / 멀티캐스트 전송
-  - `UNREGISTERED` 등 무효 토큰 응답 시 DB에서 자동 삭제
-  - 전송 실패 로깅
-- [ ] Firebase 비활성 환경용 no-op 구현 (키 없을 때)
-- [ ] 테스트 코드 (FirebaseMessaging mock)
+### Task 4. 푸시 전송 포트 + FCM 어댑터 ✅
+- [x] 포트: `domain/notification/port/PushNotificationSender` + `PushMessage`/`PushSendResult` record
+- [x] FCM 어댑터 (`infra/fcm/FcmPushNotificationSender`)
+  - `sendEachForMulticast` 500개 배치 분할 (FCM 상한)
+  - UNREGISTERED/INVALID_ARGUMENT → invalidTokens 수집, UNAVAILABLE 등 일시 오류는 보존
+  - 전송 실패는 예외 전파 없이 집계 + 로깅
+- [x] Firebase 비활성: `ObjectProvider<FirebaseMessaging>` — 빈 없으면 전송 건너뜀 (별도 no-op 클래스 불필요)
+- [x] `SendPushNotificationUseCase.execute(userId, message)` — 토큰 조회(Adaptor)→전송(Port)→무효 토큰 삭제(DomainService) 조합. #116 이벤트 리스너 진입점
+- [x] 테스트 (UseCase 3 + 어댑터 4 + DomainService deleteByTokens 2, FirebaseMessaging mock) — 전체 통과
+
+**레이어 재배치 (리뷰 반영)**
+- 포트/값객체 `domain/notification/port` → `api/notification/port` (DB 밀접 아님 → domain 제외, 의존 방향 infra→api 정방향)
+- 오케스트레이션 domain service → `api/notification/service/SendPushNotificationUseCase` (usecase가 service 조합)
+- 토큰 조회 `DeviceTokenAdaptor`(query) 신설, 무효 토큰 삭제 `DeviceTokenDomainService.deleteByTokens`(command)
+- FCM 가독성: 상수 → `common/consts/FcmStaticValues`, SDK 변환 헬퍼 → `infra/fcm/FcmMessageMapper`(util)
 
 **검토 포인트**: 포트 시그니처가 #116 이벤트 로직에서 쓰기 충분한지 (title/body/data payload), 무효 토큰 삭제 트랜잭션 처리
 

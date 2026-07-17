@@ -10,6 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -86,5 +87,21 @@ class DeviceTokenDomainServiceImplTest {
         deviceTokenDomainService.deleteToken(user, "fcm-token");
 
         then(deviceTokenRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("무효 토큰 일괄 삭제 - 토큰 목록으로 삭제한다")
+    void deleteByTokens_deletesAll() {
+        deviceTokenDomainService.deleteByTokens(List.of("token-a", "token-b"));
+
+        then(deviceTokenRepository).should().deleteAllByTokenIn(List.of("token-a", "token-b"));
+    }
+
+    @Test
+    @DisplayName("무효 토큰 일괄 삭제 - 빈 목록이면 아무것도 하지 않는다")
+    void deleteByTokens_noOpWhenEmpty() {
+        deviceTokenDomainService.deleteByTokens(List.of());
+
+        then(deviceTokenRepository).should(never()).deleteAllByTokenIn(any());
     }
 }

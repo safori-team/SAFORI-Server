@@ -2,6 +2,7 @@ package com.safori.domain.notification.service;
 
 import com.safori.domain.notification.entity.DeviceToken;
 import com.safori.domain.user.entity.User;
+import java.util.List;
 
 public interface DeviceTokenDomainService {
 
@@ -16,4 +17,9 @@ public interface DeviceTokenDomainService {
      * 본인 소유 토큰만 삭제하며, 없거나 타인 소유면 무시한다 (멱등).
      */
     void deleteToken(User user, String token);
+
+    /**
+     * 무효 토큰(UNREGISTERED 등) 일괄 삭제. 빈 목록이면 no-op.
+     */
+    void deleteByTokens(List<String> tokens);
 }
