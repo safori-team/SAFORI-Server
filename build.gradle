@@ -63,6 +63,9 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.26.22')
     implementation 'software.amazon.awssdk:s3'
 
+    // Firebase Admin SDK (FCM 푸시 알림)
+    implementation 'com.google.firebase:firebase-admin:9.4.3'
+
     // Google Gemini SDK (음성 분석 어댑터)
     implementation 'com.google.genai:google-genai:1.52.0'
     // google-genai jar 내부에 META-INF/services/KotlinModule 등록이 내장되어 있어

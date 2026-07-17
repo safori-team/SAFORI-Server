@@ -8,13 +8,14 @@
 
 ## Phase 1 — FCM 인프라 세팅 (#115)
 
-### Task 1. Firebase Admin SDK 의존성 + 초기화 설정
-- [ ] `build.gradle`에 `firebase-admin` 의존성 추가
-- [ ] `FirebaseConfig` 작성 (`common/config`)
-  - 서비스 계정 키 경로/JSON을 환경변수로 주입
-  - 키 미설정 시 `FirebaseApp` 미생성 (로컬/테스트에서 비활성) — Sentry 설정과 동일한 패턴
-- [ ] `application.yml`에 `firebase.*` 프로퍼티 추가
-- [ ] `.env.example`에 Firebase 환경변수 문서화
+### Task 1. Firebase Admin SDK 의존성 + 초기화 설정 ✅
+- [x] `build.gradle`에 `firebase-admin:9.4.3` 의존성 추가
+- [x] `FirebaseConfig` 작성 (`common/config`)
+  - `FIREBASE_CREDENTIALS_BASE64` (서비스 계정 키 JSON base64) 주입 — S3Config 패턴
+  - 키 미설정 시 `FirebaseApp`/`FirebaseMessaging` 빈 미생성 (로컬/테스트에서 비활성)
+- [x] `application.yml`에 `firebase.credentials-base64` 프로퍼티 추가
+- [x] `.env.example`에 Firebase 환경변수 문서화 (base64 생성 명령 포함)
+- [x] 검증: compileJava 통과, 키 없이 컨텍스트 로드 성공
 
 **검토 포인트**: 키 없이 부트 정상 기동하는지, 키 주입 방식(파일 경로 vs base64 JSON)이 배포 환경(docker)과 맞는지
 
@@ -85,5 +86,5 @@
 
 ## 미확정 사항 (진행 중 결정)
 - [ ] 알림 트리거 이벤트 목록 — 후보: 감정 분석 완료, 주간/월간 리포트 생성
-- [ ] Firebase 키 주입 방식 (파일 vs base64 env)
+- [x] Firebase 키 주입 방식 → **base64 env** 채택 (기존 시크릿 전부 env 변수 방식, 파일 마운트 없음)
 - [ ] 알림함(이력 조회) 스코프 포함 여부
