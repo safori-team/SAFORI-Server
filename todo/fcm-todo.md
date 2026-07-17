@@ -1,0 +1,89 @@
+# FCM 푸시 알림 구현 TODO
+
+> 이슈: [#115 FCM 인프라 세팅](https://github.com/safori-team/SAFORI-Server/issues/115) → [#116 이벤트 기반 알림 비즈니스 로직](https://github.com/safori-team/SAFORI-Server/issues/116)
+> 브랜치: `feat/#115`
+> 진행 방식: 태스크 하나 완료 → 검토 → 다음 태스크
+
+---
+
+## Phase 1 — FCM 인프라 세팅 (#115)
+
+### Task 1. Firebase Admin SDK 의존성 + 초기화 설정
+- [ ] `build.gradle`에 `firebase-admin` 의존성 추가
+- [ ] `FirebaseConfig` 작성 (`common/config`)
+  - 서비스 계정 키 경로/JSON을 환경변수로 주입
+  - 키 미설정 시 `FirebaseApp` 미생성 (로컬/테스트에서 비활성) — Sentry 설정과 동일한 패턴
+- [ ] `application.yml`에 `firebase.*` 프로퍼티 추가
+- [ ] `.env.example`에 Firebase 환경변수 문서화
+
+**검토 포인트**: 키 없이 부트 정상 기동하는지, 키 주입 방식(파일 경로 vs base64 JSON)이 배포 환경(docker)과 맞는지
+
+### Task 2. 디바이스 토큰 엔티티 + 저장소
+- [ ] `DeviceToken` 엔티티 (`domain/` 하위 신규 패키지)
+  - 사용자 1:N (멀티 디바이스), 토큰 unique 제약
+  - 필드: token, user FK, createdAt/updatedAt 등 기존 엔티티 컨벤션 따름
+- [ ] Repository 작성
+- [ ] 사용자 탈퇴 시 cascade 삭제 정합성 확인 (기존 삭제 cascade 방식 참고 — #108)
+
+**검토 포인트**: 테이블/컬럼 네이밍 기존 컨벤션 일치 여부, 동일 토큰 재등록(다른 유저로 기기 양도) 시 처리
+
+### Task 3. 토큰 등록/삭제 API
+- [ ] `POST /v1/api/users/device-tokens` — 등록/갱신 (upsert)
+- [ ] `DELETE /v1/api/users/device-tokens` — 삭제 (로그아웃 시)
+- [ ] Controller/UseCase/DTO — 기존 `api/` 레이어 구조 따름
+- [ ] Swagger 문서화 (기존 어노테이션 컨벤션)
+- [ ] 테스트 코드
+
+**검토 포인트**: URL 컨벤션(`/v1/api/users/...`) 일치, 인증 사용자 컨텍스트에서 user 추출 방식 기존과 동일한지
+
+### Task 4. 푸시 전송 포트 + FCM 어댑터
+- [ ] 전송 포트 인터페이스 정의 (예: `PushNotificationPort`) — 비즈니스 로직이 FCM에 직접 의존하지 않도록
+- [ ] FCM 구현 어댑터 (`infra/fcm`) — 기존 `infra/openai` 어댑터 패턴 참고
+  - 단건 전송 / 멀티캐스트 전송
+  - `UNREGISTERED` 등 무효 토큰 응답 시 DB에서 자동 삭제
+  - 전송 실패 로깅
+- [ ] Firebase 비활성 환경용 no-op 구현 (키 없을 때)
+- [ ] 테스트 코드 (FirebaseMessaging mock)
+
+**검토 포인트**: 포트 시그니처가 #116 이벤트 로직에서 쓰기 충분한지 (title/body/data payload), 무효 토큰 삭제 트랜잭션 처리
+
+### Task 5. 문서 + 배포 반영
+- [ ] `docs/CICD-SETUP.md`에 Firebase 시크릿 설정 절차 추가
+- [ ] `deploy.yml` 등 배포 파이프라인에 키 주입 반영 (필요 시)
+- [ ] 실기기/테스트 토큰으로 전송 스모크 테스트
+
+**검토 포인트**: 시크릿 관리 방식이 기존(Sentry DSN 등)과 일관적인지
+
+---
+
+## Phase 2 — 이벤트 기반 알림 비즈니스 로직 (#116)
+
+> Phase 1 완료 + PR 머지 후 착수. 브랜치 `feat/#116` 새로 분기.
+
+### Task 6. 알림 이벤트 추상화
+- [ ] 알림 트리거 이벤트 추상 타입 정의 (`common/event` 기존 인프라 활용 검토)
+- [ ] `ApplicationEventPublisher` 발행 + `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` 리스너
+- [ ] 비동기 실행 설정 (Executor) — 기존 async 설정 있는지 확인 후 재사용/신설
+
+**검토 포인트**: 본 트랜잭션 실패 시 알림 미발송 보장, 리스너 예외가 호출부에 전파되지 않는지
+
+### Task 7. 이벤트별 알림 정책 (확장 포인트)
+- [ ] 이벤트 타입 → 알림 메시지(title/body/deeplink data) 구성 전략 인터페이스
+- [ ] 전략 구현체 등록 방식 (Spring bean 주입으로 자동 수집) — 신규 이벤트는 구현체 추가만으로 확장
+- [ ] 샘플 이벤트 1개로 e2e 검증 (이벤트 확정 전 placeholder)
+
+**검토 포인트**: 새 이벤트 추가 시 수정 범위가 전략 구현체 1개로 닫히는지 (OCP)
+
+### Task 8. 알림 이력 (범위 확정 후)
+- [ ] 프론트 요구사항 확인: 알림함 필요 여부
+- [ ] 필요 시: 발송 이력 엔티티 + 알림함 조회 API
+- [ ] 발송 실패 재시도 정책 결정
+
+**검토 포인트**: 이력 저장이 발송 경로 성능에 영향 없는지
+
+---
+
+## 미확정 사항 (진행 중 결정)
+- [ ] 알림 트리거 이벤트 목록 — 후보: 감정 분석 완료, 주간/월간 리포트 생성
+- [ ] Firebase 키 주입 방식 (파일 vs base64 env)
+- [ ] 알림함(이력 조회) 스코프 포함 여부
