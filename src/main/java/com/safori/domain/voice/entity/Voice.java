@@ -13,7 +13,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @SuperBuilder
-@Table(name = "voice")
+@Table(name = "voice", indexes = {
+        // 세션 트리거 스케줄러: 상태 필터 + 분석 완료 시각 범위/정렬 (10분마다 실행)
+        @Index(name = "idx_voice_status_completed",
+               columnList = "analysisStatus, analysisCompletedAt"),
+        // 연속 감정 판정 + 주간/월간 리포트: 사용자별 작성일 범위 조회
+        @Index(name = "idx_voice_user_created", columnList = "user_id, createdDate")
+})
 public class Voice extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

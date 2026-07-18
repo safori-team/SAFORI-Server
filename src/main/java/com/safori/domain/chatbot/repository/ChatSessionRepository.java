@@ -1,0 +1,12 @@
+package com.safori.domain.chatbot.repository;
+
+import com.safori.domain.chatbot.entity.ChatSession;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ChatSessionRepository extends JpaRepository<ChatSession, String> {
+
+    Page<ChatSession> findByUser_UsernameOrderByLastMessageAtDesc(String username, Pageable pageable);
+}
+

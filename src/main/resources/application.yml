@@ -53,6 +53,37 @@ gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-2.5-flash}
 
+# 마음일기 → 도란이 선제 대화 세션 생성 정책.
+# PM 정책 변경은 대부분 아래 값만 바꿔 대응한다(배포 불필요, env override 가능).
+# 규칙의 형태 자체가 바뀌면 SessionTriggerPolicy 구현체를 추가하고 policy 값을 바꾼다.
+safori:
+  chatbot:
+    # CBT 상담 대화 길이 제한.
+    conversation:
+      # 세션당 허용 사용자 발화 횟수. 마지막 발화의 응답이 마무리 멘트가 되고 세션이 닫힌다.
+      # (마음일기 세션 기준: 도란이 질문 → 사용자 응답 이 횟수만큼 오간 뒤 종료)
+      max-user-turns: ${CHAT_MAX_USER_TURNS:4}
+    session-trigger:
+      # ALWAYS: 일기 1건마다 세션 1개 (구 정책) / CONSECUTIVE_NEGATIVE: N일 연속 부정 감정일 때만
+      policy: ${SESSION_TRIGGER_POLICY:CONSECUTIVE_NEGATIVE}
+      # 스캔 주기
+      interval: ${SESSION_TRIGGER_INTERVAL:PT10M}
+      # 이 시간 안에 분석 완료된 일기만 후보. 넓히면 장애 복구 범위가 늘지만,
+      # 정책 변경 직후 과거 세션이 한꺼번에 생성될 수 있다.
+      scan-lookback: ${SESSION_TRIGGER_SCAN_LOOKBACK:PT48H}
+      # 1회 실행당 최대 처리 건수 (LLM 호출 폭주 방지)
+      scan-batch-size: ${SESSION_TRIGGER_BATCH_SIZE:50}
+      # 세션 생성에 필요한 연속 부정 감정 일수
+      consecutive-days: ${SESSION_TRIGGER_CONSECUTIVE_DAYS:3}
+      # "부정" 대분류 정의. 대분류가 바뀌면 이 값만 수정한다.
+      negative-emotions: ${SESSION_TRIGGER_NEGATIVE_EMOTIONS:SAD,ANGRY,ANXIETY}
+      # 프롬프트에 넣을 일기 범위. TRIGGER_ONLY | FIXED_DAYS | STREAK
+      context-window: ${SESSION_TRIGGER_CONTEXT_WINDOW:STREAK}
+      # FIXED_DAYS 전용
+      context-window-days: ${SESSION_TRIGGER_CONTEXT_WINDOW_DAYS:3}
+      # 컨텍스트 일기 개수 상한 (프롬프트 토큰 비용 상한)
+      max-context-diaries: ${SESSION_TRIGGER_MAX_CONTEXT_DIARIES:5}
+
 # OpenAI (주간 감정 리포트). api-key 비우면 리포트 생성 시 예외(서버는 정상 기동)
 openai:
   api-key: ${OPENAI_API_KEY:}
