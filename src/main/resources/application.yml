@@ -5,6 +5,12 @@ spring:
   application:
     name: safori-server
 
+  # 개발용 마음일기 시딩(오디오 멀티파트 업로드)용. 기본 1MB로는 오디오가 막힌다.
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:20MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:25MB}
+
   # .env 파일이 있으면 로드 (없어도 기동)
   config:
     import: optional:file:.env[.properties]

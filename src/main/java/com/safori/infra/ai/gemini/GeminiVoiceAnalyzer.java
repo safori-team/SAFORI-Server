@@ -109,11 +109,27 @@ public class GeminiVoiceAnalyzer {
 
     @Async
     public void analyzeAsync(Long voiceId, String voiceKey) {
+        if (analyzeSync(voiceId, voiceKey)) {
+            // 이벤트 발행은 분석 상태 관리와 분리 — 실패해도 COMPLETED 상태를 덮어쓰지 않음
+            try {
+                eventPublisher.publishEvent(new VoiceAnalysisCompletedEvent(voiceId));
+            } catch (Exception e) {
+                log.warn("VoiceAnalysisCompletedEvent 발행 실패 (분석 결과는 저장됨) - voiceId={}", voiceId, e);
+            }
+        }
+    }
+
+    /**
+     * 동기 분석 + 저장. 정상 흐름은 {@link #analyzeAsync}가 감싸고, 개발용 시딩 API는 결과를
+     * 즉시 확인해 감정을 덮어써야 하므로 이 동기 버전을 직접 호출한다.
+     *
+     * @return 분석·저장 성공 여부 (Gemini/S3 미구성이거나 실패면 false)
+     */
+    public boolean analyzeSync(Long voiceId, String voiceKey) {
         if (geminiClient.isEmpty() || s3Client.isEmpty()) {
             log.debug("Gemini or S3 client not configured, skipping analysis for voiceId={}", voiceId);
-            return;
+            return false;
         }
-
         try {
             Voice voice = voiceAdaptor.queryById(voiceId);
             voice.markAnalysisProcessing();
@@ -146,6 +162,7 @@ public class GeminiVoiceAnalyzer {
             log.info("Gemini analysis saved for voiceId={}, topEmotion={}, labels={}, transcript={}chars",
                     voiceId, composite.getTopEmotion(), labels.size(),
                     result.transcript() != null ? result.transcript().length() : 0);
+            return true;
         } catch (Exception e) {
             log.error("Gemini analysis failed for voiceId={}, voiceKey={}", voiceId, voiceKey, e);
             try {
@@ -155,14 +172,7 @@ public class GeminiVoiceAnalyzer {
             } catch (Exception ex) {
                 log.error("Failed to update analysisStatus to FAILED for voiceId={}", voiceId, ex);
             }
-            return;
-        }
-
-        // 이벤트 발행은 분석 상태 관리와 분리 — 실패해도 COMPLETED 상태를 덮어쓰지 않음
-        try {
-            eventPublisher.publishEvent(new VoiceAnalysisCompletedEvent(voiceId));
-        } catch (Exception e) {
-            log.warn("VoiceAnalysisCompletedEvent 발행 실패 (분석 결과는 저장됨) - voiceId={}", voiceId, e);
+            return false;
         }
     }
 

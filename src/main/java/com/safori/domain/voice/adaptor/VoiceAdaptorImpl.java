@@ -55,4 +55,10 @@ public class VoiceAdaptorImpl implements VoiceAdaptor {
     public void deleteById(Long voiceId) {
         voiceRepository.deleteById(voiceId);
     }
+
+    @Override
+    @Transactional
+    public void backdateCreatedDate(Long voiceId, LocalDateTime createdDate) {
+        voiceRepository.updateCreatedDate(voiceId, createdDate);
+    }
 }
