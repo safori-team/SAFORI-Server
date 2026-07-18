@@ -18,4 +18,7 @@ public interface VoiceAdaptor {
     Voice save(Voice voice);
 
     void deleteById(Long voiceId);
+
+    /** 작성일 강제 갱신 (개발용 시딩 전용). @CreatedDate 감사를 우회한다. */
+    void backdateCreatedDate(Long voiceId, java.time.LocalDateTime createdDate);
 }

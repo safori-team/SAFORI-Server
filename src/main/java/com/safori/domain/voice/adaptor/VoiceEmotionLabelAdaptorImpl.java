@@ -28,6 +28,13 @@ public class VoiceEmotionLabelAdaptorImpl implements VoiceEmotionLabelAdaptor {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<VoiceEmotionLabel> findByVoiceIds(List<Long> voiceIds) {
+        if (voiceIds == null || voiceIds.isEmpty()) return List.of();
+        return voiceEmotionLabelRepository.findByVoice_IdIn(voiceIds);
+    }
+
+    @Override
     @Transactional
     public void deleteByVoiceId(Long voiceId) {
         voiceEmotionLabelRepository.deleteByVoice_Id(voiceId);

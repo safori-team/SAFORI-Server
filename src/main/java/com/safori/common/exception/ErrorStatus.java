@@ -44,7 +44,20 @@ public enum ErrorStatus implements BaseErrorCode {
     VOICE_NO_PERMISSION(BAD_REQUEST, 4151, "음성파일의 접근권한이 없습니다."),
     VOICE_ANALYSIS_NOT_COMPLETED(BAD_REQUEST, 4152, "분석이 완료되지 않은 음성파일입니다."),
     VOICE_ANALYSIS_RESULT_NOT_FOUND(BAD_REQUEST, 4153, "분석 결과가 존재하지 않습니다."),
-    VOICE_ALREADY_EXISTS_TODAY(BAD_REQUEST, 4154, "오늘은 이미 마음일기를 작성했습니다.");
+    VOICE_ALREADY_EXISTS_TODAY(BAD_REQUEST, 4154, "오늘은 이미 마음일기를 작성했습니다."),
+
+    // 챗봇 오류 (4200번대)
+    CHAT_SESSION_NOT_FOUND(BAD_REQUEST, 4200, "존재하지 않는 챗봇 세션입니다."),
+    CHAT_SESSION_NO_PERMISSION(BAD_REQUEST, 4201, "챗봇 세션의 접근권한이 없습니다."),
+    CHAT_MESSAGE_NOT_FOUND(BAD_REQUEST, 4202, "존재하지 않는 채팅 메시지입니다."),
+    CHAT_MESSAGE_NO_PERMISSION(BAD_REQUEST, 4203, "채팅 메시지의 접근권한이 없습니다."),
+    CHAT_FEEDBACK_INVALID_EMOTION(BAD_REQUEST, 4204, "유효하지 않은 감정 피드백 값입니다."),
+    CHAT_VOICE_STT_FAILED(BAD_REQUEST, 4205, "음성 분석(STT)에 실패했습니다."),
+    CHAT_SESSION_CLOSED(BAD_REQUEST, 4206, "이미 마무리된 상담입니다. 새로운 상담을 시작해주세요."),
+    CHAT_OFFER_NOT_FOUND(BAD_REQUEST, 4207, "존재하지 않는 상담 제안입니다."),
+    CHAT_OFFER_NO_PERMISSION(BAD_REQUEST, 4208, "상담 제안의 접근권한이 없습니다."),
+    CHAT_OFFER_NOT_OFFERABLE(BAD_REQUEST, 4209, "이미 응답한 상담 제안입니다."),
+    CHAT_OFFER_EXPIRED(BAD_REQUEST, 4210, "상담 제안 조건이 더 이상 유효하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

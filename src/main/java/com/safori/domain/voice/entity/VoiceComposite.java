@@ -100,4 +100,12 @@ public class VoiceComposite extends BaseTimeEntity {
      */
     @Column(name = "title", length = 15)
     private String title;
+
+    /**
+     * 대표 감정을 강제로 덮어쓴다. 개발용 시딩 API 전용 — 실제 분석 내용(요약/라벨/전사)은
+     * 그대로 두고 스케줄러 스트릭 테스트를 위해 topEmotion만 결정적으로 바꾼다.
+     */
+    public void overrideTopEmotion(EmotionType topEmotion) {
+        this.topEmotion = topEmotion;
+    }
 }
