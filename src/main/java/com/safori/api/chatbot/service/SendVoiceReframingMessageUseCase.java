@@ -14,6 +14,7 @@ import com.safori.domain.chatbot.model.VoiceEmotionDigest;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
 import com.safori.domain.chatbot.service.ChatbotMessageMapper;
 import com.safori.domain.user.adaptor.UserAdaptor;
+import com.safori.domain.user.UserHonorific;
 import com.safori.domain.user.entity.User;
 import com.safori.infra.ai.gemini.GeminiChatbotClient;
 import com.safori.infra.ai.gemini.GeminiEmotionMapper;
@@ -83,9 +84,9 @@ public class SendVoiceReframingMessageUseCase {
                 digest.topEmotion(), digest.topEmotionConfidenceBps(), digest.labels());
         String emotionHint = mapper.emotionHint(digest.topEmotion());
 
+        String address = UserHonorific.of(user);
         String prompt = VoiceReframingPrompt.build(
-                userInput, history, (int) turnCount,
-                user.getName() == null ? "내담자" : user.getName(),
+                userInput, history, (int) turnCount, address,
                 emotionDesc, emotionHint,
                 turnPolicy.maxUserTurns(), finalTurn);
 

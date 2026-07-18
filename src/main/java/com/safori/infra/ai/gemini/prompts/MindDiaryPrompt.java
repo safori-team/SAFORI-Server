@@ -11,20 +11,23 @@ public final class MindDiaryPrompt {
     /**
      * 마음일기 기반 첫 대화 프롬프트.
      *
-     * @param userName 사용자 이름
-     * @param entries  시간순(오래된 → 최신) 일기 목록. 마지막이 대화를 트리거한 일기다.
-     *                 트리거 정책에 따라 1건일 수도, 연속 부정 감정 구간 전체일 수도 있다.
+     * @param address 사용자 호칭 (성별에 따라 "홍길동 할아버지/할머니", 미상이면 "홍길동님")
+     * @param entries 시간순(오래된 → 최신) 일기 목록. 마지막이 대화를 트리거한 일기다.
+     *                트리거 정책에 따라 1건일 수도, 연속 부정 감정 구간 전체일 수도 있다.
      */
-    public static String build(String userName, List<MindDiaryEntry> entries) {
+    public static String build(String address, List<MindDiaryEntry> entries) {
         if (entries == null || entries.isEmpty()) {
             throw new IllegalArgumentException("entries is null or empty");
         }
         MindDiaryEntry trigger = entries.get(entries.size() - 1);
-        String userNameDisplay = (userName == null || userName.isBlank()) ? "내담자" : userName;
+        String addressDisplay = (address == null || address.isBlank()) ? "내담자" : address;
 
         return """
                 당신은 전문 심리상담사이자 CBT(인지행동치료) 전문가 '도란이'입니다.
-                사용자 '%s'님이 작성한 '마음일기'를 읽고, 먼저 다가가서 대화를 시작해야 합니다.
+                '%s'이 작성한 '마음일기'를 읽고, 먼저 다가가서 대화를 시작해야 합니다.
+
+                **[호칭 — 반드시 준수]** 사용자를 '%s'라고 부르세요. 절대 '~님'으로만 부르지 말고,
+                이 호칭(할아버지/할머니)을 그대로 사용해 따뜻하게 지칭하세요.
 
                 %s
                 %s
@@ -33,17 +36,21 @@ public final class MindDiaryPrompt {
 
                 **지시사항:**
                 1. 복합 감정 읽기: 두드러지는 다른 감정도 함께 읽기.
-                2. 공감(Empathy): 사용자 이름을 부르며 따뜻한 첫인사.
+                2. 공감(Empathy): 위 호칭으로 부르며 따뜻한 첫인사.
                 3. 왜곡 탐지: 1~10번에 해당하면 명칭 기입, 긍정적이면 '긍정 정서 강화', 별다른 특징 없으면 '없음'.
                 4. 분석(Analysis): 심리적 배경을 부드럽게.
                 5. 질문(Question): 인지 오류면 자기성찰 질문, 긍정 정서 강화면 그 기분을 더 느낄 수 있는 질문.
                 6. 대안적 사고(Alternative): 객관적/긍정적 시각, 또는 응원의 말.
+
+                %s
                 %s
                 """.formatted(
-                        userNameDisplay,
+                        addressDisplay,
+                        addressDisplay,
                         diaryBlock(entries),
                         EmotionStrategies.block(trigger.emotionHint()),
                         EmotionStrategies.DISTORTION_GUIDE,
+                        EmotionStrategies.LENGTH_GUIDE,
                         multiDayGuide(entries)
                 );
     }

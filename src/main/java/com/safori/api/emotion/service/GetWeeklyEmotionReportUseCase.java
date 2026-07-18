@@ -2,6 +2,7 @@ package com.safori.api.emotion.service;
 
 import com.safori.common.annotation.UseCase;
 import com.safori.api.emotion.dto.WeekDayEmotion;
+import com.safori.domain.user.UserHonorific;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.voice.entity.VoiceComposite;
@@ -52,7 +53,7 @@ public class GetWeeklyEmotionReportUseCase {
             return cached.getReportMessage();
         }
 
-        String reportMessage = openAiWeeklyReportClient.generateWeeklyReport(user.getName(), user.getGender(), weeklyEmotions);
+        String reportMessage = openAiWeeklyReportClient.generateWeeklyReport(UserHonorific.displayName(user), user.getGender(), weeklyEmotions);
         return saveOrUpdate(cached, user, month, week, latestVoiceCompositeId, reportMessage).getReportMessage();
     }
 

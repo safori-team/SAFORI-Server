@@ -2,6 +2,7 @@ package com.safori.infra.openai;
 
 import com.safori.api.emotion.dto.WeekDayEmotion;
 import com.safori.domain.emotion.entity.EmotionType;
+import com.safori.domain.user.UserHonorific;
 import com.safori.domain.user.entity.Gender;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;

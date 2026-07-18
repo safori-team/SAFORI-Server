@@ -9,6 +9,7 @@ import com.safori.domain.chatbot.model.MindDiaryEntry;
 import com.safori.domain.chatbot.policy.MindDiaryTriggerEvaluator;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
 import com.safori.domain.chatbot.service.MindDiaryContextAssembler;
+import com.safori.domain.user.UserHonorific;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.voice.adaptor.VoiceAdaptor;
@@ -61,8 +62,9 @@ public class AcceptMindDiaryOfferUseCase {
         List<MindDiaryEntry> entries = assembler.assemble(contextVoices);
 
         // 3) LLM 첫 메시지 (트랜잭션 밖)
+        String address = UserHonorific.of(user);
         ChatbotReply reply = geminiChatbotClient
-                .generate(MindDiaryPrompt.build(user.getName(), entries))
+                .generate(MindDiaryPrompt.build(address, entries))
                 .toReply();
 
         // 4) 세션 저장 + 원장 ACCEPTED

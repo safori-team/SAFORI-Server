@@ -11,6 +11,7 @@ import com.safori.domain.chatbot.model.HistoryTurn;
 import com.safori.domain.chatbot.policy.ConversationTurnPolicy;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
 import com.safori.domain.user.adaptor.UserAdaptor;
+import com.safori.domain.user.UserHonorific;
 import com.safori.domain.user.entity.User;
 import com.safori.infra.ai.gemini.GeminiChatbotClient;
 import com.safori.infra.ai.gemini.prompts.ReframingPrompt;
@@ -51,9 +52,10 @@ public class SendReframingMessageUseCase {
         List<HistoryTurn> history =
                 chatbotDomainService.loadRecentHistory(session.getId(), HISTORY_LIMIT);
 
+        String address = UserHonorific.of(user);
         String prompt = ReframingPrompt.build(
                 request.userInput(), history, (int) turnCount, request.emotion(),
-                turnPolicy.maxUserTurns(), finalTurn);
+                address, turnPolicy.maxUserTurns(), finalTurn);
 
         // 2) LLM 호출 (트랜잭션 밖) — infra→domain 변환
         ChatbotReply reply = geminiChatbotClient.generate(prompt).toReply();

@@ -34,6 +34,20 @@ public final class EmotionStrategies {
         return sb.toString();
     }
 
+    /**
+     * 응답 분량 지침. 세 상담 프롬프트가 공유한다. 챗봇 발화가 너무 길다는 피드백 반영 —
+     * 짧고 담백하게, 그러나 과하게 짧지 않게.
+     */
+    public static final String LENGTH_GUIDE = """
+            [분량 지침 — 반드시 준수]
+            도란이의 말은 짧고 담백해야 합니다. 사용자는 긴 글을 부담스러워합니다.
+            - empathy: 1~2문장.
+            - analysis: 2~3문장. 심리 배경을 장황하게 늘어놓지 마세요.
+            - socratic_question: 한 문장짜리 질문 하나만.
+            - alternative_thought: 1~2문장.
+            나열·반복·군더더기를 빼고 핵심만 전하되, 차갑지 않게 따뜻함은 유지하세요.
+            """;
+
     public static final String DISTORTION_GUIDE = """
             [상담사 분석 가이드라인 (CBT 기반)]
             1. 흑백사고: 모든 것을 '성공 아니면 실패'로만 보는 이분법적 사고.

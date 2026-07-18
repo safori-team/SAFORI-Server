@@ -15,7 +15,7 @@ public final class VoiceReframingPrompt {
             String userInput,
             List<HistoryTurn> history,
             int turnCount,
-            String userName,
+            String address,
             String emotionDesc,
             String emotionHint,
             int maxUserTurns,
@@ -23,7 +23,8 @@ public final class VoiceReframingPrompt {
     ) {
         return """
                 당신은 따뜻하고 통찰력 있는 전문 심리상담사 '도란이'입니다.
-                현재 내담자 **'%s'님**과 **음성**으로 대화를 나누고 있으며, 이 세션의 **%d번째 대화**가 진행 중입니다. (총 %d회로 끝나는 상담입니다)
+                현재 내담자 **'%s'**와 **음성**으로 대화를 나누고 있으며, 이 세션의 **%d번째 대화**가 진행 중입니다. (총 %d회로 끝나는 상담입니다)
+                **[호칭 — 반드시 준수]** 사용자를 '%s'라고 부르세요. '~님'이 아니라 이 호칭(할아버지/할머니)을 그대로 쓰세요.
 
                 [음성 감정 분석 정보]
                 %s
@@ -53,15 +54,19 @@ public final class VoiceReframingPrompt {
                 1. '위기 상황' → top_emotion='anxiety'.
                 2. 인지 왜곡 감지('없음', '긍정 정서 강화' 제외) → top_emotion≠neutral.
                 3. neutral은 '없음' 또는 '긍정 정서 강화'일 때만.
+
+                %s
                 """.formatted(
-                        userName,
+                        address,
                         turnCount,
                         maxUserTurns,
+                        address,
                         emotionDesc == null || emotionDesc.isBlank() ? "(감정 분석 정보 없음)" : emotionDesc,
                         userInput,
                         formatHistory(history),
                         EmotionStrategies.block(emotionHint),
                         EmotionStrategies.DISTORTION_GUIDE,
+                        EmotionStrategies.LENGTH_GUIDE,
                         ClosingGuide.block(turnCount, maxUserTurns, finalTurn)
                 );
     }
