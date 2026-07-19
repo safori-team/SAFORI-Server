@@ -103,6 +103,30 @@ collector 가 `x-sentry-auth` 헤더를 붙여 Sentry 로 forward 한다.
 - 영속 큐 디렉토리 `${APP_DIR}/otelcol-storage` 를 컨테이너 uid 10001 소유로 생성(스크립트가 처리).
 - collector 는 4318(HTTP)/4317(gRPC) 를 docker network 내부에서만 노출, 호스트 포트 매핑 없음.
 
+## 푸시 알림 (Firebase FCM)
+
+FCM 서비스 계정 키를 base64 인코딩해 환경변수로 주입한다. 파일 마운트 없이 `--env-file` 로만 전달되며, 키가 비면 푸시가 비활성화될 뿐 서버는 정상 기동한다.
+
+### Safori-Back-Env 에 추가할 것 (환경별)
+
+각 `${SPRING_PROFILE}.env` 에 아래 키 추가 (`.env.example` 의 "Firebase" 섹션 참고):
+
+| 키 | 설명 | 예시 |
+|---|---|---|
+| `FIREBASE_CREDENTIALS_BASE64` | 서비스 계정 키 JSON 을 base64 인코딩한 값 | `ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAg...` |
+
+### 키 발급/생성 절차
+
+1. Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → **새 비공개 키 생성** → `serviceAccountKey.json` 다운로드
+2. base64 인코딩 (개행 제거):
+   ```bash
+   base64 -i serviceAccountKey.json | tr -d '\n'
+   ```
+3. 출력값을 env-repo 해당 환경 `.env` 의 `FIREBASE_CREDENTIALS_BASE64=` 에 붙여넣기
+4. `serviceAccountKey.json` 원본은 저장소/이미지에 커밋 금지 — env-repo(비공개)의 `.env` 값으로만 관리
+
+> alpha/prod 를 다른 Firebase 프로젝트로 분리하려면 프로젝트별 서비스 계정 키를 각 `.env` 에 넣는다. 추가 배포 스크립트 변경은 없다(기존 `--env-file` 로 앱 컨테이너에 그대로 주입).
+
 ## 현재 미포함 (추후 도입 예정)
 
 - **datasource 설정**: JPA 미도입 상태라 `application-{alpha,prod}.yml` 에 DB 접속 설정 없음. JPA 도입 시 환경별 RDS 엔드포인트 연결 추가.

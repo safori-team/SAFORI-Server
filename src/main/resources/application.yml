@@ -95,6 +95,10 @@ openai:
   api-key: ${OPENAI_API_KEY:}
   model: ${OPENAI_MODEL:gpt-4o-mini}
 
+# Firebase (FCM 푸시 알림). credentials-base64 비우면 푸시 비활성화(서버는 정상 기동)
+firebase:
+  credentials-base64: ${FIREBASE_CREDENTIALS_BASE64:}
+
 # Sentry 에러. dsn 비면 비활성. 트레이스는 OTEL_* 환경변수(.env.example) 참고.
 sentry:
   dsn: ${SENTRY_DSN:}
