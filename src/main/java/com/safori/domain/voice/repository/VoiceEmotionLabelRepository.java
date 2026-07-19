@@ -12,6 +12,9 @@ public interface VoiceEmotionLabelRepository extends JpaRepository<VoiceEmotionL
 
     List<VoiceEmotionLabel> findByVoice_Id(Long voiceId);
 
+    /** 여러 voice의 레이블 일괄 조회 — 세션 트리거 배치 처리 시 N+1 방지. */
+    List<VoiceEmotionLabel> findByVoice_IdIn(List<Long> voiceIds);
+
     /**
      * 특정 월의 세부 감정 집계 (버블차트용).
      * label별 등장 횟수(다이어리 수)와 평균 intensity 반환.

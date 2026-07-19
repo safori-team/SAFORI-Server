@@ -2,6 +2,7 @@ package com.safori.api.emotion.service;
 
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.emotion.entity.EmotionType;
+import com.safori.domain.user.UserHonorific;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.voice.entity.MonthlyEmotionReport;
@@ -51,7 +52,7 @@ public class GetMonthlyEmotionReportUseCase {
             return cached.getReportMessage();
         }
 
-        String reportMessage = openAiMonthlyReportClient.generateMonthlyReport(user.getName(), user.getGender(), emotionCounts);
+        String reportMessage = openAiMonthlyReportClient.generateMonthlyReport(UserHonorific.displayName(user), user.getGender(), emotionCounts);
         return saveOrUpdate(cached, user, month, latestVoiceCompositeId, reportMessage).getReportMessage();
     }
 

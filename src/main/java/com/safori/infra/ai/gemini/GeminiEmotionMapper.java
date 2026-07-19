@@ -4,11 +4,14 @@ import com.safori.domain.emotion.entity.EmotionType;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.entity.VoiceComposite;
 import com.safori.domain.voice.entity.VoiceEmotionLabel;
+import com.safori.domain.chatbot.model.VoiceEmotionDigest;
+import com.safori.domain.chatbot.model.VoiceEmotionLabelView;
 import com.safori.infra.ai.gemini.dto.GeminiAnalysisResult;
 import com.safori.infra.ai.gemini.dto.GeminiEmotionScore;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,6 +94,34 @@ public class GeminiEmotionMapper {
                     .build());
         }
         return labels;
+    }
+
+    /** 챗봇 음성 리프레이밍용 요약: 대표감정 + bps + 상위 N개 라벨 (Voice 비의존). */
+    public VoiceEmotionDigest toVoiceEmotionDigest(GeminiAnalysisResult result, int labelLimit) {
+        Map<EmotionType, Integer> bps = toBps(aggregateIntensity(result));
+        EmotionType topEmotion = bps.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(EmotionType.NEUTRAL);
+
+        Map<String, Double> labelIntensity = new LinkedHashMap<>();
+        if (result.segments() != null) {
+            for (var segment : result.segments()) {
+                if (segment.emotions() == null) continue;
+                for (GeminiEmotionScore score : segment.emotions()) {
+                    if (score == null || score.name() == null) continue;
+                    labelIntensity.merge(score.name(), score.intensity(), Double::sum);
+                }
+            }
+        }
+
+        List<VoiceEmotionLabelView> labels = labelIntensity.entrySet().stream()
+                .map(e -> new VoiceEmotionLabelView(e.getKey(), (int) Math.round(e.getValue() * 1000)))
+                .sorted(Comparator.comparingInt(VoiceEmotionLabelView::intensityX1000).reversed())
+                .limit(Math.max(0, labelLimit))
+                .toList();
+
+        return new VoiceEmotionDigest(topEmotion, bps.getOrDefault(topEmotion, 0), labels);
     }
 
     private Map<EmotionType, Double> aggregateIntensity(GeminiAnalysisResult result) {

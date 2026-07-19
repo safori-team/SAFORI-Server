@@ -1,6 +1,7 @@
 package com.safori.infra.ai.gemini;
 
 import com.safori.common.event.VoiceAnalysisCompletedEvent;
+import com.safori.common.event.VoiceReanalyzedEvent;
 import com.safori.domain.emotion.entity.EmotionType;
 import com.safori.domain.voice.adaptor.VoiceAdaptor;
 import com.safori.domain.voice.adaptor.VoiceCompositeAdaptor;
@@ -108,11 +109,27 @@ public class GeminiVoiceAnalyzer {
 
     @Async
     public void analyzeAsync(Long voiceId, String voiceKey) {
+        if (analyzeSync(voiceId, voiceKey)) {
+            // 이벤트 발행은 분석 상태 관리와 분리 — 실패해도 COMPLETED 상태를 덮어쓰지 않음
+            try {
+                eventPublisher.publishEvent(new VoiceAnalysisCompletedEvent(voiceId));
+            } catch (Exception e) {
+                log.warn("VoiceAnalysisCompletedEvent 발행 실패 (분석 결과는 저장됨) - voiceId={}", voiceId, e);
+            }
+        }
+    }
+
+    /**
+     * 동기 분석 + 저장. 정상 흐름은 {@link #analyzeAsync}가 감싸고, 개발용 시딩 API는 결과를
+     * 즉시 확인해 감정을 덮어써야 하므로 이 동기 버전을 직접 호출한다.
+     *
+     * @return 분석·저장 성공 여부 (Gemini/S3 미구성이거나 실패면 false)
+     */
+    public boolean analyzeSync(Long voiceId, String voiceKey) {
         if (geminiClient.isEmpty() || s3Client.isEmpty()) {
             log.debug("Gemini or S3 client not configured, skipping analysis for voiceId={}", voiceId);
-            return;
+            return false;
         }
-
         try {
             Voice voice = voiceAdaptor.queryById(voiceId);
             voice.markAnalysisProcessing();
@@ -145,6 +162,7 @@ public class GeminiVoiceAnalyzer {
             log.info("Gemini analysis saved for voiceId={}, topEmotion={}, labels={}, transcript={}chars",
                     voiceId, composite.getTopEmotion(), labels.size(),
                     result.transcript() != null ? result.transcript().length() : 0);
+            return true;
         } catch (Exception e) {
             log.error("Gemini analysis failed for voiceId={}, voiceKey={}", voiceId, voiceKey, e);
             try {
@@ -154,14 +172,7 @@ public class GeminiVoiceAnalyzer {
             } catch (Exception ex) {
                 log.error("Failed to update analysisStatus to FAILED for voiceId={}", voiceId, ex);
             }
-            return;
-        }
-
-        // 이벤트 발행은 분석 상태 관리와 분리 — 실패해도 COMPLETED 상태를 덮어쓰지 않음
-        try {
-            eventPublisher.publishEvent(new VoiceAnalysisCompletedEvent(voiceId));
-        } catch (Exception e) {
-            log.warn("VoiceAnalysisCompletedEvent 발행 실패 (분석 결과는 저장됨) - voiceId={}", voiceId, e);
+            return false;
         }
     }
 
@@ -209,10 +220,27 @@ public class GeminiVoiceAnalyzer {
             voice.markAnalysisCompleted();
             voiceAdaptor.save(voice);
             log.info("Gemini reanalysis saved for voiceId={}, reportedEmotion={}", voiceId, reportedEmotion);
+
+            // 감정이 바뀌었을 수 있으므로 상담 제안/0턴 세션 재평가를 트리거한다.
+            try {
+                eventPublisher.publishEvent(new VoiceReanalyzedEvent(voiceId, voice.getUser().getId()));
+            } catch (Exception e) {
+                log.warn("VoiceReanalyzedEvent 발행 실패 (재분석 결과는 저장됨) - voiceId={}", voiceId, e);
+            }
         } catch (Exception e) {
             // 실패 시 기존 분석 결과 보존 (상태/데이터 변경 없음)
             log.error("Gemini reanalysis failed for voiceId={} (기존 분석 결과 유지)", voiceId, e);
         }
+    }
+
+    /** 음성을 동기 STT+분석 (챗봇 음성 리프레이밍 전용). 저장/이벤트 없이 결과만 반환. */
+    public GeminiAnalysisResult transcribeAndAnalyze(String voiceKey) throws Exception {
+        if (geminiClient.isEmpty() || s3Client.isEmpty()) {
+            throw new IllegalStateException("Gemini or S3 client not configured");
+        }
+        byte[] audioBytes = downloadFromS3(voiceKey);
+        String analysisJson = analyzeWithGemini(audioBytes, voiceKey, PROMPT);
+        return objectMapper.readValue(analysisJson, GeminiAnalysisResult.class);
     }
 
     private String buildReanalysisPrompt(EmotionType reportedEmotion, String message) {

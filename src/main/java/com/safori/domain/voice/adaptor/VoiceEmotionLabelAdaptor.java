@@ -11,6 +11,9 @@ public interface VoiceEmotionLabelAdaptor {
 
     List<VoiceEmotionLabel> findByVoiceId(Long voiceId);
 
+    /** 여러 voice의 레이블 일괄 조회 — 세션 트리거 배치 처리 시 N+1 방지. */
+    List<VoiceEmotionLabel> findByVoiceIds(List<Long> voiceIds);
+
     void deleteByVoiceId(Long voiceId);
 
     /**
