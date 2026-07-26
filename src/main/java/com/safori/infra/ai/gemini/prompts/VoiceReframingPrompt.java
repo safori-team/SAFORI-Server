@@ -38,6 +38,9 @@ public final class VoiceReframingPrompt {
                 - 말이 명확히 부정인데 음성이 긍정/중립이면 → 텍스트 신뢰 (음성 모델 오류 가능성).
                 - 'Neutral'은 텍스트와 음성 모두 사무적일 때만 선택.
                 - 자살/자해/범죄 암시가 보이면 음성 결과 무관하게 위기 개입.
+                - **말(STT)이 무의미한 조각이거나, 음성·텍스트 어느 쪽도 신뢰할 근거가 약하면 → 억지 교차검증하지 말고 아래 [불확실성 안전 지침]을 따르세요.**
+
+                %s
 
                 [이전 대화 맥락]
                 %s
@@ -47,13 +50,15 @@ public final class VoiceReframingPrompt {
                 **[일반 상담 지시사항]**
                 1. 반영적 경청: 교차 검증 결과 감정 기반 공감.
                 2. 인지 오류 탐지 및 분석.
-                3. 소크라테스식 질문.
+                3. 일상어 질문: 아래 [질문 방식]을 반드시 따라, 어르신 말을 이어받는 부드러운 일상 질문 한 문장.
+                %s
                 %s
 
                 **⭐⭐[논리적 일관성 검증]⭐⭐**
                 1. '위기 상황' → top_emotion='anxiety'.
                 2. 인지 왜곡 감지('없음', '긍정 정서 강화' 제외) → top_emotion≠neutral.
                 3. neutral은 '없음' 또는 '긍정 정서 강화'일 때만.
+                4. 감정을 확신할 근거가 부족 → detected_distortion='없음', top_emotion='neutral', empathy=범용 공감(불확실성 안전 지침).
 
                 %s
                 """.formatted(
@@ -63,9 +68,11 @@ public final class VoiceReframingPrompt {
                         address,
                         emotionDesc == null || emotionDesc.isBlank() ? "(감정 분석 정보 없음)" : emotionDesc,
                         userInput,
+                        EmotionStrategies.UNCERTAINTY_GUIDE,
                         formatHistory(history),
                         EmotionStrategies.block(emotionHint),
                         EmotionStrategies.DISTORTION_GUIDE,
+                        EmotionStrategies.QUESTION_STYLE,
                         EmotionStrategies.LENGTH_GUIDE,
                         ClosingGuide.block(turnCount, maxUserTurns, finalTurn)
                 );

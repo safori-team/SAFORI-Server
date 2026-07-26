@@ -28,10 +28,12 @@ public final class ReframingPrompt {
                 [현재 내담자의 말]
                 "%s"
                 %s
+                %s
+
                 **⭐⭐[핵심 지시사항: 텍스트 심층 분석]⭐⭐**
                 내담자의 텍스트 표면에 드러난 말이 아닌, **행간에 숨겨진 감정**을 포착하세요.
-                1. **'Neutral' 지양:** 특별한 감정 단어가 없더라도, 상황이 부정적이라면(예: "시험을 망쳤어") 'neutral' 대신 'sad'나 'anxiety'를 적극적으로 추론하세요.
-                2. **방어기제 파악:** 내담자가 "괜찮아요", "상관없어요"라고 말하더라도, 이전 맥락상 포기나 체념이 느껴진다면 'sad'로 판단하고 위로하세요.
+                1. **'Neutral' 지양:** 상황이 **분명히** 부정적이라면(예: "시험을 망쳤어") 'neutral' 대신 'sad'나 'anxiety'를 추론하세요. **단 맥락 자체가 불분명하면 추론하지 말고 위 [불확실성 안전 지침]을 따르세요.**
+                2. **방어기제 파악:** 내담자가 "괜찮아요", "상관없어요"라고 말하더라도, 이전 맥락상 포기나 체념이 **분명히** 느껴진다면 'sad'로 판단하고 위로하세요. **근거가 약하면 단정하지 마세요.**
 
                 %s
 
@@ -47,7 +49,8 @@ public final class ReframingPrompt {
 
                 1. **반영적 경청:** 사실과 감정을 연결해 읽어주기.
                 2. **인지 오류 탐지 및 분석:** 가이드라인에서 해당 항목을 골라 친절하게 설명.
-                3. **소크라테스식 질문:** 내담자가 스스로 모순을 깨닫게 하는 질문.
+                3. **일상어 질문:** 아래 [질문 방식]을 반드시 따라, 어르신 말을 이어받는 부드러운 일상 질문 한 문장.
+                %s
                 %s
 
                 **⭐⭐[논리적 일관성 검증 (필수)]⭐⭐**
@@ -63,7 +66,9 @@ public final class ReframingPrompt {
                         formatHistory(history),
                         userInput,
                         EmotionStrategies.block(emotionHint),
+                        EmotionStrategies.UNCERTAINTY_GUIDE,
                         EmotionStrategies.DISTORTION_GUIDE,
+                        EmotionStrategies.QUESTION_STYLE,
                         EmotionStrategies.LENGTH_GUIDE,
                         ClosingGuide.block(turnCount, maxUserTurns, finalTurn)
                 );
