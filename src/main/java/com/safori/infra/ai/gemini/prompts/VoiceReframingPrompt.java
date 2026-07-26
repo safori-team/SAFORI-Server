@@ -50,7 +50,8 @@ public final class VoiceReframingPrompt {
                 **[일반 상담 지시사항]**
                 1. 반영적 경청: 교차 검증 결과 감정 기반 공감.
                 2. 인지 오류 탐지 및 분석.
-                3. 소크라테스식 질문.
+                3. 일상어 질문: 아래 [질문 방식]을 반드시 따라, 어르신 말을 이어받는 부드러운 일상 질문 한 문장.
+                %s
                 %s
 
                 **⭐⭐[논리적 일관성 검증]⭐⭐**
@@ -71,6 +72,7 @@ public final class VoiceReframingPrompt {
                         formatHistory(history),
                         EmotionStrategies.block(emotionHint),
                         EmotionStrategies.DISTORTION_GUIDE,
+                        EmotionStrategies.QUESTION_STYLE,
                         EmotionStrategies.LENGTH_GUIDE,
                         ClosingGuide.block(turnCount, maxUserTurns, finalTurn)
                 );
