@@ -75,6 +75,21 @@ public class SendVoiceReframingMessageUseCase {
             throw ChatbotHandler.VOICE_STT_FAILED;
         }
         String userInput = analysis.transcript();
+        String address = UserHonorific.of(user);
+
+        if (userInput == null || userInput.isBlank()) {
+            log.info("챗봇 음성 STT 결과 없음 — 안전 응답 반환. sessionId={}", request.sessionId());
+            ChatbotReply safe = ChatbotReply.safeGeneric(address);
+            String safeInput = ""; // 저장용: 인식된 텍스트 없음
+            Long safeId = chatbotDomainService.appendMessage(
+                    session.getId(), safeInput, safe, MessageOrigin.USER_VOICE, request.voiceKey());
+            return new VoiceReframingResponse(
+                    safeId, safeInput,
+                    safe.empathy(), safe.detectedDistortion(), safe.analysis(),
+                    safe.socraticQuestion(), safe.alternativeThought(), safe.topEmotion(),
+                    finalTurn);
+        }
+
         VoiceEmotionDigest digest = emotionMapper.toVoiceEmotionDigest(analysis, LABEL_LIMIT);
 
         List<HistoryTurn> history =
@@ -84,7 +99,6 @@ public class SendVoiceReframingMessageUseCase {
                 digest.topEmotion(), digest.topEmotionConfidenceBps(), digest.labels());
         String emotionHint = mapper.emotionHint(digest.topEmotion());
 
-        String address = UserHonorific.of(user);
         String prompt = VoiceReframingPrompt.build(
                 userInput, history, (int) turnCount, address,
                 emotionDesc, emotionHint,
