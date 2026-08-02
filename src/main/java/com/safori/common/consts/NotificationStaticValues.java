@@ -27,4 +27,10 @@ public final class NotificationStaticValues {
     public static final String KEY_OFFER_ID = "offerId";
     public static final String MIND_DIARY_OFFER_TITLE = "도란이가 이야기를 나누고 싶어 해요";
     public static final String MIND_DIARY_OFFER_BODY = "요즘 마음이 어떠신지 도란이와 잠깐 도란도란 이야기 나눠보실래요?";
+
+    // ── 마음일기 감정 분석 완료 ─────────────────────────────────────
+    public static final String TYPE_DIARY_ANALYSIS_DONE = "DIARY_ANALYSIS_DONE";
+    public static final String KEY_VOICE_ID = "voiceId";
+    public static final String DIARY_ANALYSIS_DONE_TITLE = "마음일기 분석이 끝났어요";
+    public static final String DIARY_ANALYSIS_DONE_BODY = "오늘 마음일기 감정 분석이 준비됐어요. 도란이의 이야기를 확인해 보실래요?";
 }
