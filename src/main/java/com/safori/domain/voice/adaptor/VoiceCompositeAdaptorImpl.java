@@ -24,6 +24,12 @@ public class VoiceCompositeAdaptorImpl implements VoiceCompositeAdaptor {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Long> queryDistinctUserIdsByDateRange(LocalDateTime start, LocalDateTime end) {
+        return voiceCompositeRepository.findDistinctUserIdsByCreatedDateRange(start, end);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<VoiceComposite> queryByVoiceIds(List<Long> voiceIds) {
         if (voiceIds.isEmpty()) {
             return List.of();

@@ -1,6 +1,7 @@
 package com.safori.domain.chatbot.service;
 
 import com.safori.common.annotation.DomainService;
+import com.safori.common.event.MindDiaryOfferedEvent;
 import com.safori.domain.chatbot.adaptor.ChatMessageAdaptor;
 import com.safori.domain.chatbot.adaptor.ChatSessionAdaptor;
 import com.safori.domain.chatbot.entity.ChatMessage;
@@ -19,6 +20,7 @@ import com.safori.domain.chatbot.repository.MindDiaryTriggerRepository;
 import com.safori.domain.user.entity.User;
 import com.safori.domain.voice.entity.Voice;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -35,6 +37,7 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
     private final MindDiaryTriggerRepository mindDiaryTriggerRepository;
     private final MindDiaryTriggerEvaluator evaluator;
     private final ChatbotMessageMapper mapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public void verifyOwnership(ChatSession session, User user) {
@@ -101,7 +104,12 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
         // 멱등성 키. voice_id UNIQUE 위반 시 예외를 잡지 않고 전파한다 — 트랜잭션 안에서
         // 잡으면 rollback-only로 마킹돼 커밋 시 UnexpectedRollbackException이 터진다.
         // 대신 트랜잭션이 깨끗이 롤백되고, 호출자(스케줄러)가 중복으로 판단해 건너뛴다.
-        mindDiaryTriggerRepository.save(MindDiaryTrigger.offer(triggerVoice, reason));
+        MindDiaryTrigger offer = mindDiaryTriggerRepository.save(MindDiaryTrigger.offer(triggerVoice, reason));
+
+        // 제안 알림 이벤트. 커밋 이후에만 소비된다(@TransactionalEventListener AFTER_COMMIT).
+        // 위 save가 UNIQUE 위반으로 롤백되면 이 이벤트도 소비되지 않아 거짓 푸시가 나가지 않는다.
+        eventPublisher.publishEvent(
+                new MindDiaryOfferedEvent(triggerVoice.getUser().getId(), offer.getId()));
     }
 
     @Override
