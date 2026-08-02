@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface VoiceCompositeAdaptor {
 
     List<VoiceComposite> queryByUsernameAndDateRange(String username, LocalDateTime start, LocalDateTime end);
+    List<Long> queryDistinctUserIdsByDateRange(LocalDateTime start, LocalDateTime end);
     List<VoiceComposite> queryByVoiceIds(List<Long> voiceIds);
     Optional<VoiceComposite> findByVoiceId(Long voiceId);
     VoiceComposite save(VoiceComposite voiceComposite);

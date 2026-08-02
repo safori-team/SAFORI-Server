@@ -12,9 +12,6 @@ import lombok.RequiredArgsConstructor;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -27,8 +24,6 @@ public class GetWeeklyEmotionAnalysisUseCase {
 
     private final VoiceCompositeAdaptor voiceCompositeAdaptor;
     private final GetWeeklyEmotionReportUseCase getWeeklyEmotionReportUseCase;
-
-    private static final DateTimeFormatter YEAR_MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
 
     /**
      * @param yearMonth "yyyy-MM" 형식
@@ -55,9 +50,8 @@ public class GetWeeklyEmotionAnalysisUseCase {
      */
     public List<WeekDayEmotion> executeCurrentWeek(String username) {
         LocalDate today = LocalDate.now();
-        String yearMonth = today.format(YEAR_MONTH_FMT);
-        int week = resolveCalendarWeek(today);
-        DateRangeUtil.DateRange range = DateRangeUtil.calendarWeekRange(yearMonth, week);
+        DateRangeUtil.WeekOfMonth wom = DateRangeUtil.weekOf(today);
+        DateRangeUtil.DateRange range = DateRangeUtil.calendarWeekRange(wom.yearMonth(), wom.week());
         List<VoiceComposite> composites = voiceCompositeAdaptor.queryByUsernameAndDateRange(
                 username, range.getStart(), range.getEnd());
         return buildWeeklyEmotionsFromComposites(range, composites);
@@ -98,20 +92,6 @@ public class GetWeeklyEmotionAnalysisUseCase {
                     .build());
         }
         return result;
-    }
-
-    /**
-     * 오늘 날짜가 해당 월의 몇 번째 주(캘린더 행 기준, 일요일 시작)인지 계산.
-     * DateRangeUtil.calendarWeekRange 의 week 파라미터와 동일한 기준.
-     */
-    private static int resolveCalendarWeek(LocalDate date) {
-        YearMonth ym = YearMonth.from(date);
-        LocalDate firstOfMonth = ym.atDay(1);
-        int daysFromSunday = firstOfMonth.getDayOfWeek() == DayOfWeek.SUNDAY
-                ? 0
-                : firstOfMonth.getDayOfWeek().getValue(); // MON=1 … SAT=6
-        LocalDate week1Start = firstOfMonth.minusDays(daysFromSunday);
-        return (int) ChronoUnit.WEEKS.between(week1Start, date) + 1;
     }
 
     private WeekDay toWeekDay(DayOfWeek dayOfWeek) {

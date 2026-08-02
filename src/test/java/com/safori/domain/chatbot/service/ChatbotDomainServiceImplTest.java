@@ -7,6 +7,7 @@ import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.ChatSessionDiary;
 import com.safori.domain.chatbot.entity.MessageOrigin;
 import com.safori.domain.chatbot.entity.MindDiaryTrigger;
+import com.safori.common.event.MindDiaryOfferedEvent;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
 import com.safori.domain.chatbot.model.ChatbotReply;
 import com.safori.domain.chatbot.policy.MindDiaryTriggerEvaluator;
@@ -24,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
@@ -47,6 +49,7 @@ class ChatbotDomainServiceImplTest {
     @Mock MindDiaryTriggerRepository mindDiaryTriggerRepository;
     @Mock MindDiaryTriggerEvaluator evaluator;
     @Mock ChatbotMessageMapper mapper;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks ChatbotDomainServiceImpl service;
 
@@ -66,6 +69,8 @@ class ChatbotDomainServiceImplTest {
     @DisplayName("조건 충족 시 OFFERED 원장을 기록한다 (세션 없음)")
     void recordOfferSavesOfferedLedger() {
         Voice trigger = voice(10L, user(1L));
+        given(mindDiaryTriggerRepository.save(any(MindDiaryTrigger.class)))
+                .willAnswer(inv -> inv.getArgument(0));
 
         service.recordOffer(trigger, "CONSECUTIVE_NEGATIVE_3D");
 
@@ -74,6 +79,11 @@ class ChatbotDomainServiceImplTest {
         assertThat(cap.getValue().isOffered()).isTrue();
         assertThat(cap.getValue().getSession()).isNull();
         assertThat(cap.getValue().getReason()).isEqualTo("CONSECUTIVE_NEGATIVE_3D");
+
+        // 제안 알림 이벤트가 대상 사용자로 발행된다.
+        ArgumentCaptor<MindDiaryOfferedEvent> evt = ArgumentCaptor.forClass(MindDiaryOfferedEvent.class);
+        verify(eventPublisher).publishEvent(evt.capture());
+        assertThat(evt.getValue().userId()).isEqualTo(1L);
     }
 
     @Test
