@@ -8,6 +8,7 @@ import com.safori.api.emotion.dto.MonthlyEmotionBubbleResponse;
 import com.safori.api.emotion.dto.WeekDayEmotion;
 import com.safori.api.emotion.dto.WeeklyAnalysisCombinedResponse;
 
+import java.time.YearMonth;
 import java.util.List;
 import com.safori.api.emotion.service.GetEmotionLabelDiaryListUseCase;
 import com.safori.api.emotion.service.GetMonthlyEmotionBubbleUseCase;
@@ -41,16 +42,15 @@ public class EmotionAnalysisApiController {
     @Operation(summary = "월간 감정 분석 조회",
             description = """
                     특정 월의 감정별 일기 수, 대표 감정, 총 일기 수, AI 리포트 메시지를 반환합니다.
-                    `yearMonth` 또는 구버전 파라미터 `month` 중 하나를 전달하세요.
+                    `yearMonth`(`yyyy-MM`)를 전달합니다. 생략하면 현재 월로 처리합니다.
                     """)
     @ApiResponse(responseCode = "200", description = "조회 성공")
     @GetMapping("/monthly")
     public ApiResponseDto<MonthlyAnalysisCombinedResponse> getCareEmotionMonthly(
             @UserCode String username,
-            @RequestParam(required = false) String yearMonth,
-            @RequestParam(required = false) String month) {
+            @RequestParam(required = false) String yearMonth) {
         return ApiResponseDto.onSuccess(
-                getMonthlyEmotionAnalysisUseCase.execute(username, resolveYearMonth(yearMonth, month)));
+                getMonthlyEmotionAnalysisUseCase.execute(username, resolveYearMonth(yearMonth)));
     }
 
     @Operation(summary = "이번 주 일별 감정 조회 (홈화면용)",
@@ -65,6 +65,7 @@ public class EmotionAnalysisApiController {
             description = """
                     특정 월의 특정 주차(week) 일별 감정·voiceId와 AI 리포트를 반환합니다.
                     `week`는 해당 월의 주차 번호입니다 (1부터 시작).
+                    `yearMonth`(`yyyy-MM`)를 전달합니다. 생략하면 현재 월로 처리합니다.
                     """)
     @ApiResponse(responseCode = "200", description = "조회 성공")
     @ApiResponse(responseCode = "400", description = "- `4003`: 유효하지 않은 주차 값입니다")
@@ -72,10 +73,9 @@ public class EmotionAnalysisApiController {
     public ApiResponseDto<WeeklyAnalysisCombinedResponse> getCareEmotionWeekly(
             @UserCode String username,
             @RequestParam(required = false) String yearMonth,
-            @RequestParam(required = false) String month,
             @RequestParam int week) {
         return ApiResponseDto.onSuccess(
-                getWeeklyEmotionAnalysisUseCase.execute(username, resolveYearMonth(yearMonth, month), week));
+                getWeeklyEmotionAnalysisUseCase.execute(username, resolveYearMonth(yearMonth), week));
     }
 
     @Operation(summary = "월간 감정 버블차트 데이터 조회",
@@ -103,12 +103,10 @@ public class EmotionAnalysisApiController {
     }
 
     /**
-     * yearMonth(신규) 또는 month(구버전 호환) 중 하나를 받아 유효한 값을 반환.
-     * 둘 다 null이면 필수 파라미터 누락으로 예외를 발생시킨다.
+     * yearMonth("yyyy-MM")를 반환. 생략(null)되면 현재 월로 기본 처리한다.
+     * (과거엔 null일 때 예외를 던져 500이 났다. 클라이언트 편의를 위해 현재 월로 대체한다.)
      */
-    private String resolveYearMonth(String yearMonth, String month) {
-        if (yearMonth != null) return yearMonth;
-        if (month != null) return month;
-        throw new IllegalArgumentException("필수 파라미터 'yearMonth'가 누락되었습니다.");
+    private String resolveYearMonth(String yearMonth) {
+        return yearMonth != null ? yearMonth : YearMonth.now().toString();
     }
 }

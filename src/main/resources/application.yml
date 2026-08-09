@@ -104,8 +104,14 @@ sentry:
   dsn: ${SENTRY_DSN:}
   environment: ${SENTRY_ENVIRONMENT:local}
   send-default-pii: false
+  # 구조화 로그(Sentry Logs)로 애플리케이션 로그 전송. 스타터가 SentryAppender 자동 등록.
   logs:
-    enabled: false
+    enabled: ${SENTRY_LOGS_ENABLED:false}
+  logging:
+    # 이 레벨 이상 로그를 Sentry Logs로 전송(logs.enabled=true일 때). 기본 INFO.
+    minimum-level: ${SENTRY_LOG_MIN_LEVEL:info}
+    # 이 레벨 이상 로그를 Issue(이벤트)로 전송. 기본 ERROR — log.error가 스택트레이스와 함께 올라감.
+    minimum-event-level: ${SENTRY_LOG_EVENT_LEVEL:error}
 
 springdoc:
   swagger-ui:
