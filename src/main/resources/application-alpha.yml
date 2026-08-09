@@ -4,12 +4,12 @@ logging:
     root: INFO
     com.safori: INFO
 
-# alpha는 Sentry Logs 켜서 로그도 Sentry로 전송(트레이스와 연동). DSN 있어야 실제 전송됨.
+# HOTFIX: Sentry Logs 비활성. 아웃바운드 443이 막힌 상태에서 Logs를 켜면 SDK가 flush 못 해
+# 로그가 메모리에 쌓여 OOM을 유발하는 것으로 의심됨. 443(NAT/VPC 엔드포인트) 뚫고 메모리
+# 안정 확인 후 다시 켠다. error 이벤트(Issue)는 logs.enabled와 무관하게 계속 전송됨.
 sentry:
   logs:
-    enabled: ${SENTRY_LOGS_ENABLED:true}
-  logging:
-    minimum-level: ${SENTRY_LOG_MIN_LEVEL:info}
+    enabled: ${SENTRY_LOGS_ENABLED:false}
 
 management:
   endpoints:
