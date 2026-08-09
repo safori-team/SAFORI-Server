@@ -115,4 +115,46 @@ class GetMonthlyEmotionReportUseCaseTest {
         verify(cached).update(200L, "새 월간 리포트");
         verify(monthlyEmotionReportRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("데이터 있고 AI 실패·캐시 없음 - 500 대신 fallback 메시지, 저장 안 함")
+    void execute_aiFailsNoCache_returnsFallbackWithoutSaving() {
+        VoiceComposite vc = mock(VoiceComposite.class);
+        given(vc.getId()).willReturn(100L);
+        given(userAdaptor.queryUserByUsername("user01")).willReturn(user);
+        given(user.getId()).willReturn(1L);
+        given(user.getName()).willReturn("홍길동");
+        given(monthlyEmotionReportRepository.findByUser_IdAndReportMonth(1L, "2024-01"))
+                .willReturn(Optional.empty());
+        given(openAiMonthlyReportClient.generateMonthlyReport(any(), any(), any()))
+                .willThrow(new IllegalStateException("OPENAI_API_KEY is not configured"));
+
+        String msg = useCase.execute("user01", "2024-01", COUNTS, List.of(vc));
+
+        assertThat(msg).isEqualTo("이번 달 감정 리포트를 준비하지 못했습니다. 잠시 후 다시 확인해주세요.");
+        verify(monthlyEmotionReportRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("데이터 있고 AI 실패·캐시 있음 - 실패분 저장 없이 기존 캐시 메시지 반환")
+    void execute_aiFailsWithStaleCache_returnsCachedWithoutSaving() {
+        VoiceComposite vc = mock(VoiceComposite.class);
+        given(vc.getId()).willReturn(200L);
+        MonthlyEmotionReport cached = mock(MonthlyEmotionReport.class);
+        given(cached.getLatestVoiceCompositeId()).willReturn(100L);
+        given(cached.getReportMessage()).willReturn("직전 월간 리포트");
+        given(userAdaptor.queryUserByUsername("user01")).willReturn(user);
+        given(user.getId()).willReturn(1L);
+        given(user.getName()).willReturn("홍길동");
+        given(monthlyEmotionReportRepository.findByUser_IdAndReportMonth(1L, "2024-01"))
+                .willReturn(Optional.of(cached));
+        given(openAiMonthlyReportClient.generateMonthlyReport(any(), any(), any()))
+                .willThrow(new RuntimeException("OpenAI 5xx"));
+
+        String msg = useCase.execute("user01", "2024-01", COUNTS, List.of(vc));
+
+        assertThat(msg).isEqualTo("직전 월간 리포트");
+        verify(cached, never()).update(any(), any());
+        verify(monthlyEmotionReportRepository, never()).save(any());
+    }
 }
