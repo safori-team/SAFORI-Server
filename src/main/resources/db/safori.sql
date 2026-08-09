@@ -100,6 +100,55 @@ ALTER TABLE chat_message
 
 
 -- -----------------------------------------------------------------------------
+-- mind_diary_trigger FK의 ON DELETE 옵션 보장.
+--   voice_id  → ON DELETE CASCADE : 일기를 지우면 원장도 사라진다. 이게 없으면 트리거된
+--               일기(원장 행 존재) 삭제 시 FK 위반으로 실패한다(삭제 API 500).
+--   session_id→ ON DELETE SET NULL: 세션을 지워도 원장 행은 남아 세션 재생성을 막는다.
+--   @OnDelete 애노테이션은 테이블 최초 생성 시에만 DDL에 반영되므로, 애노테이션 추가 전에
+--   이미 만들어진 FK에는 옵션이 안 붙어 있다. chat_message와 동일하게 drop 후 재생성한다.
+--   (앱은 DeleteVoiceUseCase에서 원장 행을 명시 삭제하므로 이 보정 없이도 동작하지만,
+--    스키마를 애노테이션 의도와 일치시켜 스캐너/재평가 등 다른 경로의 정합성을 지킨다.)
+-- -----------------------------------------------------------------------------
+SET @fk := (
+    SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'mind_diary_trigger'
+      AND COLUMN_NAME = 'voice_id'
+      AND REFERENCED_TABLE_NAME = 'voice'
+    LIMIT 1
+);
+SET @sql := IF(@fk IS NOT NULL,
+    CONCAT('ALTER TABLE mind_diary_trigger DROP FOREIGN KEY ', @fk),
+    'SELECT "no existing mind_diary_trigger voice FK" AS msg');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+ALTER TABLE mind_diary_trigger
+    ADD CONSTRAINT fk_mdt_voice FOREIGN KEY (voice_id)
+        REFERENCES voice (voice_id) ON DELETE CASCADE;
+
+SET @fk := (
+    SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'mind_diary_trigger'
+      AND COLUMN_NAME = 'session_id'
+      AND REFERENCED_TABLE_NAME = 'chat_session'
+    LIMIT 1
+);
+SET @sql := IF(@fk IS NOT NULL,
+    CONCAT('ALTER TABLE mind_diary_trigger DROP FOREIGN KEY ', @fk),
+    'SELECT "no existing mind_diary_trigger session FK" AS msg');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+ALTER TABLE mind_diary_trigger
+    ADD CONSTRAINT fk_mdt_session FOREIGN KEY (session_id)
+        REFERENCES chat_session (id) ON DELETE SET NULL;
+
+
+-- -----------------------------------------------------------------------------
 -- voice 인덱스: 세션 트리거 스케줄러가 10분마다 voice를 스캔한다.
 --   이 인덱스가 없으면 매 주기 full table scan이 발생한다(데이터가 쌓일수록 악화).
 --   hbm2ddl update는 기존 테이블에 인덱스를 추가해주지 않으므로 직접 적용해야 한다.

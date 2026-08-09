@@ -25,10 +25,11 @@ public class DeleteVoiceUseCase {
         if (!voice.getUser().getUsername().equals(username)) {
             throw VoiceHandler.NO_PERMISSION;
         }
-        // 순서 중요: 세션을 먼저 지워야 chat_message가 cascade로 정리된다.
-        // chat_message.voice_id FK에는 cascade가 없어, 세션을 안 지우고 voice부터 지우면
-        // 그 메시지가 voice를 참조한 채 남아 FK 위반이 난다.
-        chatbotDomainService.deleteTriggeredSessionByVoiceId(voiceId);
+        // 순서 중요: 세션·트리거 원장을 먼저 지워야 voice 삭제가 FK 위반 없이 된다.
+        //   - chat_message.voice_id FK에는 cascade가 없어, 세션을 먼저 지워 메시지를 cascade로 정리한다.
+        //   - mind_diary_trigger.voice_id FK의 cascade가 실제 DB에 반영돼 있지 않을 수 있어(ddl-auto:update),
+        //     원장 행도 명시적으로 지운다. 안 지우면 voice 삭제가 FK 위반으로 500 난다.
+        chatbotDomainService.deleteTriggerAndSessionByVoiceId(voiceId);
         voiceAdaptor.deleteById(voiceId);
     }
 }

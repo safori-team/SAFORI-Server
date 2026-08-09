@@ -269,34 +269,37 @@ class ChatbotDomainServiceImplTest {
         verify(mindDiaryTriggerRepository, never()).delete(any());
     }
 
-    // -- deleteTriggeredSessionByVoiceId (일기 삭제) -------------------------
+    // -- deleteTriggerAndSessionByVoiceId (일기 삭제) -------------------------
 
     @Test
-    @DisplayName("일기가 트리거한 세션이 있으면 삭제한다")
+    @DisplayName("일기가 트리거한 세션이 있으면 세션과 원장 행을 모두 삭제한다")
     void deletesTriggeredSession() {
         ChatSession session = ChatSession.create(user(1L));
         MindDiaryTrigger t = acceptedTrigger(12L, user(1L), session);
         given(mindDiaryTriggerRepository.findByVoice_Id(12L)).willReturn(Optional.of(t));
 
-        service.deleteTriggeredSessionByVoiceId(12L);
+        service.deleteTriggerAndSessionByVoiceId(12L);
 
         verify(chatSessionAdaptor).delete(session);
+        verify(mindDiaryTriggerRepository).delete(t);
     }
 
     @Test
-    @DisplayName("트리거 이력이 없으면 세션 삭제를 시도하지 않는다")
+    @DisplayName("트리거 이력이 없으면 세션도 원장도 삭제하지 않는다")
     void noLedgerNoDelete() {
         given(mindDiaryTriggerRepository.findByVoice_Id(99L)).willReturn(Optional.empty());
-        service.deleteTriggeredSessionByVoiceId(99L);
+        service.deleteTriggerAndSessionByVoiceId(99L);
         verify(chatSessionAdaptor, never()).delete(any());
+        verify(mindDiaryTriggerRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("OFFERED 원장(세션 없음)이면 삭제할 세션이 없어 조용히 넘어간다")
+    @DisplayName("OFFERED 원장(세션 없음)이면 세션은 건너뛰고 원장 행만 삭제한다")
     void offeredLedgerNoSessionToDelete() {
         MindDiaryTrigger offered = offeredTrigger(12L, user(1L));
         given(mindDiaryTriggerRepository.findByVoice_Id(12L)).willReturn(Optional.of(offered));
-        service.deleteTriggeredSessionByVoiceId(12L);
+        service.deleteTriggerAndSessionByVoiceId(12L);
         verify(chatSessionAdaptor, never()).delete(any());
+        verify(mindDiaryTriggerRepository).delete(offered);
     }
 }

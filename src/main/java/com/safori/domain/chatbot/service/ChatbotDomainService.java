@@ -83,14 +83,20 @@ public interface ChatbotDomainService {
     void withdrawStaleTriggers(Long userId);
 
     /**
-     * 일기가 트리거한 상담 세션을 삭제한다 (있으면). 일기 삭제 시 호출.
+     * 일기가 트리거한 상담 세션과 트리거 원장 행을 삭제한다 (있으면). 일기 삭제 시 호출.
      *
      * <p>일기를 지우면 그 일기를 읽고 만든 대화도 남지 않아야 한다(프라이버시). 세션 삭제가
-     * 메시지·컨텍스트 링크를 cascade로 정리한다. 트리거 원장 행 자체는 이후 일기 삭제 시
-     * cascade로 사라지므로 여기서 지우지 않는다 — 남겨두면 아직 존재하는 일기가 재트리거되는
-     * 것을 막고, 일기가 실제로 지워질 때 함께 정리된다.
+     * 메시지·컨텍스트 링크를 cascade로 정리한다.
+     *
+     * <p><b>트리거 원장 행도 여기서 명시적으로 지운다.</b> 원래는 voice 삭제 시
+     * {@code mind_diary_trigger.voice_id} FK의 {@code ON DELETE CASCADE}로 함께 정리되길
+     * 기대했으나, 이 프로젝트는 {@code ddl-auto: update}라 나중에 추가된 {@code @OnDelete}
+     * cascade가 기존 테이블의 FK에 반영되지 않는다(수동 safori.sql로만 보정). 그 FK cascade가
+     * 실제 DB에 없으면 voice 삭제가 FK 위반으로 실패한다(삭제 API 500). DB 상태에 의존하지 않도록
+     * 원장 행을 앱에서 직접 삭제한다. 일기가 지워지면 어차피 새로 쓰면 새 voice_id라 재트리거 대상이
+     * 되므로 원장을 남길 이유도 없다.
      *
      * <p>호출자의 트랜잭션에 참여한다(일기 삭제와 원자적으로 처리되도록).
      */
-    void deleteTriggeredSessionByVoiceId(Long voiceId);
+    void deleteTriggerAndSessionByVoiceId(Long voiceId);
 }
