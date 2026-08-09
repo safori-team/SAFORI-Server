@@ -190,14 +190,15 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
 
     @Override
     @Transactional
-    public void deleteTriggeredSessionByVoiceId(Long voiceId) {
+    public void deleteTriggerAndSessionByVoiceId(Long voiceId) {
         mindDiaryTriggerRepository.findByVoice_Id(voiceId).ifPresent(trigger -> {
             ChatSession session = trigger.getSession();
             if (session != null) {
-                // 세션 삭제 → chat_message·chat_session_diary는 FK CASCADE로,
-                //           원장.session_id는 FK SET NULL로 정리된다.
+                // 세션 삭제 → chat_message·chat_session_diary는 FK CASCADE로 정리된다.
                 chatSessionAdaptor.delete(session);
             }
+            // 원장 행도 명시 삭제. voice_id FK CASCADE에 의존하지 않는다(위 인터페이스 주석 참조).
+            mindDiaryTriggerRepository.delete(trigger);
         });
     }
 }

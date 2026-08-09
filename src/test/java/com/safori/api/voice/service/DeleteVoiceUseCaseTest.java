@@ -41,7 +41,7 @@ class DeleteVoiceUseCaseTest {
 
         // chat_message.voice_id FK엔 cascade가 없어 순서가 중요하다.
         var order = inOrder(chatbotDomainService, voiceAdaptor);
-        order.verify(chatbotDomainService).deleteTriggeredSessionByVoiceId(voiceId);
+        order.verify(chatbotDomainService).deleteTriggerAndSessionByVoiceId(voiceId);
         order.verify(voiceAdaptor).deleteById(voiceId);
     }
 
@@ -57,6 +57,6 @@ class DeleteVoiceUseCaseTest {
                 .isInstanceOf(VoiceHandler.class);
 
         verify(voiceAdaptor, never()).deleteById(voiceId);
-        verify(chatbotDomainService, never()).deleteTriggeredSessionByVoiceId(voiceId);
+        verify(chatbotDomainService, never()).deleteTriggerAndSessionByVoiceId(voiceId);
     }
 }
