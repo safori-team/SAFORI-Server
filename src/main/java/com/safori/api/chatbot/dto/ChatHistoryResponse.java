@@ -1,5 +1,6 @@
 package com.safori.api.chatbot.dto;
 
+import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -34,5 +35,11 @@ public record ChatHistoryResponse(
         @Schema(description = """
                 상담이 마무리된 세션인지. true면 입력창을 비활성화한다.
                 (메시지 전송 시 4206 CHAT_SESSION_CLOSED)""", example = "false")
-        boolean sessionClosed
+        boolean sessionClosed,
+        @Schema(description = """
+                세션 최신 턴의 응답 생성 상태 (PROCESSING / COMPLETED / FAILED).
+                page와 무관하게 항상 최신 턴 기준이다 — page≥2를 보고 있어도 입력창 잠금을
+                판단할 수 있도록. PROCESSING이면 입력창을 비활성화하고 폴링한다.
+                (전송 시 4211 CHAT_REPLY_IN_PROGRESS)""", example = "COMPLETED")
+        ChatReplyStatus replyStatus
 ) {}

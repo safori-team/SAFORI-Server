@@ -1,10 +1,12 @@
 package com.safori.domain.chatbot.service;
 
 import com.safori.common.annotation.DomainService;
+import com.safori.common.event.ChatReplySettledEvent;
 import com.safori.common.event.MindDiaryOfferedEvent;
 import com.safori.domain.chatbot.adaptor.ChatMessageAdaptor;
 import com.safori.domain.chatbot.adaptor.ChatSessionAdaptor;
 import com.safori.domain.chatbot.entity.ChatMessage;
+import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.ChatSessionDiary;
 import com.safori.domain.chatbot.entity.DoranEmotion;
@@ -25,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @DomainService
 @RequiredArgsConstructor
@@ -75,11 +79,6 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
         return history;
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public long countTurns(String sessionId) {
-        return chatMessageAdaptor.countBySessionId(sessionId);
-    }
 
     @Override
     @Transactional
@@ -92,10 +91,51 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
                 .botResponse(mapper.toBotResponseJson(botReply))
                 .voiceKey(voiceKey)
                 .origin(origin)
+                .replyStatus(ChatReplyStatus.COMPLETED)
                 .build());
         session.touch();
         chatSessionAdaptor.save(session);
         return saved.getId();
+    }
+
+    @Override
+    @Transactional
+    public Long beginMessage(String sessionId, String userInput,
+                             MessageOrigin origin, String voiceKey) {
+        ChatSession session = chatSessionAdaptor.queryById(sessionId);
+        ChatMessage saved = chatMessageAdaptor.save(ChatMessage.builder()
+                .session(session)
+                .userInput(userInput)
+                .botResponse(null)          // 응답은 settleMessage에서 채운다
+                .voiceKey(voiceKey)
+                .origin(origin)
+                .replyStatus(ChatReplyStatus.PROCESSING)
+                .build());
+        // 여기서 갱신해야 처리 중인 세션이 목록 맨 위로 올라온다
+        session.touch();
+        chatSessionAdaptor.save(session);
+        return saved.getId();
+    }
+
+    @Override
+    @Transactional
+    public void settleMessage(Long messageId, ChatbotReply botReply, boolean failed) {
+        ChatMessage message = chatMessageAdaptor.queryByIdWithSessionAndUser(messageId);
+        message.settle(mapper.toBotResponseJson(botReply), failed);
+        chatMessageAdaptor.save(message);
+
+        // 커밋 이후에만 소비된다(@TransactionalEventListener AFTER_COMMIT) — 롤백 시 거짓 푸시 방지
+        eventPublisher.publishEvent(new ChatReplySettledEvent(
+                message.getSession().getUser().getId(),
+                message.getSession().getId(),
+                messageId,
+                failed));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasReplyInProgress(String sessionId) {
+        return chatMessageAdaptor.existsProcessingBySessionId(sessionId);
     }
 
     @Override
@@ -144,6 +184,8 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
                 .botResponse(mapper.toBotResponseJson(botReply))
                 .voice(triggerVoice)
                 .origin(MessageOrigin.MIND_DIARY)
+                // 세션이 이 시점에 처음 생기므로 PROCESSING 구간이 없다 — 바로 확정 상태로 저장
+                .replyStatus(ChatReplyStatus.COMPLETED)
                 .build());
         for (int seq = 0; seq < contextVoices.size(); seq++) {
             chatSessionDiaryRepository.save(
@@ -163,6 +205,7 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
         }
         offer.decline();
     }
+
 
     @Override
     @Transactional

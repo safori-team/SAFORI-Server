@@ -22,7 +22,9 @@ import java.time.LocalDateTime;
 @Table(name = "chat_message", indexes = {
         @Index(name = "idx_chat_message_session_created",
                columnList = "session_id, createdDate DESC"),
-        @Index(name = "idx_chat_message_voice", columnList = "voice_id")
+        @Index(name = "idx_chat_message_voice", columnList = "voice_id"),
+        // 좀비 정리 스케줄러: 미완료 상태 + 생성 시각 범위 (1분마다 실행)
+        @Index(name = "idx_chat_message_reply_status", columnList = "reply_status, createdDate")
 })
 public class ChatMessage extends BaseTimeEntity {
 
@@ -40,9 +42,18 @@ public class ChatMessage extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String userInput;
 
+    /**
+     * 도란이 응답 JSON. {@link ChatReplyStatus#PROCESSING} 구간에는 아직 응답이 없어 null이다.
+     * (LLM 호출 전에 행을 먼저 커밋하기 때문 — {@link ChatReplyStatus} 참조)
+     */
     @Convert(converter = JsonNodeConverter.class)
-    @Column(name = "bot_response", nullable = false, columnDefinition = "JSON")
+    @Column(name = "bot_response", columnDefinition = "JSON")
     private JsonNode botResponse;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reply_status", nullable = false,
+            columnDefinition = "VARCHAR(16) NOT NULL DEFAULT 'COMPLETED'")
+    private ChatReplyStatus replyStatus;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "voice_id")
@@ -68,6 +79,12 @@ public class ChatMessage extends BaseTimeEntity {
 
     @Column
     private LocalDateTime feedbackAt;
+
+    /** LLM 호출이 끝난 뒤 응답과 최종 상태를 기록한다. 실패면 폴백 응답이 들어온다. */
+    public void settle(JsonNode botResponse, boolean failed) {
+        this.botResponse = botResponse;
+        this.replyStatus = failed ? ChatReplyStatus.FAILED : ChatReplyStatus.COMPLETED;
+    }
 
     public void applyFeedback(DoranEmotion emotion, String detail) {
         this.feedbackEmotion = emotion;

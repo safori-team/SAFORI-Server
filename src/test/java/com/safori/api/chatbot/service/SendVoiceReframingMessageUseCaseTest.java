@@ -8,6 +8,8 @@ import com.safori.domain.chatbot.entity.MessageOrigin;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
 import com.safori.domain.chatbot.model.VoiceEmotionDigest;
 import com.safori.domain.chatbot.policy.ConversationTurnPolicy;
+import com.safori.domain.chatbot.model.ChatbotReply;
+import com.safori.domain.chatbot.model.GeneratedReply;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
 import com.safori.domain.chatbot.service.ChatbotMessageMapper;
 import com.safori.domain.emotion.entity.EmotionType;
@@ -17,7 +19,6 @@ import com.safori.infra.ai.gemini.GeminiChatbotClient;
 import com.safori.infra.ai.gemini.GeminiEmotionMapper;
 import com.safori.infra.ai.gemini.GeminiVoiceAnalyzer;
 import com.safori.infra.ai.gemini.dto.GeminiAnalysisResult;
-import com.safori.infra.ai.gemini.prompts.DoranResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -76,10 +77,10 @@ class SendVoiceReframingMessageUseCaseTest {
         given(mapper.emotionHint(any(EmotionType.class))).willReturn("sad");
         given(chatbotDomainService.loadRecentHistory(anyString(), anyInt())).willReturn(List.of());
         given(turnPolicy.maxUserTurns()).willReturn(4);
-        given(geminiChatbotClient.generate(anyString())).willReturn(new DoranResponse(
-                "공감", "없음", "분석", "질문", "대안", "sad"));
-        given(chatbotDomainService.appendMessage(
-                anyString(), anyString(), any(), any(MessageOrigin.class), any()))
+        given(geminiChatbotClient.generate(anyString())).willReturn(GeneratedReply.ok(
+                new ChatbotReply("공감", "없음", "분석", "질문", "대안", "sad")));
+        given(chatbotDomainService.beginMessage(
+                anyString(), anyString(), any(MessageOrigin.class), any()))
                 .willReturn(101L);
     }
 

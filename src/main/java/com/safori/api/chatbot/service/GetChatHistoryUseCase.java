@@ -6,6 +6,7 @@ import com.safori.common.annotation.UseCase;
 import com.safori.domain.chatbot.adaptor.ChatMessageAdaptor;
 import com.safori.domain.chatbot.adaptor.ChatSessionAdaptor;
 import com.safori.domain.chatbot.entity.ChatMessage;
+import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.MessageOrigin;
 import com.safori.domain.chatbot.policy.ConversationTurnPolicy;
@@ -60,7 +61,8 @@ public class GetChatHistoryUseCase {
                         m.getVoice() == null ? null : m.getVoice().getId(),
                         m.getVoiceKey(),
                         null, null, null, null, null, null, null, null, null,
-                        m.getCreatedDate()
+                        m.getCreatedDate(),
+                        null   // 응답 생성 상태는 assistant 항목에만 의미가 있다
                 ));
             }
             JsonNode bot = m.getBotResponse();
@@ -77,9 +79,15 @@ public class GetChatHistoryUseCase {
                     m.getFeedbackEmotion() == null ? null : m.getFeedbackEmotion().getCode(),
                     m.getFeedbackDetail(),
                     m.getFeedbackAt(),
-                    m.getCreatedDate()
+                    m.getCreatedDate(),
+                    m.getReplyStatus()
             ));
         }
+
+        // 세션 레벨 상태는 페이지와 무관하게 최신 턴 기준 — page≥2에서도 입력창 잠금을 판단할 수 있도록
+        ChatReplyStatus sessionReplyStatus = chatMessageAdaptor.queryLatestBySessionId(sessionId)
+                .map(ChatMessage::getReplyStatus)
+                .orElse(null);
 
         return new ChatHistoryResponse(
                 sessionId,
@@ -89,7 +97,8 @@ public class GetChatHistoryUseCase {
                 p.getTotalElements(),
                 p.getTotalPages() == 0 ? 1 : p.getTotalPages(),
                 p.hasNext(),
-                turnPolicy.isClosed(sessionId)
+                turnPolicy.isClosed(sessionId),
+                sessionReplyStatus
         );
     }
 

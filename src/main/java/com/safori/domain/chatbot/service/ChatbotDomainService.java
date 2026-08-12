@@ -26,15 +26,33 @@ public interface ChatbotDomainService {
      */
     List<HistoryTurn> loadRecentHistory(String sessionId, int limit);
 
-    /** 세션의 누적 턴 수. (readOnly 트랜잭션 경계) */
-    long countTurns(String sessionId);
 
     /**
      * 메시지 INSERT + 세션 lastMessageAt 갱신을 한 트랜잭션으로 처리한다.
+     * 응답이 이미 확정된 경우(LLM을 거치지 않는 안전 응답 등)에만 쓴다.
      * @return 생성된 메시지 ID
      */
     Long appendMessage(String sessionId, String userInput, ChatbotReply botReply,
                        MessageOrigin origin, String voiceKey);
+
+    /**
+     * LLM 호출 <b>전에</b> 메시지 행을 PROCESSING으로 먼저 커밋한다.
+     *
+     * <p>이 커밋이 있어야 응답을 기다리는 동안 조회 API가 "처리 중"을 보여줄 수 있다.
+     * 하나의 긴 트랜잭션으로 묶으면 커밋 전까지 다른 요청에서 행이 보이지 않는다.
+     *
+     * @return 생성된 메시지 ID ({@link #settleMessage}에 그대로 넘긴다)
+     */
+    Long beginMessage(String sessionId, String userInput, MessageOrigin origin, String voiceKey);
+
+    /**
+     * LLM 호출이 끝난 뒤 응답과 최종 상태를 기록한다 (PROCESSING → COMPLETED/FAILED).
+     * 커밋 후 {@code ChatReplySettledEvent}가 소비돼 푸시가 나간다.
+     */
+    void settleMessage(Long messageId, ChatbotReply botReply, boolean failed);
+
+    /** 세션에 아직 응답이 확정되지 않은 메시지가 있는지. 처리 중 재전송 차단용. */
+    boolean hasReplyInProgress(String sessionId);
 
     /**
      * 조건을 충족한 일기에 대해 상담 제안(OFFERED) 원장 행을 기록한다. 세션은 만들지 않는다.
@@ -69,6 +87,7 @@ public interface ChatbotDomainService {
 
     /** 사용자가 제안을 거절 → 원장을 DECLINED로 전환. 재제안하지 않는다. */
     void declineOffer(Long offerId);
+
 
     /**
      * 재분석 등으로 감정이 바뀐 뒤, 사용자의 아직 확정되지 않은 트리거(OFFERED, 또는 0턴

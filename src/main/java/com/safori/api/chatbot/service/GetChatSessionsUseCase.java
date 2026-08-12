@@ -65,7 +65,9 @@ public class GetChatSessionsUseCase {
                 s.getLastMessageAt(),
                 latest == null ? List.of() : mapper.distortionTags(latest.getBotResponse()),
                 emotion,
-                userTurns >= conversationProps.getMaxUserTurns()
+                userTurns >= conversationProps.getMaxUserTurns(),
+                // 최신 메시지가 이미 조회돼 있어 추가 쿼리 없이 상태를 낸다
+                latest == null ? null : latest.getReplyStatus()
         );
     }
 }

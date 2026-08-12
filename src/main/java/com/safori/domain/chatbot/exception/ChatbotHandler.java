@@ -28,6 +28,8 @@ public class ChatbotHandler extends GeneralException {
             new ChatbotHandler(ErrorStatus.CHAT_OFFER_NOT_OFFERABLE);
     public static final GeneralException OFFER_EXPIRED =
             new ChatbotHandler(ErrorStatus.CHAT_OFFER_EXPIRED);
+    public static final GeneralException REPLY_IN_PROGRESS =
+            new ChatbotHandler(ErrorStatus.CHAT_REPLY_IN_PROGRESS);
 
     public ChatbotHandler(BaseErrorCode code) {
         super(code);

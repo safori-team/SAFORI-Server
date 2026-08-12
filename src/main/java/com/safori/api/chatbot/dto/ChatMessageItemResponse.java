@@ -1,5 +1,6 @@
 package com.safori.api.chatbot.dto;
 
+import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -36,5 +37,15 @@ public record ChatMessageItemResponse(
         @Schema(description = "피드백 입력 시각 (피드백 없으면 null)", example = "2024-01-15T09:35:00")
         LocalDateTime feedbackAt,
         @Schema(description = "메시지 생성 시각", example = "2024-01-15T09:30:00")
-        LocalDateTime timestamp
+        LocalDateTime timestamp,
+        @Schema(description = """
+                도란이 응답 생성 상태 (PROCESSING / COMPLETED / FAILED).
+                role=user 항목은 항상 null.
+
+                • PROCESSING - 도란이 6개 필드가 전부 null. "생각 중" 말풍선으로 렌더한다.
+                • FAILED     - 6개 필드에 폴백 문구가 채워져 있다(null 아님). 재시도 버튼을 노출하고
+                               피드백 버튼은 숨긴다.
+
+                null 여부가 아니라 이 값으로 분기해야 한다.""", example = "COMPLETED")
+        ChatReplyStatus replyStatus
 ) {}

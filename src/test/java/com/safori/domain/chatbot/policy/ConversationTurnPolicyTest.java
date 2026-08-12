@@ -103,6 +103,8 @@ class ConversationTurnPolicyTest {
         @Override public List<ChatMessage> queryRecentBySessionId(String sessionId, int limit) { throw new UnsupportedOperationException(); }
         @Override public long countBySessionId(String sessionId) { throw new UnsupportedOperationException(); }
         @Override public Map<String, Long> countUserTurnsBySessionIds(List<String> sessionIds) { throw new UnsupportedOperationException(); }
+        @Override public boolean existsProcessingBySessionId(String sessionId) { throw new UnsupportedOperationException(); }
+        @Override public List<ChatMessage> queryStaleProcessing(java.time.LocalDateTime threshold) { throw new UnsupportedOperationException(); }
         @Override public Optional<ChatMessage> queryLatestBySessionId(String sessionId) { throw new UnsupportedOperationException(); }
         @Override public Map<String, ChatMessage> queryLatestBySessionIds(List<String> sessionIds) { throw new UnsupportedOperationException(); }
         @Override public Optional<ChatMessage> findMindDiaryMessageByVoiceId(Long voiceId) { throw new UnsupportedOperationException(); }
