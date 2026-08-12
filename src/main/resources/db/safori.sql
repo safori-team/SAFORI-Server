@@ -1,186 +1,286 @@
--- =============================================================================
--- SAFORI DDL
---
--- 이 프로젝트는 Flyway를 쓰지 않고 JPA `ddl-auto: update`로 스키마를 반영한다.
--- 그런데 hbm2ddl update는 "테이블/컬럼 추가"까지만 해주고, 이미 존재하는 테이블에
--- UNIQUE 제약이나 인덱스를 뒤늦게 붙여주지는 않는다. 즉 아래 DDL 중 UNIQUE 제약은
--- 애플리케이션 기동만으로는 생성되지 않으므로 각 DB에 한 번씩 직접 실행해야 한다.
---
--- 실행: mysql -h <host> -u <user> -p <database> < src/main/resources/db/safori.sql
--- 성격: 재실행 안전(idempotent). 이미 적용된 항목은 건너뛴다.
--- =============================================================================
+create table if not exists users
+(
+    user_id            bigint auto_increment
+    primary key,
+    created_date       datetime(6)                  null,
+    last_modified_date datetime(6)                  null,
+    name               varchar(255)                 null,
+    password           varchar(255)                 null,
+    role               enum ('NOT_ALLOWED', 'USER') null,
+    user_uuid          varchar(255)                 null,
+    username           varchar(255)                 null,
+    gender             enum ('FEMALE', 'MALE')      null,
+    nickname           varchar(255)                 null,
+    constraint UK4mcg6l0va97nbd8o9tqpeg104
+    unique (user_uuid),
+    constraint UKr43af9ap4edm43mmtq01oddj6
+    unique (username)
+    );
 
+create table if not exists chat_session
+(
+    id                 char(36)    not null
+    primary key,
+    created_date       datetime(6) null,
+    last_modified_date datetime(6) null,
+    last_message_at    datetime(6) null,
+    user_id            bigint      not null,
+    constraint FKd17ahlgqfllxn81i7mf3iiurs
+    foreign key (user_id) references users (user_id)
+    );
 
--- -----------------------------------------------------------------------------
--- 2026-07 마음일기 세션 생성 정책 변경
---   기존: 마음일기 분석 완료 → 즉시 세션 1개 생성 (이벤트 트리거)
---   변경: 3일 연속 부정 감정(슬픔/분노/불안)일 때만 세션 생성 (10분 주기 스케줄러)
---
---   mind_diary_trigger 원장이 스케줄러의 멱등성 키다. 이게 없으면 스케줄러가 매 주기
---   같은 일기로 세션을 다시 만들어 무한 증식하고, 인스턴스를 늘렸을 때 동시 실행으로
---   중복 세션이 생긴다. 반드시 적용할 것.
--- -----------------------------------------------------------------------------
+create index idx_chat_session_user_last_message
+    on chat_session (user_id asc, last_message_at desc);
 
--- mind_diary_trigger: 일기 → 세션 트리거 원장
---   "일기 1건은 최대 한 번만 상담을 촉발한다"는 불변식을 데이터로 명시한다.
---   voice_id UNIQUE가 멱등성 키 — 스캔 쿼리는 이 테이블에 행이 있으면 후보에서 제외한다.
---
---   왜 세션이 아니라 원장으로 판정하나: 세션은 사용자가 지울 수 있는 가변 자원이다.
---   "세션이 있나"로 판정하면 사용자가 세션을 지운 순간 다음 스캔에서 같은 일기가 다시 후보가
---   되어 세션이 부활한다. 원장은 "트리거를 시도한 적 있다"는 불변 사실을 남긴다.
---
---   session_id ON DELETE SET NULL: 세션을 지워도 원장 행은 남아 재생성을 막는다.
---   voice_id   ON DELETE CASCADE : 일기를 지우면 원장도 사라진다(그 일기는 새로 쓰면
---                                   새 voice_id라 다시 트리거 대상이 된다).
---   status : OFFERED(제안, 모달 대기) → ACCEPTED(수락, 세션 생성) / DECLINED(거절).
---            어느 상태든 행이 있으면 스캔에서 제외된다(재제안 방지).
-CREATE TABLE IF NOT EXISTS mind_diary_trigger (
-    mind_diary_trigger_id BIGINT      NOT NULL AUTO_INCREMENT,
-    voice_id              BIGINT      NOT NULL,
-    status                VARCHAR(16) NOT NULL,
-    session_id            CHAR(36)    NULL,
-    reason                VARCHAR(64) NOT NULL,
-    created_date          DATETIME(6) NULL,
-    last_modified_date    DATETIME(6) NULL,
-    PRIMARY KEY (mind_diary_trigger_id),
-    CONSTRAINT uq_mdt_voice UNIQUE (voice_id),
-    CONSTRAINT fk_mdt_voice FOREIGN KEY (voice_id)
-        REFERENCES voice (voice_id) ON DELETE CASCADE,
-    CONSTRAINT fk_mdt_session FOREIGN KEY (session_id)
-        REFERENCES chat_session (id) ON DELETE SET NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+create table if not exists device_token
+(
+    device_token_id    bigint auto_increment
+    primary key,
+    created_date       datetime(6)  null,
+    last_modified_date datetime(6)  null,
+    token              varchar(512) not null,
+    user_id            bigint       null,
+    constraint UKoaccue9kxei35rbe5thnv18ye
+    unique (token),
+    constraint FKdklq4fbedbwx14v2varmsjeb5
+    foreign key (user_id) references users (user_id)
+    on delete cascade
+    );
 
+create table if not exists monthly_emotion_report
+(
+    monthly_emotion_report_id bigint auto_increment
+    primary key,
+    created_date              datetime(6) null,
+    last_modified_date        datetime(6) null,
+    latest_voice_composite_id bigint      null,
+    report_message            mediumtext  not null,
+    report_month              varchar(7)  not null,
+    user_id                   bigint      not null,
+    constraint uq_monthly_report_user_month
+    unique (user_id, report_month),
+    constraint fk_monthly_report_user
+    foreign key (user_id) references users (user_id)
+    );
 
--- chat_session_diary: 세션이 어떤 일기들을 근거로 만들어졌는지 (세션 N:M 일기)
---   연속 부정 감정 정책에서 세션 하나는 여러 날짜의 일기를 컨텍스트로 갖고,
---   일기 하나는 여러 세션에 걸쳐 쓰인다(수요일 일기가 수·목·금 세션의 컨텍스트).
---   seq: 컨텍스트 내 순서. 0부터 시간순(오래된 → 최신), 마지막이 트리거 일기.
-CREATE TABLE IF NOT EXISTS chat_session_diary (
-    chat_session_diary_id BIGINT      NOT NULL AUTO_INCREMENT,
-    session_id            CHAR(36)    NOT NULL,
-    voice_id              BIGINT      NOT NULL,
-    seq                   INT         NOT NULL,
-    created_date          DATETIME(6) NULL,
-    last_modified_date    DATETIME(6) NULL,
-    PRIMARY KEY (chat_session_diary_id),
-    CONSTRAINT uq_csd_session_voice UNIQUE (session_id, voice_id),
-    KEY idx_csd_voice (voice_id),
-    CONSTRAINT fk_csd_session FOREIGN KEY (session_id)
-        REFERENCES chat_session (id) ON DELETE CASCADE,
-    CONSTRAINT fk_csd_voice FOREIGN KEY (voice_id)
-        REFERENCES voice (voice_id) ON DELETE CASCADE
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+create table if not exists voice
+(
+    voice_id              bigint auto_increment
+    primary key,
+    created_date          datetime(6)                     null,
+    last_modified_date    datetime(6)                     null,
+    analysis_completed_at datetime(6)                     null,
+    analysis_status       varchar(16) default 'COMPLETED' not null,
+    bit_rate              int                             not null,
+    duration              int                             not null,
+    sample_rate           int                             not null,
+    voice_key             varchar(255)                    null,
+    voice_title           varchar(255)                    null,
+    user_id               bigint                          null,
+    constraint FK1mqooi8fo7u8xgku3elrb9o58
+    foreign key (user_id) references users (user_id)
+    );
 
+create table if not exists chat_message
+(
+    chat_message_id    bigint auto_increment
+    primary key,
+    created_date       datetime(6)                                                      null,
+    last_modified_date datetime(6)                                                      null,
+    bot_response       json                                                             null,
+    feedback_at        datetime(6)                                                      null,
+    feedback_detail    text                                                             null,
+    feedback_emotion   enum ('ANGRY', 'ANXIETY', 'HAPPY', 'NEUTRAL', 'SAD', 'SURPRISE') null,
+    origin             enum ('MIND_DIARY', 'USER_TEXT', 'USER_VOICE')                   not null,
+    user_input         text                                                             null,
+    voice_key          varchar(255)                                                     null,
+    session_id         char(36)                                                         not null,
+    voice_id           bigint                                                           null,
+    reply_status       varchar(16) default 'COMPLETED'                                  not null,
+    constraint FK23doaiec2fdjnhg0ouhdkn9uh
+    foreign key (voice_id) references voice (voice_id),
+    constraint fk_chat_message_session
+    foreign key (session_id) references chat_session (id)
+    on delete cascade
+    );
 
--- -----------------------------------------------------------------------------
--- chat_message → chat_session FK에 ON DELETE CASCADE 보장.
---   메시지는 세션에 종속된 부품이다. 세션을 지우면 함께 삭제돼야 한다.
---   이게 없으면 메시지가 있는 세션은 DELETE 시 FK 위반으로 실패한다(삭제 API 500).
---   hbm2ddl update는 기존 FK의 ON DELETE 옵션을 바꿔주지 않으므로, 이미 존재하는(옵션 없는)
---   FK를 찾아 드롭하고 CASCADE 버전으로 다시 건다. (자동 생성된 FK 이름도 처리)
--- -----------------------------------------------------------------------------
-SET @fk := (
-    SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'chat_message'
-      AND COLUMN_NAME = 'session_id'
-      AND REFERENCED_TABLE_NAME = 'chat_session'
-    LIMIT 1
-);
-SET @sql := IF(@fk IS NOT NULL,
-    CONCAT('ALTER TABLE chat_message DROP FOREIGN KEY ', @fk),
-    'SELECT "no existing chat_message session FK" AS msg');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+create index idx_chat_message_reply_status
+    on chat_message (reply_status, created_date);
 
-ALTER TABLE chat_message
-    ADD CONSTRAINT fk_chat_message_session FOREIGN KEY (session_id)
-        REFERENCES chat_session (id) ON DELETE CASCADE;
+create index idx_chat_message_session_created
+    on chat_message (session_id asc, created_date desc);
 
+create index idx_chat_message_voice
+    on chat_message (voice_id);
 
--- -----------------------------------------------------------------------------
--- mind_diary_trigger FK의 ON DELETE 옵션 보장.
---   voice_id  → ON DELETE CASCADE : 일기를 지우면 원장도 사라진다. 이게 없으면 트리거된
---               일기(원장 행 존재) 삭제 시 FK 위반으로 실패한다(삭제 API 500).
---   session_id→ ON DELETE SET NULL: 세션을 지워도 원장 행은 남아 세션 재생성을 막는다.
---   @OnDelete 애노테이션은 테이블 최초 생성 시에만 DDL에 반영되므로, 애노테이션 추가 전에
---   이미 만들어진 FK에는 옵션이 안 붙어 있다. chat_message와 동일하게 drop 후 재생성한다.
---   (앱은 DeleteVoiceUseCase에서 원장 행을 명시 삭제하므로 이 보정 없이도 동작하지만,
---    스키마를 애노테이션 의도와 일치시켜 스캐너/재평가 등 다른 경로의 정합성을 지킨다.)
--- -----------------------------------------------------------------------------
-SET @fk := (
-    SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'mind_diary_trigger'
-      AND COLUMN_NAME = 'voice_id'
-      AND REFERENCED_TABLE_NAME = 'voice'
-    LIMIT 1
-);
-SET @sql := IF(@fk IS NOT NULL,
-    CONCAT('ALTER TABLE mind_diary_trigger DROP FOREIGN KEY ', @fk),
-    'SELECT "no existing mind_diary_trigger voice FK" AS msg');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+create table if not exists chat_session_diary
+(
+    chat_session_diary_id bigint auto_increment
+    primary key,
+    created_date          datetime(6) null,
+    last_modified_date    datetime(6) null,
+    seq                   int         not null,
+    session_id            char(36)    not null,
+    voice_id              bigint      not null,
+    constraint uq_csd_session_voice
+    unique (session_id, voice_id),
+    constraint fk_csd_session
+    foreign key (session_id) references chat_session (id)
+    on delete cascade,
+    constraint fk_csd_voice
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
 
-ALTER TABLE mind_diary_trigger
-    ADD CONSTRAINT fk_mdt_voice FOREIGN KEY (voice_id)
-        REFERENCES voice (voice_id) ON DELETE CASCADE;
+create index idx_csd_voice
+    on chat_session_diary (voice_id);
 
-SET @fk := (
-    SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'mind_diary_trigger'
-      AND COLUMN_NAME = 'session_id'
-      AND REFERENCED_TABLE_NAME = 'chat_session'
-    LIMIT 1
-);
-SET @sql := IF(@fk IS NOT NULL,
-    CONCAT('ALTER TABLE mind_diary_trigger DROP FOREIGN KEY ', @fk),
-    'SELECT "no existing mind_diary_trigger session FK" AS msg');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+create table if not exists mind_diary_trigger
+(
+    mind_diary_trigger_id bigint auto_increment
+    primary key,
+    created_date          datetime(6)                              null,
+    last_modified_date    datetime(6)                              null,
+    reason                varchar(64)                              not null,
+    status                enum ('ACCEPTED', 'DECLINED', 'OFFERED') not null,
+    session_id            char(36)                                 null,
+    voice_id              bigint                                   not null,
+    constraint uq_mdt_voice
+    unique (voice_id),
+    constraint fk_mdt_session
+    foreign key (session_id) references chat_session (id)
+    on delete set null,
+    constraint fk_mdt_voice
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
 
-ALTER TABLE mind_diary_trigger
-    ADD CONSTRAINT fk_mdt_session FOREIGN KEY (session_id)
-        REFERENCES chat_session (id) ON DELETE SET NULL;
+create index idx_voice_status_completed
+    on voice (analysis_status, analysis_completed_at);
 
+create index idx_voice_user_created
+    on voice (user_id, created_date);
 
--- -----------------------------------------------------------------------------
--- voice 인덱스: 세션 트리거 스케줄러가 10분마다 voice를 스캔한다.
---   이 인덱스가 없으면 매 주기 full table scan이 발생한다(데이터가 쌓일수록 악화).
---   hbm2ddl update는 기존 테이블에 인덱스를 추가해주지 않으므로 직접 적용해야 한다.
---   (MySQL은 CREATE INDEX IF NOT EXISTS를 지원하지 않아 존재 확인 후 실행한다)
---
---   idx_voice_status_completed : findUntriggeredVoiceIds
---       WHERE analysis_status=? AND analysis_completed_at>=? ORDER BY analysis_completed_at
---   idx_voice_user_created     : findEmotionRows(연속 감정 판정) + 주간/월간 리포트
---       WHERE user_id=? AND created_date BETWEEN ? AND ?
--- -----------------------------------------------------------------------------
-SET @exists := (
-    SELECT COUNT(*) FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'voice'
-      AND INDEX_NAME = 'idx_voice_status_completed'
-);
-SET @sql := IF(@exists = 0,
-    'ALTER TABLE voice ADD INDEX idx_voice_status_completed (analysis_status, analysis_completed_at)',
-    'SELECT "idx_voice_status_completed already exists" AS msg');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+create table if not exists voice_composite
+(
+    voice_composite_id         bigint auto_increment
+    primary key,
+    created_date               datetime(6)                                                      null,
+    last_modified_date         datetime(6)                                                      null,
+    alpha_bps                  int                                                              null,
+    angry_bps                  int                                                              not null,
+    anxiety_bps                int                                                              not null,
+    arousal_x1000              int                                                              not null,
+    beta_bps                   int                                                              null,
+    happy_bps                  int                                                              not null,
+    intensity_x1000            int                                                              not null,
+    neutral_bps                int                                                              not null,
+    sad_bps                    int                                                              not null,
+    summary                    text                                                             null,
+    surprise_bps               int                                                              not null,
+    text_magnitude_x1000       int                                                              null,
+    text_score_bps             int                                                              null,
+    title                      varchar(15)                                                      null,
+    top_emotion                enum ('ANGRY', 'ANXIETY', 'HAPPY', 'NEUTRAL', 'SAD', 'SURPRISE') null,
+    top_emotion_confidence_bps int                                                              null,
+    valence_x1000              int                                                              not null,
+    voice_id                   bigint                                                           not null,
+    constraint uq_vcp_voice
+    unique (voice_id),
+    constraint fk_vc_voice2
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
 
-SET @exists := (
-    SELECT COUNT(*) FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'voice'
-      AND INDEX_NAME = 'idx_voice_user_created'
-);
-SET @sql := IF(@exists = 0,
-    'ALTER TABLE voice ADD INDEX idx_voice_user_created (user_id, created_date)',
-    'SELECT "idx_voice_user_created already exists" AS msg');
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+create table if not exists voice_content
+(
+    voice_content_id   bigint auto_increment
+    primary key,
+    created_date       datetime(6) null,
+    last_modified_date datetime(6) null,
+    confidence_bps     smallint    null,
+    content            mediumtext  not null,
+    locale             varchar(10) null,
+    magnitude_x1000    int         null,
+    model_version      varchar(32) null,
+    provider           varchar(32) null,
+    score_bps          smallint    null,
+    voice_id           bigint      not null,
+    constraint uq_vc_voice
+    unique (voice_id),
+    constraint fk_vc_voice
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
+
+create table if not exists voice_emotion_label
+(
+    voice_emotion_label_id bigint auto_increment
+    primary key,
+    created_date           datetime(6) null,
+    last_modified_date     datetime(6) null,
+    category               varchar(16) not null,
+    intensity_x1000        int         not null,
+    label                  varchar(32) not null,
+    voice_id               bigint      not null,
+    constraint uq_vel_voice_label
+    unique (voice_id, label),
+    constraint fk_vel_voice
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
+
+create index idx_vel_label
+    on voice_emotion_label (label);
+
+create index idx_vel_voice
+    on voice_emotion_label (voice_id);
+
+create table if not exists voice_emotion_report
+(
+    voice_emotion_report_id bigint auto_increment
+    primary key,
+    created_date            datetime(6)                                                      null,
+    last_modified_date      datetime(6)                                                      null,
+    message                 text                                                             null,
+    reported_emotion        enum ('ANGRY', 'ANXIETY', 'HAPPY', 'NEUTRAL', 'SAD', 'SURPRISE') not null,
+    user_id                 bigint                                                           not null,
+    voice_id                bigint                                                           not null,
+    constraint uq_ver_voice_user
+    unique (voice_id, user_id),
+    constraint fk_ver_user
+    foreign key (user_id) references users (user_id),
+    constraint fk_ver_voice
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
+
+create table if not exists voice_question
+(
+    voice_question_id bigint auto_increment
+    primary key,
+    question_category enum ('EMOTION', 'PHYSICAL', 'SELF_REFLECTION', 'SOCIAL', 'STRESS') not null,
+    question_index    int                                                                 not null,
+    voice_id          bigint                                                              not null,
+    constraint fk_vq_voice
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
+
+create table if not exists weekly_emotion_report
+(
+    weekly_emotion_report_id  bigint auto_increment
+    primary key,
+    created_date              datetime(6) null,
+    last_modified_date        datetime(6) null,
+    latest_voice_composite_id bigint      null,
+    report_message            mediumtext  not null,
+    report_month              varchar(7)  not null,
+    report_week               int         not null,
+    user_id                   bigint      not null,
+    constraint uq_weekly_report_user_month_week
+    unique (user_id, report_month, report_week),
+    constraint fk_weekly_report_user
+    foreign key (user_id) references users (user_id)
+    );
+
