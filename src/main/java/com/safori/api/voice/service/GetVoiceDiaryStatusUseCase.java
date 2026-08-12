@@ -22,24 +22,6 @@ public class GetVoiceDiaryStatusUseCase {
         return VoiceDiaryStatusResponse.builder()
                 .voiceId(voiceId)
                 .diaryStatus(voice.getAnalysisStatus())
-                .chatStatus(resolveChatStatus(voice))
-                .sessionId(null)
                 .build();
-    }
-
-    /**
-     * chatStatus 도출 규칙:
-     * - 일기 분석 FAILED → "failed"
-     * - 일기 분석 미완료 → "pending"
-     * - 그 외(분석 완료) → "pending" (챗봇 세션 연동은 후속)
-     */
-    private String resolveChatStatus(Voice voice) {
-        if (voice.getAnalysisStatus() == Voice.AnalysisStatus.FAILED) {
-            return "failed";
-        }
-        if (voice.getAnalysisStatus() != Voice.AnalysisStatus.COMPLETED) {
-            return "pending";
-        }
-        return "pending";
     }
 }

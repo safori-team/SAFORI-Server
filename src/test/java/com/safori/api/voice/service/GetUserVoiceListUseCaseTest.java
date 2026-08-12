@@ -44,7 +44,7 @@ class GetUserVoiceListUseCaseTest {
     }
 
     @Test
-    @DisplayName("전체 목록 - 음성/감정/질문/전사 결합 매핑 (chat 필드는 null)")
+    @DisplayName("전체 목록 - 음성/감정/질문/전사 결합 매핑")
     void execute_all_mapsCombinedItem() {
         User user = User.builder().username("u").build();
         Voice voice = Voice.builder()
@@ -74,8 +74,6 @@ class GetUserVoiceListUseCaseTest {
         assertThat(item.getQuestionTitle())
                 .isEqualTo(UserServiceQuestionStaticValues.QUESTION_MAP.get("EMOTION").get(0));
         assertThat(item.getContent()).isEqualTo("오늘 즐거웠어요");
-        assertThat(item.getChatStatus()).isNull();
-        assertThat(item.getSessionId()).isNull();
     }
 
     @Test
@@ -85,7 +83,7 @@ class GetUserVoiceListUseCaseTest {
         Voice voice = Voice.builder()
                 .id(2L).user(user)
                 .createdDate(LocalDateTime.of(2026, 1, 16, 9, 0))
-                .analysisStatus(Voice.AnalysisStatus.PENDING)
+                .analysisStatus(Voice.AnalysisStatus.PROCESSING)
                 .build();
 
         given(voiceAdaptor.queryByUsername("u")).willReturn(List.of(voice));
@@ -99,7 +97,7 @@ class GetUserVoiceListUseCaseTest {
         assertThat(item.getEmotion()).isNull();
         assertThat(item.getContent()).isNull();
         assertThat(item.getQuestionTitle()).isNull();
-        assertThat(item.getAnalysisStatus()).isEqualTo(Voice.AnalysisStatus.PENDING);
+        assertThat(item.getAnalysisStatus()).isEqualTo(Voice.AnalysisStatus.PROCESSING);
     }
 
     @Test

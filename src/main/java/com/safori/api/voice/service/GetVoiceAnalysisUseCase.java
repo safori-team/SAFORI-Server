@@ -29,7 +29,6 @@ import java.util.Map;
  *   <li>대표 감정 (topEmotion)</li>
  *   <li>도란이 말풍선 요약 (summary)</li>
  *   <li>세부 감정 breakdown — {@code VoiceEmotionLabel} 기반, intensity 내림차순</li>
- *   <li>상담하기 버튼용 채팅 세션 상태</li>
  * </ul>
  *
  * <p>분석이 COMPLETED 상태가 아닌 경우 {@link VoiceHandler#ANALYSIS_NOT_COMPLETED} 예외를 던집니다.
@@ -143,8 +142,6 @@ public class GetVoiceAnalysisUseCase {
                 .summary(composite.getSummary())
                 .majorEmotions(buildMajorEmotions(composite))
                 .subEmotions(buildSubEmotions(labels))
-                .chatSessionId(null)
-                .chatStatus("pending")
                 .build();
     }
 

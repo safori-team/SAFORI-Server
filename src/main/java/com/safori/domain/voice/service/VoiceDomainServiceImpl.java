@@ -24,7 +24,7 @@ public class VoiceDomainServiceImpl implements VoiceDomainService {
                 .user(user)
                 .voiceKey(voiceKey)
                 .voiceTitle("voiceTitle")       // TODO voice Title
-                .analysisStatus(Voice.AnalysisStatus.PENDING)
+                .analysisStatus(Voice.AnalysisStatus.PROCESSING)
                 .build();
         return voiceRepository.save(voice);
     }
