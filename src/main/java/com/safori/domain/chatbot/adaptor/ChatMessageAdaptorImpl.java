@@ -2,6 +2,7 @@ package com.safori.domain.chatbot.adaptor;
 
 import com.safori.common.annotation.Adaptor;
 import com.safori.domain.chatbot.entity.ChatMessage;
+import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import com.safori.domain.chatbot.entity.MessageOrigin;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
 import com.safori.domain.chatbot.repository.ChatMessageRepository;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +56,19 @@ public class ChatMessageAdaptorImpl implements ChatMessageAdaptor {
 
     @Override
     public long countUserTurnsBySessionId(String sessionId) {
-        return repository.countBySession_IdAndUserInputIsNotNull(sessionId);
+        return repository.countBySession_IdAndUserInputIsNotNullAndReplyStatusNot(
+                sessionId, ChatReplyStatus.FAILED);
+    }
+
+    @Override
+    public boolean existsProcessingBySessionId(String sessionId) {
+        return repository.existsBySession_IdAndReplyStatus(sessionId, ChatReplyStatus.PROCESSING);
+    }
+
+    @Override
+    public List<ChatMessage> queryStaleProcessing(LocalDateTime threshold) {
+        return repository.findByReplyStatusAndCreatedDateBefore(
+                ChatReplyStatus.PROCESSING, threshold);
     }
 
     @Override

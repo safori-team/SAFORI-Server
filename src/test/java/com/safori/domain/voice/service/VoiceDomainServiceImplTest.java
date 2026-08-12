@@ -39,7 +39,7 @@ class VoiceDomainServiceImplTest {
         Voice saved = captor.getValue();
         assertThat(saved.getVoiceKey()).isEqualTo("voices/u/uuid.m4a");
         assertThat(saved.getUser()).isSameAs(user);
-        assertThat(saved.getAnalysisStatus()).isEqualTo(Voice.AnalysisStatus.PENDING);
+        assertThat(saved.getAnalysisStatus()).isEqualTo(Voice.AnalysisStatus.PROCESSING);
         assertThat(result).isSameAs(saved);
     }
 

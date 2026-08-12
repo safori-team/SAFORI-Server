@@ -22,7 +22,7 @@ public class VoiceListItem {
     private final Long voiceId;
     @Schema(description = "일기 작성 날짜", example = "2024-01-15")
     private final LocalDate createdAt;
-    @Schema(description = "감정 분석 상태 (PENDING / PROCESSING / COMPLETED / FAILED)", example = "COMPLETED")
+    @Schema(description = "감정 분석 상태 (PROCESSING / COMPLETED / FAILED)", example = "COMPLETED")
     private final Voice.AnalysisStatus analysisStatus;
     @Schema(description = "대표 감정 (분석 완료 전 null)", example = "HAPPY")
     private final EmotionType emotion;
@@ -30,8 +30,4 @@ public class VoiceListItem {
     private final String questionTitle;
     @Schema(description = "STT 변환 텍스트 (분석 완료 전 null)", example = "오늘 친구와 오랜만에 만나서 정말 즐거웠어요.")
     private final String content;
-    @Schema(description = "챗봇 세션 상태 (pending / ready / failed). 세션 없으면 null", example = "ready")
-    private final String chatStatus;
-    @Schema(description = "챗봇 세션 ID (chatStatus=COMPLETED 일 때 유효)", example = "550e8400-e29b-41d4-a716-446655440000")
-    private final String sessionId;
 }

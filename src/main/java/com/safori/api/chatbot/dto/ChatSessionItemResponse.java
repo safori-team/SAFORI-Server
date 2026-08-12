@@ -1,5 +1,6 @@
 package com.safori.api.chatbot.dto;
 
+import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -18,5 +19,10 @@ public record ChatSessionItemResponse(
         @Schema(description = "세션 대표 감정", example = "슬픔")
         String emotion,
         @Schema(description = "상담이 마무리된 세션인지. true면 이어서 대화할 수 없다.", example = "false")
-        boolean sessionClosed
+        boolean sessionClosed,
+        @Schema(description = """
+                최신 메시지의 도란이 응답 생성 상태 (PROCESSING / COMPLETED / FAILED).
+                PROCESSING이면 lastMessage는 사용자 발화이고 distortionTags·emotion은 비어 있다.""",
+                example = "COMPLETED")
+        ChatReplyStatus replyStatus
 ) {}

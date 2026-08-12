@@ -61,11 +61,13 @@ public class AcceptMindDiaryOfferUseCase {
                 .toList();
         List<MindDiaryEntry> entries = assembler.assemble(contextVoices);
 
-        // 3) LLM 첫 메시지 (트랜잭션 밖)
+        // 3) LLM 첫 메시지 (트랜잭션 밖).
+        //    세션이 4)에서 처음 만들어지므로 PROCESSING 구간이 없다 — 실패해도 폴백 응답으로
+        //    세션을 열어준다(기존 동작 유지).
         String address = UserHonorific.of(user);
         ChatbotReply reply = geminiChatbotClient
                 .generate(MindDiaryPrompt.build(address, entries))
-                .toReply();
+                .reply();
 
         // 4) 세션 저장 + 원장 ACCEPTED
         String sessionId = chatbotDomainService.createSessionForAcceptedOffer(

@@ -1,5 +1,6 @@
 package com.safori.infra.ai.gemini;
 
+import com.safori.domain.chatbot.model.GeneratedReply;
 import com.safori.infra.ai.gemini.prompts.DoranResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.genai.Client;
@@ -47,10 +48,14 @@ public class GeminiChatbotClient {
         this.objectMapper = objectMapper;
     }
 
-    public DoranResponse generate(String prompt) {
+    /**
+     * 상담 응답 생성. 호출 실패·빈 응답·파싱 오류는 예외로 던지지 않고 폴백 응답으로 대체하되,
+     * {@link GeneratedReply#fallback()}로 표시해 호출자가 메시지를 FAILED로 기록할 수 있게 한다.
+     */
+    public GeneratedReply generate(String prompt) {
         if (geminiClient.isEmpty()) {
             log.warn("GeminiChatbotClient: no Gemini client configured, returning fallback");
-            return DoranResponse.fallback();
+            return GeneratedReply.fallback();
         }
         try {
             GenerateContentResponse response = geminiClient.get().models.generateContent(
@@ -74,12 +79,12 @@ public class GeminiChatbotClient {
             String text = response.text();
             if (text == null || text.isBlank()) {
                 log.warn("GeminiChatbotClient: empty response, returning fallback");
-                return DoranResponse.fallback();
+                return GeneratedReply.fallback();
             }
-            return objectMapper.readValue(text, DoranResponse.class);
+            return GeneratedReply.ok(objectMapper.readValue(text, DoranResponse.class).toReply());
         } catch (Exception e) {
             log.error("GeminiChatbotClient.generate failed", e);
-            return DoranResponse.fallback();
+            return GeneratedReply.fallback();
         }
     }
 

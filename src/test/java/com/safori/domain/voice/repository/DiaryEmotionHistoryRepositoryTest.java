@@ -53,7 +53,7 @@ class DiaryEmotionHistoryRepositoryTest {
         Voice completed = persistVoice(user, Voice.AnalysisStatus.COMPLETED, NOW.minusHours(1));
         persistComposite(completed, EmotionType.SAD);
 
-        Voice pending = persistVoice(user, Voice.AnalysisStatus.PENDING, null);
+        Voice pending = persistVoice(user, Voice.AnalysisStatus.PROCESSING, null);
         persistComposite(pending, EmotionType.SAD);
 
         Voice failed = persistVoice(user, Voice.AnalysisStatus.FAILED, NOW.minusHours(1));

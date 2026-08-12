@@ -4,6 +4,7 @@ import com.safori.domain.chatbot.entity.ChatMessage;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,12 @@ public interface ChatMessageAdaptor {
 
     /** 여러 세션의 사용자 발화 수 일괄 조회 — N+1 방지. 발화 0건인 세션은 0으로 채워 반환. */
     Map<String, Long> countUserTurnsBySessionIds(List<String> sessionIds);
+
+    /** 세션에 응답 생성 중(PROCESSING)인 메시지가 있는지. */
+    boolean existsProcessingBySessionId(String sessionId);
+
+    /** {@code threshold} 이전에 만들어졌는데 아직 PROCESSING인 메시지 (좀비 정리용). */
+    List<ChatMessage> queryStaleProcessing(LocalDateTime threshold);
     Optional<ChatMessage> queryLatestBySessionId(String sessionId);
 
     /** 여러 세션의 최신 메시지 한 번에 조회 — N+1 방지. */

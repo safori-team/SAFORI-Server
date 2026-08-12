@@ -1,6 +1,7 @@
 package com.safori.domain.chatbot.repository;
 
 import com.safori.domain.chatbot.entity.ChatMessage;
+import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import com.safori.domain.chatbot.entity.MessageOrigin;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,8 +19,14 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     long countBySession_Id(String sessionId);
 
-    /** 사용자 발화 수. MIND_DIARY 트리거 메시지는 userInput이 null이라 제외된다. */
-    long countBySession_IdAndUserInputIsNotNull(String sessionId);
+    /**
+     * 사용자 발화 수. MIND_DIARY 트리거 메시지는 userInput이 null이라 제외된다.
+     *
+     * <p>FAILED 턴은 세지 않는다 — 응답을 못 받은 발화가 4턴 한도를 영구히 깎으면
+     * 사용자가 재시도할 기회를 잃는다. 진행 중(PROCESSING)인 턴은 이미 소비된 것으로 센다.
+     */
+    long countBySession_IdAndUserInputIsNotNullAndReplyStatusNot(
+            String sessionId, ChatReplyStatus excluded);
 
     /**
      * 여러 세션의 사용자 발화 수를 한 번에 조회 (N+1 방지).
@@ -30,12 +38,28 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             FROM ChatMessage m
             WHERE m.session.id IN :sessionIds
               AND m.userInput IS NOT NULL
+              AND m.replyStatus <> com.safori.domain.chatbot.entity.ChatReplyStatus.FAILED
             GROUP BY m.session.id
             """)
     List<Object[]> countUserTurnsBySessionIds(@Param("sessionIds") List<String> sessionIds);
 
-    @Query("SELECT m FROM ChatMessage m WHERE m.session.id = :sessionId ORDER BY m.createdDate DESC, m.id DESC")
+    /**
+     * 프롬프트에 넣을 이전 대화. 아직 응답이 없는(PROCESSING) 턴은 botResponse가 null이라
+     * 제외한다.
+     */
+    @Query("""
+            SELECT m FROM ChatMessage m
+            WHERE m.session.id = :sessionId
+              AND m.replyStatus = com.safori.domain.chatbot.entity.ChatReplyStatus.COMPLETED
+            ORDER BY m.createdDate DESC, m.id DESC
+            """)
     List<ChatMessage> findRecentBySessionId(@Param("sessionId") String sessionId, Pageable pageable);
+
+    boolean existsBySession_IdAndReplyStatus(String sessionId, ChatReplyStatus replyStatus);
+
+    /** 응답이 방치된 메시지 (서버 크래시·배포 등). 좀비 정리 스케줄러용. */
+    List<ChatMessage> findByReplyStatusAndCreatedDateBefore(
+            ChatReplyStatus replyStatus, LocalDateTime threshold);
 
     Optional<ChatMessage> findTopBySession_IdOrderByCreatedDateDescIdDesc(String sessionId);
 

@@ -8,6 +8,7 @@ import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.MessageOrigin;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
 import com.safori.domain.chatbot.model.ChatbotReply;
+import com.safori.domain.chatbot.model.GeneratedReply;
 import com.safori.domain.chatbot.model.HistoryTurn;
 import com.safori.domain.chatbot.policy.ConversationTurnPolicy;
 import com.safori.domain.chatbot.model.VoiceEmotionDigest;
@@ -61,6 +62,11 @@ public class SendVoiceReframingMessageUseCase {
         ChatSession session = chatSessionAdaptor.queryById(request.sessionId());
         chatbotDomainService.verifyOwnership(session, user);
 
+        // 앞선 발화의 응답이 아직 생성 중이면 거절 — 같은 턴에 LLM을 두 번 호출하지 않는다
+        if (chatbotDomainService.hasReplyInProgress(session.getId())) {
+            throw ChatbotHandler.REPLY_IN_PROGRESS;
+        }
+
         // 2) 턴 검증 — STT보다 먼저. 종료된 세션에 Flash/Pro 호출을 쓰지 않는다.
         long turnCount = turnPolicy.verifyCanSendAndGetTurn(session.getId());
         boolean finalTurn = turnPolicy.isFinalTurn(turnCount);
@@ -104,12 +110,17 @@ public class SendVoiceReframingMessageUseCase {
                 emotionDesc, emotionHint,
                 turnPolicy.maxUserTurns(), finalTurn);
 
-        // 4) Pro — 상담 응답 (infra→domain 변환, 실패 시 폴백 응답)
-        ChatbotReply reply = geminiChatbotClient.generate(prompt).toReply();
+        // 4) PROCESSING 행 선(先) 커밋 — 이때부터 조회 API에 "처리 중"으로 노출된다.
+        //    STT가 끝나야 userInput이 정해지므로 Flash 구간은 덮지 못하고 Pro 구간만 덮는다.
+        Long messageId = chatbotDomainService.beginMessage(
+                session.getId(), userInput, MessageOrigin.USER_VOICE, request.voiceKey());
 
-        // 5) 메시지 저장 (userInput=STT, voiceKey=재생용)
-        Long messageId = chatbotDomainService.appendMessage(
-                session.getId(), userInput, reply, MessageOrigin.USER_VOICE, request.voiceKey());
+        // 5) Pro — 상담 응답 (실패 시 폴백 응답 + FAILED 표시)
+        GeneratedReply generated = geminiChatbotClient.generate(prompt);
+        ChatbotReply reply = generated.reply();
+
+        // 6) 응답 확정 (별도 짧은 트랜잭션) — 커밋 후 푸시 이벤트 발행
+        chatbotDomainService.settleMessage(messageId, reply, generated.failed());
 
         return new VoiceReframingResponse(
                 messageId, userInput,

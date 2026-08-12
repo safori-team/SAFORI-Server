@@ -44,7 +44,7 @@ class GetUserVoiceDetailUseCaseTest {
     }
 
     @Test
-    @DisplayName("소유자 - 음성/감정/전사/질문 결합 상세 반환 (chat 필드 null)")
+    @DisplayName("소유자 - 음성/감정/전사/질문 결합 상세 반환")
     void execute_owner_returnsDetail() {
         User user = User.builder().username("u").build();
         Voice voice = Voice.builder()
@@ -70,8 +70,6 @@ class GetUserVoiceDetailUseCaseTest {
         assertThat(res.getContent()).isEqualTo("힘든 하루였어요");
         assertThat(res.getQuestionTitle()).isNotNull();
         assertThat(res.getS3Url()).isNull();          // S3 미구성
-        assertThat(res.getChatStatus()).isNull();
-        assertThat(res.getSessionId()).isNull();
         assertThat(res.getReportedEmotion()).isNull();
     }
 

@@ -42,10 +42,6 @@ public class Voice extends BaseTimeEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
-    public void markAnalysisPending() {
-        this.analysisStatus = AnalysisStatus.PENDING;
-    }
-
     public void markAnalysisCompleted() {
         this.analysisStatus = AnalysisStatus.COMPLETED;
         this.analysisCompletedAt = LocalDateTime.now();
@@ -60,7 +56,11 @@ public class Voice extends BaseTimeEntity {
         this.analysisStatus = AnalysisStatus.FAILED;
     }
 
+    /**
+     * 업로드 직후부터 분석 스레드가 집기 전까지도 PROCESSING이다. 클라이언트 입장에서
+     * "대기 중"과 "분석 중"은 같은 UI라 굳이 나누지 않는다.
+     */
     public enum AnalysisStatus {
-        PENDING, PROCESSING, COMPLETED, FAILED
+        PROCESSING, COMPLETED, FAILED
     }
 }

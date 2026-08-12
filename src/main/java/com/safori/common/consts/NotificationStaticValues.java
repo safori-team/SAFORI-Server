@@ -33,4 +33,16 @@ public final class NotificationStaticValues {
     public static final String KEY_VOICE_ID = "voiceId";
     public static final String DIARY_ANALYSIS_DONE_TITLE = "마음일기 분석이 끝났어요";
     public static final String DIARY_ANALYSIS_DONE_BODY = "오늘 마음일기 감정 분석이 준비됐어요. 도란이의 이야기를 확인해 보실래요?";
+
+    // ── 도란이 응답 확정 ────────────────────────────────────────────
+    // 성공·실패를 한 타입으로 합치지 않는다 — 탭했을 때 앱이 보여줄 화면 상태가 다르다.
+    // 발송 게이트가 없어 매 턴 나가므로, 앱은 포그라운드 수신 시 표시를 억제해야 한다.
+    public static final String TYPE_CHAT_REPLY_DONE = "CHAT_REPLY_DONE";
+    public static final String TYPE_CHAT_REPLY_FAILED = "CHAT_REPLY_FAILED";
+    public static final String KEY_SESSION_ID = "sessionId";
+    public static final String KEY_MESSAGE_ID = "messageId";
+    public static final String CHAT_REPLY_DONE_TITLE = "도란이가 답변을 보냈어요";
+    public static final String CHAT_REPLY_DONE_BODY = "도란이의 이야기가 준비됐어요. 확인해 보실래요?";
+    public static final String CHAT_REPLY_FAILED_TITLE = "답변을 만들지 못했어요";
+    public static final String CHAT_REPLY_FAILED_BODY = "도란이가 잠시 생각이 꼬였나 봐요. 다시 시도해 보실래요?";
 }

@@ -28,8 +28,4 @@ public class DiaryAnalysisResponse {
     private final List<MajorEmotionItem> majorEmotions;
     @Schema(description = "세부 감정 상위 6개 비율 (전체 세부 감정 대비, 비율 내림차순)")
     private final List<SubEmotionItem> subEmotions;
-    @Schema(description = "연결된 챗봇 세션 ID (chatStatus=ready 일 때 유효)", example = "550e8400-e29b-41d4-a716-446655440000")
-    private final String chatSessionId;
-    @Schema(description = "챗봇 세션 상태 (pending: 생성 전·중 / ready: 준비 완료 / failed: 생성 실패)", example = "ready")
-    private final String chatStatus;
 }
