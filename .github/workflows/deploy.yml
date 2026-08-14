@@ -7,7 +7,7 @@ name: test-and-deploy
 # vars/secrets 로 분리해서 주입한다. (필요 키 목록: docs/CICD-SETUP.md)
 
 on:
-  push:용
+  push:
     branches:
       - main
       - develop
