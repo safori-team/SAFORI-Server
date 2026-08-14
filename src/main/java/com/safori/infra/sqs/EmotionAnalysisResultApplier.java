@@ -88,6 +88,9 @@ public class EmotionAnalysisResultApplier {
                     "Unknown processing_status: " + message.processingStatus());
         }
 
+        // 원장 마감을 변경 감지에 맡기지 않는다. 라벨 교체가 벌크 DELETE를 거치는 경로라
+        // 영속성 컨텍스트가 비워지면 이 수정이 조용히 유실된다.
+        requestAdaptor.save(request);
         voice.markAnalysisCompleted();
         voiceAdaptor.save(voice);
         return new ApplyResult(Outcome.SETTLED, voice.getId());
@@ -107,6 +110,7 @@ public class EmotionAnalysisResultApplier {
         if (request.isFinalState()) return Optional.empty();
 
         request.markTimedOut();
+        requestAdaptor.save(request);
         Voice voice = request.getVoice();
         voice.markAnalysisCompleted();
         voiceAdaptor.save(voice);

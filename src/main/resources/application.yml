@@ -40,6 +40,14 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  # @Scheduled 공용 스케줄러 스레드 풀. 기본값 1이라 한 태스크가 길어지면 나머지가 밀린다.
+  # 현재 태스크 4개(감정분석 타임아웃 스윕·마음일기 제안 스캔·미확정 응답 마감·주간 리포트 푸시)
+  # 중 타임아웃 스윕은 소분류 분석의 유일한 회수 경로라 밀리면 일기가 분석 중으로 남는다.
+  task:
+    scheduling:
+      pool:
+        size: ${SCHEDULING_POOL_SIZE:4}
+
   # AWS S3 (음성 파일 업로드 Presigned URL)
   cloud:
     aws:

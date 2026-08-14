@@ -70,9 +70,15 @@ public interface VoiceEmotionLabelRepository extends JpaRepository<VoiceEmotionL
      *
      * <p>{@link #deleteByVoice_Id}는 엔티티를 지연 삭제하므로 Hibernate가 INSERT를 먼저
      * 플러시해 {@code uq_vel_voice_label} 을 위반할 수 있다. 이 쿼리는 호출 시점에 DELETE를
-     * 실행하고 영속성 컨텍스트를 비워 그 순서 문제를 없앤다.
+     * 실행해 그 순서 문제를 없앤다.
+     *
+     * <p><b>{@code clearAutomatically}는 쓰지 않는다.</b> 영속성 컨텍스트를 비우면 같은
+     * 트랜잭션에서 이 메서드를 호출한 쪽이 들고 있던 엔티티·프록시까지 전부 detach된다.
+     * 호출측이 그 뒤로 LAZY 프록시를 만지면 {@code LazyInitializationException}이 나고,
+     * 엔티티를 수정하면 변경 감지 대상이 아니라 조용히 유실된다. 순서 문제는
+     * {@code flushAutomatically}와 즉시 실행되는 DELETE만으로 이미 해결된다.
      */
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query("delete from VoiceEmotionLabel vel where vel.voice.id = :voiceId")
     void deleteAllByVoiceIdInBulk(@Param("voiceId") Long voiceId);
 }
