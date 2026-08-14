@@ -41,6 +41,14 @@ public class VoiceEmotionLabelAdaptorImpl implements VoiceEmotionLabelAdaptor {
     }
 
     @Override
+    @Transactional
+    public List<VoiceEmotionLabel> replaceByVoiceId(Long voiceId, List<VoiceEmotionLabel> labels) {
+        voiceEmotionLabelRepository.deleteAllByVoiceIdInBulk(voiceId);
+        if (labels == null || labels.isEmpty()) return List.of();
+        return voiceEmotionLabelRepository.saveAll(labels);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<Object[]> findMonthlyLabelStats(String username, int year, int month) {
         return voiceEmotionLabelRepository.findMonthlyLabelStats(username, year, month);

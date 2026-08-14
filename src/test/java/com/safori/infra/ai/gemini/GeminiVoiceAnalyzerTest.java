@@ -6,6 +6,7 @@ import com.safori.domain.voice.adaptor.VoiceAdaptor;
 import com.safori.domain.voice.adaptor.VoiceCompositeAdaptor;
 import com.safori.domain.voice.adaptor.VoiceContentAdaptor;
 import com.safori.domain.voice.adaptor.VoiceEmotionLabelAdaptor;
+import com.safori.infra.sqs.EmotionAnalysisRequestSender;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,13 +29,15 @@ class GeminiVoiceAnalyzerTest {
     @Mock VoiceEmotionLabelAdaptor voiceEmotionLabelAdaptor;
     @Mock GeminiEmotionMapper emotionMapper;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock EmotionAnalysisRequestSender minorAnalysisRequestSender;
 
     private GeminiVoiceAnalyzer analyzerWithoutClient() {
         // Gemini/S3 미설정(Optional.empty) 상태
         return new GeminiVoiceAnalyzer(
                 Optional.empty(), "gemini-2.5-flash", Optional.empty(),
                 voiceAdaptor, voiceCompositeAdaptor, voiceContentAdaptor, voiceEmotionLabelAdaptor,
-                emotionMapper, "test-bucket", new ObjectMapper(), eventPublisher);
+                emotionMapper, "test-bucket", new ObjectMapper(), eventPublisher,
+                minorAnalysisRequestSender);
     }
 
     @Test

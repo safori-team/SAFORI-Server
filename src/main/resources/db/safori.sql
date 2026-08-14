@@ -284,3 +284,35 @@ create table if not exists weekly_emotion_report
     foreign key (user_id) references users (user_id)
     );
 
+
+-- -----------------------------------------------------------------------------
+-- emotion_analysis_request : 소분류 감정 분석 요청 원장.
+--   Gemini 1차 분석 후 요청 큐로 보내기 전에 PENDING 행을 먼저 커밋하고,
+--   응답 큐에서 결과를 받으면 COMPLETED/FAILED 로 마감한다.
+--   Standard SQS 는 같은 응답을 두 번 이상 전달하므로 request_id UNIQUE 가 멱등의 기준점.
+-- -----------------------------------------------------------------------------
+create table if not exists emotion_analysis_request
+(
+    emotion_analysis_request_id bigint auto_increment
+    primary key,
+    created_date                datetime(6)  null,
+    last_modified_date          datetime(6)  null,
+    request_id                  varchar(64)  not null,
+    voice_id                    bigint       not null,
+    status                      varchar(16)  not null default 'PENDING',
+    analysis_result             json         null,
+    request_key                 varchar(512) null,
+    response_key                varchar(512) null,
+    completed_at                datetime(6)  null,
+    constraint uq_ear_request_id
+    unique (request_id),
+    constraint fk_ear_voice
+    foreign key (voice_id) references voice (voice_id)
+    on delete cascade
+    );
+
+create index idx_ear_status_created
+    on emotion_analysis_request (status, created_date);
+
+create index idx_ear_voice
+    on emotion_analysis_request (voice_id);

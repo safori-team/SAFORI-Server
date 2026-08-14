@@ -1,8 +1,12 @@
 package com.safori.common.consts;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Gemini 세부 감정 label(영문) → 한글 표시명 매핑.
@@ -72,6 +76,38 @@ public final class EmotionLabelStaticValues {
         LABEL_KO = Collections.unmodifiableMap(m);
     }
 
+    /**
+     * 대분류(category) → 소속 세부 감정 label 집합. Gemini 감정 분석 프롬프트의 category별
+     * 고정 목록과 동일하다. category 키는 소문자.
+     */
+    public static final Map<String, Set<String>> CATEGORY_LABELS;
+
+    /** label → 소속 대분류. {@link #CATEGORY_LABELS}에서 파생. */
+    private static final Map<String, String> LABEL_CATEGORY;
+
+    static {
+        Map<String, Set<String>> c = new LinkedHashMap<>();
+        c.put("neutral", labelSet("calmness", "contemplation", "concentration", "interest",
+                "realization", "boredom", "tiredness", "confusion", "doubt", "nostalgia"));
+        c.put("happy", labelSet("joy", "ecstasy", "contentment", "satisfaction", "amusement",
+                "excitement", "pride", "triumph", "relief", "admiration", "adoration", "love",
+                "romance", "entrancement", "aesthetic_appreciation", "determination"));
+        c.put("sad", labelSet("sadness", "distress", "disappointment", "guilt", "shame",
+                "embarrassment", "empathic_pain", "sympathy", "loneliness"));
+        c.put("angry", labelSet("anger", "contempt", "disgust", "frustration", "envy", "craving"));
+        c.put("anxiety", labelSet("fear", "anxiety", "horror"));
+        c.put("surprise", labelSet("surprise_positive", "surprise_negative", "awe", "awkwardness"));
+        CATEGORY_LABELS = Collections.unmodifiableMap(c);
+
+        Map<String, String> byLabel = new LinkedHashMap<>();
+        c.forEach((category, labels) -> labels.forEach(label -> byLabel.put(label, category)));
+        LABEL_CATEGORY = Collections.unmodifiableMap(byLabel);
+    }
+
+    private static Set<String> labelSet(String... labels) {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(labels)));
+    }
+
     private EmotionLabelStaticValues() {
     }
 
@@ -81,5 +117,26 @@ public final class EmotionLabelStaticValues {
     public static String toKorean(String label) {
         if (label == null) return null;
         return LABEL_KO.getOrDefault(label, label);
+    }
+
+    /**
+     * 외부에서 받은 감정 코드를 표준 label 키로 정규화한다.
+     * 소분류 감정 분석 Lambda는 {@code "JOY"}처럼 대문자 코드를 반환하는데, DB와 한글 매핑은
+     * 소문자 키를 쓴다.
+     */
+    public static String normalizeLabel(String code) {
+        if (code == null) return null;
+        return code.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** 48개 표준 어휘에 속하는 label인지. 어휘 밖 값은 저장하지 않고 버린다. */
+    public static boolean isKnownLabel(String label) {
+        return label != null && LABEL_CATEGORY.containsKey(label);
+    }
+
+    /** label이 속한 대분류(category). 어휘 밖이면 null. */
+    public static String categoryOf(String label) {
+        if (label == null) return null;
+        return LABEL_CATEGORY.get(label);
     }
 }
