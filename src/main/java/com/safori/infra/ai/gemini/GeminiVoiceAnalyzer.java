@@ -12,6 +12,7 @@ import com.safori.domain.voice.entity.VoiceComposite;
 import com.safori.domain.voice.entity.VoiceContent;
 import com.safori.domain.voice.entity.VoiceEmotionLabel;
 import com.safori.infra.ai.gemini.dto.GeminiAnalysisResult;
+import com.safori.infra.sqs.EmotionAnalysisRequestSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.genai.Client;
 import com.google.genai.types.Content;
@@ -81,6 +82,7 @@ public class GeminiVoiceAnalyzer {
     private final String s3Bucket;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final EmotionAnalysisRequestSender minorAnalysisRequestSender;
 
     public GeminiVoiceAnalyzer(
             Optional<Client> geminiClient,
@@ -93,7 +95,8 @@ public class GeminiVoiceAnalyzer {
             GeminiEmotionMapper emotionMapper,
             @Value("${spring.cloud.aws.s3.bucket:}") String s3Bucket,
             ObjectMapper objectMapper,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            EmotionAnalysisRequestSender minorAnalysisRequestSender) {
         this.geminiClient = geminiClient;
         this.modelName = modelName;
         this.s3Client = s3Client;
@@ -105,11 +108,12 @@ public class GeminiVoiceAnalyzer {
         this.s3Bucket = s3Bucket;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
+        this.minorAnalysisRequestSender = minorAnalysisRequestSender;
     }
 
     @Async
     public void analyzeAsync(Long voiceId, String voiceKey) {
-        if (analyzeSync(voiceId, voiceKey)) {
+        if (analyze(voiceId, voiceKey, true)) {
             // 이벤트 발행은 분석 상태 관리와 분리 — 실패해도 COMPLETED 상태를 덮어쓰지 않음
             try {
                 eventPublisher.publishEvent(new VoiceAnalysisCompletedEvent(voiceId));
@@ -120,12 +124,22 @@ public class GeminiVoiceAnalyzer {
     }
 
     /**
-     * 동기 분석 + 저장. 정상 흐름은 {@link #analyzeAsync}가 감싸고, 개발용 시딩 API는 결과를
-     * 즉시 확인해 감정을 덮어써야 하므로 이 동기 버전을 직접 호출한다.
+     * 동기 분석 + 저장. 개발용 시딩 API는 결과를 즉시 확인해 감정을 덮어써야 하므로 이 버전을
+     * 직접 호출한다 — 소분류 비동기 파이프라인을 타지 않고 그 자리에서 분석을 마감한다.
      *
      * @return 분석·저장 성공 여부 (Gemini/S3 미구성이거나 실패면 false)
      */
     public boolean analyzeSync(Long voiceId, String voiceKey) {
+        return analyze(voiceId, voiceKey, false);
+    }
+
+    /**
+     * @param handOffMinorAnalysis true면 Gemini 결과를 소분류 분석 큐로 넘기고 일기를
+     *                             PROCESSING 상태로 남긴다. 완료 처리와 푸시는 응답 수신
+     *                             시점(또는 타임아웃 스윕)으로 미뤄진다.
+     * @return 이 자리에서 분석을 마감했는지 여부. 큐로 넘겼거나 실패하면 false
+     */
+    private boolean analyze(Long voiceId, String voiceKey, boolean handOffMinorAnalysis) {
         if (geminiClient.isEmpty() || s3Client.isEmpty()) {
             log.debug("Gemini or S3 client not configured, skipping analysis for voiceId={}", voiceId);
             return false;
@@ -157,11 +171,19 @@ public class GeminiVoiceAnalyzer {
                         .modelVersion(modelName)
                         .build());
             }
-            voice.markAnalysisCompleted();
-            voiceAdaptor.save(voice);
             log.info("Gemini analysis saved for voiceId={}, topEmotion={}, labels={}, transcript={}chars",
                     voiceId, composite.getTopEmotion(), labels.size(),
                     result.transcript() != null ? result.transcript().length() : 0);
+
+            // 소분류 판정을 외부 파이프라인에 위임한 경우, 분석 완료 처리는 응답을 받은 뒤에 한다.
+            // 전송이 안 되면(비활성·실패) 여기서 Gemini 소분류로 그대로 마감한다.
+            if (handOffMinorAnalysis
+                    && minorAnalysisRequestSender.handOff(voice, result, composite.getTopEmotion())) {
+                return false;
+            }
+
+            voice.markAnalysisCompleted();
+            voiceAdaptor.save(voice);
             return true;
         } catch (Exception e) {
             log.error("Gemini analysis failed for voiceId={}, voiceKey={}", voiceId, voiceKey, e);

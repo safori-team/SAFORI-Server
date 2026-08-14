@@ -62,6 +62,8 @@ dependencies {
     // AWS SDK S3 (Presigned URL 발급)
     implementation platform('software.amazon.awssdk:bom:2.26.22')
     implementation 'software.amazon.awssdk:s3'
+    // AWS SDK SQS (소분류 감정 분석 비동기 파이프라인)
+    implementation 'software.amazon.awssdk:sqs'
 
     // Firebase Admin SDK (FCM 푸시 알림)
     implementation 'com.google.firebase:firebase-admin:9.4.3'

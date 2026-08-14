@@ -64,6 +64,20 @@ gemini:
 # PM 정책 변경은 대부분 아래 값만 바꿔 대응한다(배포 불필요, env override 가능).
 # 규칙의 형태 자체가 바뀌면 SessionTriggerPolicy 구현체를 추가하고 policy 값을 바꾼다.
 safori:
+  # 소분류 감정 분석 비동기 파이프라인(SQS).
+  # 큐 URL을 비우면 파이프라인이 비활성화되고 Gemini 소분류로 즉시 분석을 마감한다.
+  # 운영 큐를 로컬에서 켜면 응답 메시지를 가로채므로 기본값은 비워 둔다.
+  emotion-analysis:
+    request-queue-url: ${EMOTION_ANALYSIS_REQUEST_QUEUE_URL:}
+    response-queue-url: ${EMOTION_ANALYSIS_RESPONSE_QUEUE_URL:}
+    # Long Polling 대기(초, 상한 20) / 1회 수신 최대 건수(상한 10)
+    poll-wait-seconds: ${EMOTION_ANALYSIS_POLL_WAIT_SECONDS:20}
+    poll-max-messages: ${EMOTION_ANALYSIS_POLL_MAX_MESSAGES:10}
+    # 이 시간이 지나도 응답이 없으면 Gemini 소분류로 마감한다.
+    # 분석 Lambda 5xx·타임아웃은 응답 큐에 아무 것도 넣지 않아 이 값이 유일한 회수 경로다.
+    pending-timeout: ${EMOTION_ANALYSIS_PENDING_TIMEOUT:PT10M}
+    sweep-interval: ${EMOTION_ANALYSIS_SWEEP_INTERVAL:PT2M}
+
   chatbot:
     # CBT 상담 대화 길이 제한.
     conversation:

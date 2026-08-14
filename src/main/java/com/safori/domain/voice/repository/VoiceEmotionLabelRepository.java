@@ -3,6 +3,7 @@ package com.safori.domain.voice.repository;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.entity.VoiceEmotionLabel;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -63,4 +64,15 @@ public interface VoiceEmotionLabelRepository extends JpaRepository<VoiceEmotionL
      * 특정 voice의 모든 세부 감정 레이블 삭제 (재분석 시 덮어쓰기용).
      */
     void deleteByVoice_Id(Long voiceId);
+
+    /**
+     * 같은 트랜잭션 안에서 삭제 → 재삽입할 때 쓰는 벌크 삭제.
+     *
+     * <p>{@link #deleteByVoice_Id}는 엔티티를 지연 삭제하므로 Hibernate가 INSERT를 먼저
+     * 플러시해 {@code uq_vel_voice_label} 을 위반할 수 있다. 이 쿼리는 호출 시점에 DELETE를
+     * 실행하고 영속성 컨텍스트를 비워 그 순서 문제를 없앤다.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from VoiceEmotionLabel vel where vel.voice.id = :voiceId")
+    void deleteAllByVoiceIdInBulk(@Param("voiceId") Long voiceId);
 }
