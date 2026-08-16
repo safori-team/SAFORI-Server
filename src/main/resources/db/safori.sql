@@ -180,7 +180,7 @@ create table if not exists voice_composite
     surprise_bps               int                                                              not null,
     text_magnitude_x1000       int                                                              null,
     text_score_bps             int                                                              null,
-    title                      varchar(15)                                                      null,
+    title                      varchar(100)                                                     null,
     top_emotion                enum ('ANGRY', 'ANXIETY', 'HAPPY', 'NEUTRAL', 'SAD', 'SURPRISE') null,
     top_emotion_confidence_bps int                                                              null,
     valence_x1000              int                                                              not null,

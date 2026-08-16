@@ -23,6 +23,9 @@ import org.hibernate.annotations.OnDeleteAction;
         }
 )
 public class VoiceComposite extends BaseTimeEntity {
+
+    public static final int TITLE_MAX_LENGTH = 100;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "voice_composite_id")
@@ -95,10 +98,10 @@ public class VoiceComposite extends BaseTimeEntity {
     private String summary;
 
     /**
-     * 채팅 세션 리스트 제목 (15자 이내 명사형 한 줄).
+     * 채팅 세션 리스트 제목
      * 분석 시 생성, nullable.
      */
-    @Column(name = "title", length = 15)
+    @Column(name = "title", length = TITLE_MAX_LENGTH)
     private String title;
 
     /**

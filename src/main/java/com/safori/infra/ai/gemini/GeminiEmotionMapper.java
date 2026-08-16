@@ -57,8 +57,19 @@ public class GeminiEmotionMapper {
                 .arousalX1000(va[1])
                 .intensityX1000(va[2])
                 .summary(result.summary())
-                .title(result.title())
+                .title(clampTitle(result.title()))
                 .build();
+    }
+
+    /**
+     * 프롬프트는 15자 이내 제목을 요구하지만 Gemini가 이를 지키지 않는 경우가 있다.
+     * 컬럼 길이를 넘기면 저장이 통째로 실패하므로 초과분은 잘라낸다.
+     */
+    private String clampTitle(String title) {
+        if (title == null) return null;
+        String trimmed = title.strip();
+        if (trimmed.length() <= VoiceComposite.TITLE_MAX_LENGTH) return trimmed;
+        return trimmed.substring(0, VoiceComposite.TITLE_MAX_LENGTH);
     }
 
     /**
