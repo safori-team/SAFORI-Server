@@ -89,6 +89,9 @@ public class GetChatHistoryUseCase {
                 .map(ChatMessage::getReplyStatus)
                 .orElse(null);
 
+        // 턴 소진과 위기 종료는 별개 경로다 — 위기는 2턴째에도 닫을 수 있어 턴 수로 복원되지 않는다
+        boolean crisisClosed = session.isCrisisClosed();
+
         return new ChatHistoryResponse(
                 sessionId,
                 messages,
@@ -97,7 +100,8 @@ public class GetChatHistoryUseCase {
                 p.getTotalElements(),
                 p.getTotalPages() == 0 ? 1 : p.getTotalPages(),
                 p.hasNext(),
-                turnPolicy.isClosed(sessionId),
+                turnPolicy.isClosed(sessionId) || crisisClosed,
+                crisisClosed,
                 sessionReplyStatus
         );
     }

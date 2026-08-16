@@ -18,8 +18,13 @@ public record ChatSessionItemResponse(
         List<String> distortionTags,
         @Schema(description = "세션 대표 감정", example = "슬픔")
         String emotion,
-        @Schema(description = "상담이 마무리된 세션인지. true면 이어서 대화할 수 없다.", example = "false")
+        @Schema(description = """
+                상담이 마무리된 세션인지. true면 이어서 대화할 수 없다.
+                턴 소진과 위기 가드레일 두 경로 모두 true다.""", example = "false")
         boolean sessionClosed,
+        @Schema(description = "위기 가드레일에 걸려 중단된 세션인지. true면 sessionClosed도 항상 true다.",
+                example = "false")
+        boolean crisisDetected,
         @Schema(description = """
                 최신 메시지의 도란이 응답 생성 상태 (PROCESSING / COMPLETED / FAILED).
                 PROCESSING이면 lastMessage는 사용자 발화이고 distortionTags·emotion은 비어 있다.""",

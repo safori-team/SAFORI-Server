@@ -5,9 +5,12 @@ import com.safori.api.chatbot.dto.VoiceReframingResponse;
 import com.safori.domain.chatbot.adaptor.ChatSessionAdaptor;
 import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.MessageOrigin;
+import com.safori.domain.chatbot.entity.CrisisTrigger;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
 import com.safori.domain.chatbot.model.VoiceEmotionDigest;
 import com.safori.domain.chatbot.policy.ConversationTurnPolicy;
+import com.safori.domain.chatbot.policy.CrisisGuardrailPolicy;
+import com.safori.domain.chatbot.policy.CrisisVerdict;
 import com.safori.domain.chatbot.model.ChatbotReply;
 import com.safori.domain.chatbot.model.GeneratedReply;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
@@ -51,6 +54,7 @@ class SendVoiceReframingMessageUseCaseTest {
     @Mock ChatSessionAdaptor chatSessionAdaptor;
     @Mock ChatbotDomainService chatbotDomainService;
     @Mock ConversationTurnPolicy turnPolicy;
+    @Mock CrisisGuardrailPolicy crisisPolicy;
     @Mock ChatbotMessageMapper mapper;
     @Mock GeminiChatbotClient geminiChatbotClient;
     @Mock GeminiVoiceAnalyzer geminiVoiceAnalyzer;
@@ -82,6 +86,9 @@ class SendVoiceReframingMessageUseCaseTest {
         given(chatbotDomainService.beginMessage(
                 anyString(), anyString(), any(MessageOrigin.class), any()))
                 .willReturn(101L);
+        // 기본은 가드레일에 걸리지 않는 정상 대화
+        given(crisisPolicy.screen(anyString())).willReturn(CrisisVerdict.none());
+        given(crisisPolicy.inspect(any())).willReturn(CrisisVerdict.none());
     }
 
     @Test
@@ -125,5 +132,66 @@ class SendVoiceReframingMessageUseCaseTest {
         VoiceReframingResponse response = useCase.execute(USERNAME, request);
 
         assertThat(response.sessionClosed()).isFalse();
+        assertThat(response.crisisDetected()).isFalse();
+        assertThat(response.crisisTrigger()).isNull();
+    }
+
+    @Test
+    @DisplayName("이미 위기로 닫힌 세션이면 STT(Flash)조차 호출하지 않는다")
+    void rejectsCrisisClosedSessionBeforeStt() throws Exception {
+        givenSession();
+        org.mockito.BDDMockito.willThrow(ChatbotHandler.SESSION_CRISIS_CLOSED)
+                .given(crisisPolicy).verifyNotCrisisClosed(session);
+
+        assertThatThrownBy(() -> useCase.execute(USERNAME, request))
+                .isSameAs(ChatbotHandler.SESSION_CRISIS_CLOSED);
+
+        verifyNoInteractions(geminiVoiceAnalyzer);
+        verifyNoInteractions(geminiChatbotClient);
+    }
+
+    @Test
+    @DisplayName("STT 결과가 사전 스크리닝에 걸리면 Pro 호출을 건너뛰고 위기 안내로 세션을 닫는다")
+    void preScreenCrisisSkipsProCall() throws Exception {
+        givenSession();
+        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
+        given(analysisResult.transcript()).willReturn("이제 그만 죽고 싶어요");
+        given(crisisPolicy.screen(anyString())).willReturn(
+                CrisisVerdict.of(CrisisTrigger.HIGH_RISK_KEYWORD, "keyword=죽고싶"));
+        given(chatbotDomainService.appendMessage(
+                anyString(), anyString(), any(ChatbotReply.class), any(MessageOrigin.class), any()))
+                .willReturn(202L);
+
+        VoiceReframingResponse response = useCase.execute(USERNAME, request);
+
+        // Flash는 이미 썼지만(STT가 있어야 검사할 텍스트가 생긴다) 비싼 Pro는 건너뛴다
+        verifyNoInteractions(geminiChatbotClient);
+        assertThat(response.messageId()).isEqualTo(202L);
+        assertThat(response.content()).isEqualTo("이제 그만 죽고 싶어요");  // 말풍선은 그대로 그린다
+        assertThat(response.crisisDetected()).isTrue();
+        assertThat(response.sessionClosed()).isTrue();
+        assertThat(response.crisisTrigger()).isEqualTo("HIGH_RISK_KEYWORD");
+        assertThat(response.analysis()).contains("109");
+        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.HIGH_RISK_KEYWORD);
+    }
+
+    @Test
+    @DisplayName("안전 필터에 차단되면 남은 턴과 무관하게 위기 안내로 세션을 닫는다")
+    void safetyBlockClosesSession() throws Exception {
+        givenSession();
+        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
+        given(turnPolicy.isFinalTurn(1L)).willReturn(false);
+        given(geminiChatbotClient.generate(anyString()))
+                .willReturn(GeneratedReply.safetyBlocked("finishReason=SAFETY"));
+        given(crisisPolicy.inspect(any())).willReturn(
+                CrisisVerdict.of(CrisisTrigger.SAFETY_BLOCKED, "finishReason=SAFETY"));
+
+        VoiceReframingResponse response = useCase.execute(USERNAME, request);
+
+        assertThat(response.crisisDetected()).isTrue();
+        assertThat(response.sessionClosed()).isTrue();
+        assertThat(response.crisisTrigger()).isEqualTo("SAFETY_BLOCKED");
+        assertThat(response.detectedDistortion()).isEqualTo("위기 상황");
+        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.SAFETY_BLOCKED);
     }
 }

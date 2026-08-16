@@ -22,7 +22,23 @@ public record VoiceReframingResponse(
         String emotion,
         @Schema(description = """
                 이 응답으로 상담이 마무리됐는지 여부. true면 이 세션에는 더 이상 메시지를 보낼 수 없고
-                (보내면 4206 CHAT_SESSION_CLOSED), socraticQuestion에는 질문 대신 마무리 말이 담긴다.""",
+                (보내면 4206 CHAT_SESSION_CLOSED, 위기 종료면 4212 CHAT_SESSION_CRISIS_CLOSED),
+                socraticQuestion에는 질문 대신 마무리 말이 담긴다.
+
+                턴 소진(4회)과 위기 가드레일 두 경로 모두 이 값이 true다.""",
                 example = "false")
-        boolean sessionClosed
+        boolean sessionClosed,
+        @Schema(description = """
+                위기 가드레일이 발동해 상담이 중단됐는지. true면 sessionClosed도 항상 true다.
+
+                이 경우 6개 필드는 CBT 상담이 아니라 안전 안내로 채워진다
+                (detectedDistortion="위기 상황", analysis에 자살예방 상담전화 109 안내).
+                content(STT 전사 텍스트)는 정상적으로 채워지므로 사용자 발화 말풍선은 그대로 그린다.""",
+                example = "false")
+        boolean crisisDetected,
+        @Schema(description = """
+                가드레일 발동 원인 (crisisDetected=false면 null).
+                HIGH_RISK_KEYWORD / SAFETY_BLOCKED / CRISIS_DISTORTION. 로깅·분석용.""",
+                example = "SAFETY_BLOCKED")
+        String crisisTrigger
 ) {}

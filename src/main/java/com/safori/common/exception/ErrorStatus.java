@@ -58,7 +58,9 @@ public enum ErrorStatus implements BaseErrorCode {
     CHAT_OFFER_NO_PERMISSION(BAD_REQUEST, 4208, "상담 제안의 접근권한이 없습니다."),
     CHAT_OFFER_NOT_OFFERABLE(BAD_REQUEST, 4209, "이미 응답한 상담 제안입니다."),
     CHAT_OFFER_EXPIRED(BAD_REQUEST, 4210, "상담 제안 조건이 더 이상 유효하지 않습니다."),
-    CHAT_REPLY_IN_PROGRESS(BAD_REQUEST, 4211, "도란이가 아직 답변을 만들고 있어요.");
+    CHAT_REPLY_IN_PROGRESS(BAD_REQUEST, 4211, "도란이가 아직 답변을 만들고 있어요."),
+    CHAT_SESSION_CRISIS_CLOSED(BAD_REQUEST, 4212,
+            "안전을 위해 종료된 상담입니다. 자살예방 상담전화 109로 전문가의 도움을 받아보세요.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

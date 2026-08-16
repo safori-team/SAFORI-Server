@@ -250,7 +250,8 @@ public class ChatbotApiController {
                       • emotion    (선택) - 클라이언트가 짐작한 감정 힌트
                                            (happy/sad/neutral/angry/anxiety/surprise)
 
-                    응답: assistant 6개 필드 + 새로 저장된 messageId (피드백 PUT에 사용 가능) + sessionClosed.
+                    응답: assistant 6개 필드 + 새로 저장된 messageId (피드백 PUT에 사용 가능)
+                          + sessionClosed / crisisDetected / crisisTrigger.
 
                     대화 턴 제한 (CBT 상담은 정해진 분량 안에서 끝난다):
                       • 세션당 사용자 발화 4회. 4번째 발화의 응답이 도란이의 마무리 멘트다.
@@ -258,6 +259,22 @@ public class ChatbotApiController {
                         (응답 형상은 동일하니 렌더링 분기는 필요 없음. 입력창만 비활성화하면 됨)
                       • 닫힌 세션에 또 보내면 4206 CHAT_SESSION_CLOSED.
                       • 마음일기 세션은 도란이 첫 질문으로 시작하므로 (질문 → 응답)이 4번 오간다.
+
+                    위기 가드레일 (턴 제한과 같은 방식으로 상담을 멈춘다):
+                      자·타해 의도가 감지되면 남은 턴과 무관하게 상담이 즉시 종료된다.
+                      상담이 아니라 치료가 필요한 상태에서 CBT 질문을 계속 던지지 않기 위해서다.
+                      • 응답은 sessionClosed=true + crisisDetected=true로 온다.
+                      • 6개 필드는 CBT 상담 대신 안전 안내로 채워진다
+                        (detectedDistortion="위기 상황", emotion="anxiety",
+                         analysis에 자살예방 상담전화 109 안내). 응답 형상은 동일.
+                      • crisisTrigger로 발동 원인이 온다:
+                          HIGH_RISK_KEYWORD  - 발화에 고위험 표현이 직접 담김 (LLM 호출 전 차단)
+                          SAFETY_BLOCKED     - Gemini 안전 필터가 생성을 차단
+                          CRISIS_DISTORTION  - 모델이 스스로 '위기 상황'으로 판정
+                      • 이후 이 세션에 보내면 4212 CHAT_SESSION_CRISIS_CLOSED. 다시 열리지 않는다.
+                      • 세션 목록/상세 조회에도 crisisDetected가 실려 오므로,
+                        채팅방을 다시 열었을 때 안내 배너를 유지할 수 있다.
+                      • UI 권장: 입력창 비활성화 + 109 전화 걸기 버튼 노출.
 
                     Gemini 호출 실패 시 폴백 응답 ("죄송해요, 잠시 생각이 꼬였나 봐요...") 반환.
                     """)
@@ -295,11 +312,18 @@ public class ChatbotApiController {
                       • content   - STT 전사 텍스트 (사용자 발화 말풍선)
                       • 도란이 6개 필드 (empathy, detectedDistortion, analysis, socraticQuestion,
                                         alternativeThought, emotion)
+                      • sessionClosed / crisisDetected / crisisTrigger
+
+                    위기 가드레일:
+                      텍스트 경로(POST /reframing)와 동일하게 동작한다. 다만 사전 스크리닝이
+                      STT 이후에 돌기 때문에, 걸리면 Flash는 이미 쓰였고 Pro 호출만 건너뛴다.
+                      content(STT 전사 텍스트)는 정상적으로 채워지므로 사용자 발화 말풍선은 그대로 그린다.
 
                     Pro 호출 실패 시 폴백 응답("죄송해요, 잠시 생각이 꼬였나 봐요...") 반환.
 
                     오류:
-                      • 4205 CHAT_VOICE_STT_FAILED - STT/감정 분석(Flash) 실패
+                      • 4205 CHAT_VOICE_STT_FAILED       - STT/감정 분석(Flash) 실패
+                      • 4212 CHAT_SESSION_CRISIS_CLOSED  - 위기 가드레일로 종료된 세션
                     """)
     public ApiResponseDto<VoiceReframingResponse> voiceReframing(
             @UserCode String username,

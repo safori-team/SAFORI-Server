@@ -5,8 +5,11 @@ import com.safori.api.chatbot.dto.ReframingResponse;
 import com.safori.domain.chatbot.adaptor.ChatSessionAdaptor;
 import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.MessageOrigin;
+import com.safori.domain.chatbot.entity.CrisisTrigger;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
 import com.safori.domain.chatbot.policy.ConversationTurnPolicy;
+import com.safori.domain.chatbot.policy.CrisisGuardrailPolicy;
+import com.safori.domain.chatbot.policy.CrisisVerdict;
 import com.safori.domain.chatbot.model.ChatbotReply;
 import com.safori.domain.chatbot.model.GeneratedReply;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
@@ -45,6 +48,7 @@ class SendReframingMessageUseCaseTest {
     @Mock ChatSessionAdaptor chatSessionAdaptor;
     @Mock ChatbotDomainService chatbotDomainService;
     @Mock ConversationTurnPolicy turnPolicy;
+    @Mock CrisisGuardrailPolicy crisisPolicy;
     @Mock GeminiChatbotClient geminiChatbotClient;
     @Mock User user;
     @Mock ChatSession session;
@@ -65,6 +69,9 @@ class SendReframingMessageUseCaseTest {
         given(chatbotDomainService.beginMessage(
                 anyString(), anyString(), any(MessageOrigin.class), any()))
                 .willReturn(101L);
+        // 기본은 가드레일에 걸리지 않는 정상 대화
+        given(crisisPolicy.screen(anyString())).willReturn(CrisisVerdict.none());
+        given(crisisPolicy.inspect(any())).willReturn(CrisisVerdict.none());
     }
 
     @Test
@@ -128,5 +135,99 @@ class SendReframingMessageUseCaseTest {
                 .isSameAs(ChatbotHandler.SESSION_NO_PERMISSION);
 
         verifyNoInteractions(geminiChatbotClient);
+    }
+
+    @Test
+    @DisplayName("이미 위기로 닫힌 세션이면 턴이 남아 있어도 거부된다")
+    void rejectsCrisisClosedSession() {
+        givenSession();
+        org.mockito.BDDMockito.willThrow(ChatbotHandler.SESSION_CRISIS_CLOSED)
+                .given(crisisPolicy).verifyNotCrisisClosed(session);
+
+        assertThatThrownBy(() -> useCase.execute(USERNAME, request))
+                .isSameAs(ChatbotHandler.SESSION_CRISIS_CLOSED);
+
+        verifyNoInteractions(geminiChatbotClient);
+    }
+
+    @Test
+    @DisplayName("사전 스크리닝에 걸리면 LLM을 호출하지 않고 위기 안내로 세션을 닫는다")
+    void preScreenCrisisSkipsLlm() {
+        givenSession();
+        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
+        given(crisisPolicy.screen(anyString())).willReturn(
+                CrisisVerdict.of(CrisisTrigger.HIGH_RISK_KEYWORD, "keyword=자살"));
+        given(chatbotDomainService.appendMessage(
+                anyString(), anyString(), any(ChatbotReply.class), any(MessageOrigin.class), any()))
+                .willReturn(202L);
+
+        ReframingResponse response = useCase.execute(USERNAME, request);
+
+        // 위험 발화가 모델에 도달하지 않는다 — 토큰도 쓰지 않는다
+        verifyNoInteractions(geminiChatbotClient);
+        assertThat(response.messageId()).isEqualTo(202L);
+        assertThat(response.crisisDetected()).isTrue();
+        assertThat(response.sessionClosed()).isTrue();
+        assertThat(response.crisisTrigger()).isEqualTo("HIGH_RISK_KEYWORD");
+        assertThat(response.detectedDistortion()).isEqualTo("위기 상황");
+        assertThat(response.analysis()).contains("109");
+        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.HIGH_RISK_KEYWORD);
+    }
+
+    @Test
+    @DisplayName("안전 필터에 차단되면 상담 응답 대신 위기 안내를 확정하고 세션을 닫는다")
+    void safetyBlockClosesSession() {
+        givenSession();
+        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(2L);
+        given(turnPolicy.isFinalTurn(2L)).willReturn(false);
+        given(geminiChatbotClient.generate(anyString()))
+                .willReturn(GeneratedReply.safetyBlocked("promptBlockReason=SAFETY"));
+        given(crisisPolicy.inspect(any())).willReturn(
+                CrisisVerdict.of(CrisisTrigger.SAFETY_BLOCKED, "promptBlockReason=SAFETY"));
+
+        ReframingResponse response = useCase.execute(USERNAME, request);
+
+        assertThat(response.crisisDetected()).isTrue();
+        assertThat(response.sessionClosed()).isTrue();   // 2턴째인데도 닫힌다
+        assertThat(response.crisisTrigger()).isEqualTo("SAFETY_BLOCKED");
+        assertThat(response.empathy()).doesNotContain("생각이 꼬였나 봐요");  // 폴백 멘트가 아니다
+        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.SAFETY_BLOCKED);
+
+        // 차단은 생성 실패가 아니므로 FAILED로 기록하지 않는다 (재시도 대상이 아니다)
+        ArgumentCaptor<Boolean> failed = ArgumentCaptor.forClass(Boolean.class);
+        verify(chatbotDomainService).settleMessage(
+                org.mockito.ArgumentMatchers.eq(101L), any(ChatbotReply.class), failed.capture());
+        assertThat(failed.getValue()).isFalse();
+    }
+
+    @Test
+    @DisplayName("모델이 '위기 상황'으로 판정해도 세션이 닫힌다")
+    void crisisDistortionClosesSession() {
+        givenSession();
+        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
+        given(crisisPolicy.inspect(any())).willReturn(
+                CrisisVerdict.of(CrisisTrigger.CRISIS_DISTORTION, "detected_distortion=위기 상황"));
+
+        ReframingResponse response = useCase.execute(USERNAME, request);
+
+        assertThat(response.crisisDetected()).isTrue();
+        assertThat(response.sessionClosed()).isTrue();
+        assertThat(response.crisisTrigger()).isEqualTo("CRISIS_DISTORTION");
+        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.CRISIS_DISTORTION);
+    }
+
+    @Test
+    @DisplayName("정상 대화는 crisisDetected=false로 나가고 세션을 닫지 않는다")
+    void normalTurnReportsNoCrisis() {
+        givenSession();
+        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(2L);
+        given(turnPolicy.isFinalTurn(2L)).willReturn(false);
+
+        ReframingResponse response = useCase.execute(USERNAME, request);
+
+        assertThat(response.crisisDetected()).isFalse();
+        assertThat(response.crisisTrigger()).isNull();
+        verify(chatbotDomainService, org.mockito.Mockito.never())
+                .closeSessionByCrisis(anyString(), any());
     }
 }
