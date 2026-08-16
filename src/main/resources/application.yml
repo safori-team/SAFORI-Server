@@ -67,17 +67,18 @@ token:
 gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-2.5-flash}
+  crisis-classifier-model: ${GEMINI_CRISIS_CLASSIFIER_MODEL:gemini-2.5-flash}
 
   # CBT 상담 응답 생성에 적용할 안전 필터 임계값.
   # https://ai.google.dev/gemini-api/docs/safety-settings
   #
-  # 차단되면 상담 응답 대신 위기 안내가 나가고 세션이 종료된다(CrisisTrigger.SAFETY_BLOCKED).
+  # 차단 여부는 생성 폴백과 운영 로그에만 쓰며, 사용자의 위기 여부로 간주하지 않는다.
   # 노인 상담은 사별·질병·죽음 이야기가 정상적으로 오가므로 LOW까지 조이면 멀쩡한 상담이 끊긴다.
   # 자·타해 신호가 뚜렷할 때만 걸리도록 잡은 값이고, 운영에서 오탐/미탐을 보며 조절한다.
   # 값: BLOCK_NONE | BLOCK_ONLY_HIGH | BLOCK_MEDIUM_AND_ABOVE | BLOCK_LOW_AND_ABOVE | OFF
   safety:
-    enabled: ${GEMINI_SAFETY_ENABLED:true}
-    # 자·타해·자살 암시가 걸리는 핵심 카테고리
+    enabled: ${GEMINI_SAFETY_ENABLED:false}
+    # 위험 행동 콘텐츠의 생성 방지 카테고리(위기 의도 분류용이 아님)
     dangerous-content: ${GEMINI_SAFETY_DANGEROUS_CONTENT:BLOCK_MEDIUM_AND_ABOVE}
     harassment: ${GEMINI_SAFETY_HARASSMENT:BLOCK_MEDIUM_AND_ABOVE}
     hate-speech: ${GEMINI_SAFETY_HATE_SPEECH:BLOCK_ONLY_HIGH}
@@ -115,6 +116,7 @@ safori:
     # '생성'이 아니라 그대로 통과하는 경우가 많아, 아래 키워드가 LLM 호출 전에 먼저 받는다.
     guardrail:
       enabled: ${CHAT_GUARDRAIL_ENABLED:true}
+      classifier-min-confidence: ${CHAT_GUARDRAIL_CLASSIFIER_MIN_CONFIDENCE:0.70}
       # 비워 두면 CrisisGuardrailProperties의 기본 목록을 쓴다. 공백을 지운 발화에 부분 매칭한다.
       # "힘들어 죽겠다" 같은 관용구는 일부러 넣지 않았다 — 넣으면 정상 상담이 계속 끊긴다.
       # high-risk-keywords: ${CHAT_GUARDRAIL_KEYWORDS:}

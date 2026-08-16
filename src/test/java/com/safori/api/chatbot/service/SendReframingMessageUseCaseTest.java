@@ -71,7 +71,6 @@ class SendReframingMessageUseCaseTest {
                 .willReturn(101L);
         // 기본은 가드레일에 걸리지 않는 정상 대화
         given(crisisPolicy.screen(anyString())).willReturn(CrisisVerdict.none());
-        given(crisisPolicy.inspect(any())).willReturn(CrisisVerdict.none());
     }
 
     @Test
@@ -175,25 +174,23 @@ class SendReframingMessageUseCaseTest {
     }
 
     @Test
-    @DisplayName("안전 필터에 차단되면 상담 응답 대신 위기 안내를 확정하고 세션을 닫는다")
-    void safetyBlockClosesSession() {
+    @DisplayName("안전 필터 차단만으로 사용자를 위기로 판정하거나 세션을 닫지 않는다")
+    void safetyBlockDoesNotCloseSession() {
         givenSession();
         given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(2L);
         given(turnPolicy.isFinalTurn(2L)).willReturn(false);
         given(geminiChatbotClient.generate(anyString()))
                 .willReturn(GeneratedReply.safetyBlocked("promptBlockReason=SAFETY"));
-        given(crisisPolicy.inspect(any())).willReturn(
-                CrisisVerdict.of(CrisisTrigger.SAFETY_BLOCKED, "promptBlockReason=SAFETY"));
 
         ReframingResponse response = useCase.execute(USERNAME, request);
 
-        assertThat(response.crisisDetected()).isTrue();
-        assertThat(response.sessionClosed()).isTrue();   // 2턴째인데도 닫힌다
-        assertThat(response.crisisTrigger()).isEqualTo("SAFETY_BLOCKED");
-        assertThat(response.empathy()).doesNotContain("생각이 꼬였나 봐요");  // 폴백 멘트가 아니다
-        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.SAFETY_BLOCKED);
+        assertThat(response.crisisDetected()).isFalse();
+        assertThat(response.sessionClosed()).isFalse();
+        assertThat(response.crisisTrigger()).isNull();
+        verify(chatbotDomainService, org.mockito.Mockito.never())
+                .closeSessionByCrisis(anyString(), any());
 
-        // 차단은 생성 실패가 아니므로 FAILED로 기록하지 않는다 (재시도 대상이 아니다)
+        // API 호출 오류는 아니므로 기존 정책대로 FAILED로 기록하지 않는다.
         ArgumentCaptor<Boolean> failed = ArgumentCaptor.forClass(Boolean.class);
         verify(chatbotDomainService).settleMessage(
                 org.mockito.ArgumentMatchers.eq(101L), any(ChatbotReply.class), failed.capture());
@@ -201,19 +198,21 @@ class SendReframingMessageUseCaseTest {
     }
 
     @Test
-    @DisplayName("모델이 '위기 상황'으로 판정해도 세션이 닫힌다")
-    void crisisDistortionClosesSession() {
+    @DisplayName("전용 사전 분류를 통과한 발화는 상담 모델 응답이 위기 라벨이어도 세션을 닫지 않는다")
+    void generatedCrisisLabelCannotOverrideClassifier() {
         givenSession();
         given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
-        given(crisisPolicy.inspect(any())).willReturn(
-                CrisisVerdict.of(CrisisTrigger.CRISIS_DISTORTION, "detected_distortion=위기 상황"));
+        given(turnPolicy.isFinalTurn(1L)).willReturn(false);
+        given(geminiChatbotClient.generate(anyString())).willReturn(GeneratedReply.ok(
+                new ChatbotReply("공감", "위기 상황", "분석", "질문", "대안", "anxiety")));
 
-        ReframingResponse response = useCase.execute(USERNAME, request);
+        ReframingResponse response = useCase.execute(USERNAME,
+                new ReframingRequest(SESSION_ID, "죽고싶었는데 지금은 아냐", "sad"));
 
-        assertThat(response.crisisDetected()).isTrue();
-        assertThat(response.sessionClosed()).isTrue();
-        assertThat(response.crisisTrigger()).isEqualTo("CRISIS_DISTORTION");
-        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.CRISIS_DISTORTION);
+        assertThat(response.crisisDetected()).isFalse();
+        assertThat(response.sessionClosed()).isFalse();
+        verify(chatbotDomainService, org.mockito.Mockito.never())
+                .closeSessionByCrisis(anyString(), any());
     }
 
     @Test

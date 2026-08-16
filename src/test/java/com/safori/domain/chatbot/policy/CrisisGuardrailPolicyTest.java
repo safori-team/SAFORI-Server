@@ -3,8 +3,8 @@ package com.safori.domain.chatbot.policy;
 import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.CrisisTrigger;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
-import com.safori.domain.chatbot.model.ChatbotReply;
-import com.safori.domain.chatbot.model.GeneratedReply;
+import com.safori.domain.chatbot.model.CrisisAssessment;
+import com.safori.domain.chatbot.model.CrisisLevel;
 import com.safori.domain.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,11 +27,7 @@ class CrisisGuardrailPolicyTest {
     @BeforeEach
     void setUp() {
         props = new CrisisGuardrailProperties();
-        policy = new CrisisGuardrailPolicy(props);
-    }
-
-    private static ChatbotReply reply(String distortion) {
-        return new ChatbotReply("공감", distortion, "분석", "질문", "대안", "sad");
+        policy = new CrisisGuardrailPolicy(props, input -> CrisisAssessment.unavailable());
     }
 
     @Nested
@@ -40,11 +36,11 @@ class CrisisGuardrailPolicyTest {
 
         @ParameterizedTest
         @ValueSource(strings = {
-                "요즘 자꾸 자살 생각이 나요",
-                "그냥 죽고 싶어요",
-                "이제 그만 살고 싶지 않아요",
-                "다 사라지고 싶은 마음이에요",
-                "자해를 한 적이 있어요"
+                "오늘 자살하려고 해요",
+                "이제 죽어야겠어요",
+                "지금 뛰어내릴 거예요",
+                "이미 유서를 썼어요",
+                "그 사람을 죽여버릴 거예요"
         })
         @DisplayName("자·타해 의도가 드러난 발화는 LLM을 거치기 전에 걸린다")
         void detectsHighRiskUtterances(String input) {
@@ -68,11 +64,22 @@ class CrisisGuardrailPolicyTest {
             assertThat(policy.screen(input).detected()).isFalse();
         }
 
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "예전에는 자해를 한 적이 있어요",
+                "친구가 죽고 싶다고 했어요",
+                "저는 죽고 싶지 않아요"
+        })
+        @DisplayName("넓은 단어 조각만으로 과거·인용·부정 표현을 즉시 차단하지 않는다")
+        void broadTermsRequireContextClassification(String input) {
+            assertThat(policy.screen(input).detected()).isFalse();
+        }
+
         @Test
         @DisplayName("띄어쓰기가 달라도 같은 표현으로 본다")
         void ignoresWhitespace() {
-            assertThat(policy.screen("죽고싶어요").detected()).isTrue();
-            assertThat(policy.screen("죽 고  싶 어요").detected()).isTrue();
+            assertThat(policy.screen("죽어야겠어요").detected()).isTrue();
+            assertThat(policy.screen("죽 어 야 겠 어요").detected()).isTrue();
         }
 
         @Test
@@ -98,51 +105,88 @@ class CrisisGuardrailPolicyTest {
             assertThat(policy.screen("자살 생각이 나요").detected()).isFalse();
             assertThat(policy.screen("특정표현이 담긴 말").detected()).isTrue();
         }
-    }
-
-    @Nested
-    @DisplayName("사후 검사 (LLM 응답)")
-    class Inspect {
 
         @Test
-        @DisplayName("안전 필터에 차단되면 SAFETY_BLOCKED로 판정한다")
-        void detectsSafetyBlock() {
-            CrisisVerdict verdict = policy.inspect(
-                    GeneratedReply.safetyBlocked("promptBlockReason=SAFETY"));
+        @DisplayName("키워드가 없어도 문맥 분류기가 현재의 적극적 의도로 판정하면 걸린다")
+        void detectsContextualActiveIntent() {
+            policy = new CrisisGuardrailPolicy(props, input -> new CrisisAssessment(
+                    CrisisLevel.ACTIVE_INTENT, true, true, false, 0.93, "CURRENT_PLAN"));
+
+            CrisisVerdict verdict = policy.screen("죽을 준비를 마치고 실행하려고 해요");
 
             assertThat(verdict.detected()).isTrue();
-            assertThat(verdict.trigger()).isEqualTo(CrisisTrigger.SAFETY_BLOCKED);
-            assertThat(verdict.detail()).isEqualTo("promptBlockReason=SAFETY");
+            assertThat(verdict.trigger()).isEqualTo(CrisisTrigger.AI_CRISIS_CLASSIFIER);
+            assertThat(verdict.detail()).contains("level=ACTIVE_INTENT", "reason=CURRENT_PLAN");
         }
 
         @Test
-        @DisplayName("모델이 '위기 상황'으로 판정하면 CRISIS_DISTORTION으로 잡는다")
-        void detectsCrisisDistortion() {
-            CrisisVerdict verdict = policy.inspect(GeneratedReply.ok(reply("위기 상황")));
+        @DisplayName("현재의 수동적 자살 사고도 현재 지원 가능한 위기 안내 흐름으로 보낸다")
+        void detectsCurrentPassiveIdeation() {
+            policy = new CrisisGuardrailPolicy(props, input -> new CrisisAssessment(
+                    CrisisLevel.PASSIVE_IDEATION, true, false, false, 0.91, "PASSIVE_DEATH_WISH"));
+
+            CrisisVerdict verdict = policy.screen("그냥 사라지고 싶어요");
 
             assertThat(verdict.detected()).isTrue();
-            assertThat(verdict.trigger()).isEqualTo(CrisisTrigger.CRISIS_DISTORTION);
+            assertThat(verdict.trigger()).isEqualTo(CrisisTrigger.AI_CRISIS_CLASSIFIER);
         }
 
         @Test
-        @DisplayName("일반 인지 왜곡은 위기가 아니다")
-        void ordinaryDistortionIsNotCrisis() {
-            assertThat(policy.inspect(GeneratedReply.ok(reply("파국화"))).detected()).isFalse();
-            assertThat(policy.inspect(GeneratedReply.ok(reply("없음"))).detected()).isFalse();
+        @DisplayName("계획과 수단이 없는 명령형 욕설·저주는 타해 위기로 막지 않는다")
+        void insultWithoutPlanIsNotHarmIntent() {
+            policy = new CrisisGuardrailPolicy(props, input -> new CrisisAssessment(
+                    CrisisLevel.HARM_TO_OTHERS, true, false, false, 0.90,
+                    "HARM_TO_OTHERS_INTENT"));
+
+            assertThat(policy.screen("니미 다 뒤져버려라").detected()).isFalse();
         }
 
         @Test
-        @DisplayName("생성 실패(폴백)는 위기가 아니다 — 일시적 오류와 위기를 섞지 않는다")
-        void generationFailureIsNotCrisis() {
-            assertThat(policy.inspect(GeneratedReply.fallback()).detected()).isFalse();
+        @DisplayName("구체적 계획이 확인된 현재 타해 의도는 위기 흐름으로 보낸다")
+        void harmIntentWithPlanIsDetected() {
+            policy = new CrisisGuardrailPolicy(props, input -> new CrisisAssessment(
+                    CrisisLevel.HARM_TO_OTHERS, true, true, false, 0.90, "CONCRETE_HARM_PLAN"));
+
+            assertThat(policy.screen("칼 들고 찾아갈 계획을 밝힌 문장").detected()).isTrue();
         }
 
         @Test
-        @DisplayName("가드레일을 끄면 안전 필터 차단도 위기로 보지 않는다")
-        void disabledSkipsInspection() {
-            props.setEnabled(false);
+        @DisplayName("위험 후보 신호가 없는 욕설은 문맥 분류기를 호출하지 않고 통과한다")
+        void profanityWithoutRiskMarkerSkipsClassifier() {
+            java.util.concurrent.atomic.AtomicBoolean called =
+                    new java.util.concurrent.atomic.AtomicBoolean(false);
+            policy = new CrisisGuardrailPolicy(props, input -> {
+                called.set(true);
+                return new CrisisAssessment(CrisisLevel.ACTIVE_INTENT, true,
+                        false, false, 0.99, "WRONG_INTENT");
+            });
 
-            assertThat(policy.inspect(GeneratedReply.safetyBlocked("blocked")).detected()).isFalse();
+            assertThat(policy.screen("씨발거 한번 해보죠").detected()).isFalse();
+            assertThat(called).isFalse();
+        }
+
+        @Test
+        @DisplayName("과거·타인 인용처럼 현재 위험이 아니면 적극적 레벨이어도 통과한다")
+        void ignoresNonCurrentAssessment() {
+            policy = new CrisisGuardrailPolicy(props, input -> new CrisisAssessment(
+                    CrisisLevel.ACTIVE_INTENT, false, true, false, 0.95, "PAST_OR_QUOTED"));
+
+            assertThat(policy.screen("친구가 예전에 그런 생각을 했대요").detected()).isFalse();
+        }
+
+        @Test
+        @DisplayName("신뢰도가 임계값보다 낮으면 정상 상담을 막지 않는다")
+        void ignoresLowConfidenceAssessment() {
+            policy = new CrisisGuardrailPolicy(props, input -> new CrisisAssessment(
+                    CrisisLevel.IMMINENT, true, true, true, 0.69, "AMBIGUOUS"));
+
+            assertThat(policy.screen("애매한 표현").detected()).isFalse();
+        }
+
+        @Test
+        @DisplayName("분류기를 사용할 수 없어도 정상 상담 흐름으로 통과한다")
+        void classifierUnavailableFailsOpen() {
+            assertThat(policy.screen("키워드 없는 평범한 발화").detected()).isFalse();
         }
     }
 

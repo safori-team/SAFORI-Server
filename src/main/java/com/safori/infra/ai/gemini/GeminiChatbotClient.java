@@ -35,7 +35,7 @@ public class GeminiChatbotClient {
     private static final List<String> DISTORTION_ENUM = List.of(
             "흑백사고", "선택적 추상", "자의적 추론", "과잉일반화", "확대/축소",
             "개인화", "정서적 추론", "긍정 격하", "파국화", "잘못된 별칭 붙이기",
-            "긍정 정서 강화", "위기 상황", "없음"
+            "긍정 정서 강화", "없음"
     );
 
     private static final List<String> EMOTION_ENUM = List.of(
@@ -75,8 +75,7 @@ public class GeminiChatbotClient {
      * {@link GeneratedReply#fallback()}로 표시해 호출자가 메시지를 FAILED로 기록할 수 있게 한다.
      *
      * <p>안전 필터에 걸린 경우는 실패와 구분해 {@link GeneratedReply#safetyBlocked(String)}로
-     * 반환한다 — 호출자(가드레일)가 이걸 보고 상담 자체를 중단시킨다. 폴백 멘트("잠시 생각이
-     * 꼬였나 봐요")로 뭉뚱그리면 위기 상황이 일시적 오류처럼 흘러가 버린다.
+     * 반환한다. 이는 생성 결과의 상태일 뿐 사용자의 위기 판정에는 사용하지 않는다.
      */
     public GeneratedReply generate(String prompt) {
         if (geminiClient.isEmpty()) {

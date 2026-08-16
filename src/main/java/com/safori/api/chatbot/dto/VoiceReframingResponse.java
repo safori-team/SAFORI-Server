@@ -38,7 +38,7 @@ public record VoiceReframingResponse(
         boolean crisisDetected,
         @Schema(description = """
                 가드레일 발동 원인 (crisisDetected=false면 null).
-                HIGH_RISK_KEYWORD / SAFETY_BLOCKED / CRISIS_DISTORTION. 로깅·분석용.""",
-                example = "SAFETY_BLOCKED")
+                HIGH_RISK_KEYWORD / AI_CRISIS_CLASSIFIER / CRISIS_DISTORTION. 로깅·분석용.""",
+                example = "AI_CRISIS_CLASSIFIER")
         String crisisTrigger
 ) {}

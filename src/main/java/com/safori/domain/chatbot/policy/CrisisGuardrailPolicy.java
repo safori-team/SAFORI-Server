@@ -3,11 +3,13 @@ package com.safori.domain.chatbot.policy;
 import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.CrisisTrigger;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
-import com.safori.domain.chatbot.model.GeneratedReply;
+import com.safori.domain.chatbot.model.CrisisAssessment;
+import com.safori.domain.chatbot.service.CrisisClassifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
+import java.util.List;
 
 /**
  * CBT 상담 위기 가드레일.
@@ -21,24 +23,25 @@ import java.util.Locale;
  * 다만 턴 소진은 메시지 수로 매번 다시 계산되는 반면, 위기 종료는
  * {@link ChatSession#closeByCrisis} 상태로 남아야 재계산으로 복원된다.
  *
- * <p>검사 지점은 두 곳이다:
- * <pre>
- *   {@link #screen(String)}   LLM 호출 전  — 발화 자체가 고위험 (토큰 0으로 차단)
- *   {@link #inspect(GeneratedReply)}  LLM 호출 후 — 안전 필터 차단 또는 모델의 위기 판정
- * </pre>
- *
  * <p>가드레일을 프롬프트 지시에만 맡기지 않는 이유는 턴 제한과 같다 — 지시는 모델이 무시할
- * 수 있지만, 여기서 강제하면 무시할 수 없다. 프롬프트의 위기 개입 지시는 폐기하지 않고
- * 세 번째 그물({@link CrisisTrigger#CRISIS_DISTORTION})로 계속 쓴다.
+ * 수 있지만, 여기서 강제하면 무시할 수 없다. 위기 판정은 상담 응답 생성 전에 한 번만 확정한다.
  */
 @Component
 @RequiredArgsConstructor
 public class CrisisGuardrailPolicy {
 
-    /** 모델이 스스로 위기로 판정했을 때 {@code detected_distortion}에 담기는 값. */
-    private static final String CRISIS_DISTORTION_LABEL = "위기 상황";
+    /**
+     * 문맥 분류를 호출할 넓은 후보 신호. 이것만으로는 절대 차단하지 않고 비용·오탐을 줄이는
+     * 게이트로만 쓴다. 욕설 일반은 포함하지 않는다.
+     */
+    private static final List<String> CRISIS_CANDIDATE_MARKERS = List.of(
+            "죽", "자살", "자해", "살고싶지않", "사라지고싶", "없어지고싶",
+            "손목", "목매", "뛰어내", "번개탄", "농약", "수면제", "유서",
+            "해치", "죽이", "찌르", "칼들고", "불질러", "폭발", "공격"
+    );
 
     private final CrisisGuardrailProperties props;
+    private final CrisisClassifier crisisClassifier;
 
     /**
      * 이미 가드레일로 닫힌 세션인지 검증한다. 턴 검증보다 <b>먼저</b> 부르는 것을 전제로 한다 —
@@ -53,11 +56,10 @@ public class CrisisGuardrailPolicy {
     }
 
     /**
-     * LLM 호출 전 사전 스크리닝. 걸리면 상담 응답을 생성하지 않고 바로 위기 안내로 답한다.
+     * 상담 LLM 호출 전 사전 스크리닝. 고정밀 키워드를 먼저 검사하고, 통과한 발화만
+     * 전용 문맥 분류기로 보내 완곡한 적극적 자·타해 의도를 찾는다.
      *
-     * <p>Gemini 안전 필터보다 앞에 두는 이유는 셋이다 — 위험 발화를 모델에 보내지 않고,
-     * 토큰을 쓰지 않으며, 안전 필터가 놓치는(자살 암시는 "위험 콘텐츠 생성"이 아니라
-     * 종종 통과한다) 사각을 메운다.
+     * <p>분류기 장애·파싱 실패는 정상 상담까지 막지 않도록 fail-open 한다.
      */
     public CrisisVerdict screen(String userInput) {
         if (!props.isEnabled() || userInput == null || userInput.isBlank()) {
@@ -69,24 +71,20 @@ public class CrisisGuardrailPolicy {
                 return CrisisVerdict.of(CrisisTrigger.HIGH_RISK_KEYWORD, "keyword=" + keyword);
             }
         }
-        return CrisisVerdict.none();
-    }
 
-    /**
-     * LLM 응답 검사. 안전 필터 차단이 먼저다 — 차단된 경우 응답 본문이 없어
-     * {@code detected_distortion}을 볼 수조차 없다.
-     */
-    public CrisisVerdict inspect(GeneratedReply generated) {
-        if (!props.isEnabled() || generated == null) {
+        if (CRISIS_CANDIDATE_MARKERS.stream().noneMatch(normalized::contains)) {
             return CrisisVerdict.none();
         }
-        if (generated.safetyBlocked()) {
-            return CrisisVerdict.of(CrisisTrigger.SAFETY_BLOCKED, generated.safetyDetail());
-        }
-        if (generated.reply() != null
-                && CRISIS_DISTORTION_LABEL.equals(generated.reply().detectedDistortion())) {
-            return CrisisVerdict.of(CrisisTrigger.CRISIS_DISTORTION,
-                    "detected_distortion=" + CRISIS_DISTORTION_LABEL);
+
+        CrisisAssessment assessment = crisisClassifier.classify(userInput);
+        if (assessment.requiresCrisisFlow()
+                && assessment.confidence() >= props.getClassifierMinConfidence()) {
+            String detail = "level=" + assessment.level()
+                    + ",confidence=" + assessment.confidence()
+                    + ",plan=" + assessment.hasPlan()
+                    + ",means=" + assessment.hasMeans()
+                    + ",reason=" + assessment.reasonCode();
+            return CrisisVerdict.of(CrisisTrigger.AI_CRISIS_CLASSIFIER, detail);
         }
         return CrisisVerdict.none();
     }

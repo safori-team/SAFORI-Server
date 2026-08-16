@@ -269,7 +269,7 @@ public class ChatbotApiController {
                          analysis에 자살예방 상담전화 109 안내). 응답 형상은 동일.
                       • crisisTrigger로 발동 원인이 온다:
                           HIGH_RISK_KEYWORD  - 발화에 고위험 표현이 직접 담김 (LLM 호출 전 차단)
-                          SAFETY_BLOCKED     - Gemini 안전 필터가 생성을 차단
+                          AI_CRISIS_CLASSIFIER - 문맥 분류기가 현재의 적극적 자·타해 위험을 판정
                           CRISIS_DISTORTION  - 모델이 스스로 '위기 상황'으로 판정
                       • 이후 이 세션에 보내면 4212 CHAT_SESSION_CRISIS_CLOSED. 다시 열리지 않는다.
                       • 세션 목록/상세 조회에도 crisisDetected가 실려 오므로,

@@ -29,20 +29,9 @@ class GeminiSafetyPropertiesTest {
     }
 
     @Test
-    @DisplayName("기본값은 네 카테고리를 모두 명시한다 — 미지정 시 모델 기본값이 사실상 차단하지 않기 때문")
-    void defaultsCoverFourCategories() {
-        Map<String, String> settings = byCategory(props.toSafetySettings());
-
-        assertThat(settings).hasSize(4);
-        assertThat(settings)
-                .containsEntry(HarmCategory.Known.HARM_CATEGORY_DANGEROUS_CONTENT.toString(),
-                        "BLOCK_MEDIUM_AND_ABOVE")
-                .containsEntry(HarmCategory.Known.HARM_CATEGORY_HARASSMENT.toString(),
-                        "BLOCK_MEDIUM_AND_ABOVE")
-                .containsEntry(HarmCategory.Known.HARM_CATEGORY_HATE_SPEECH.toString(),
-                        "BLOCK_ONLY_HIGH")
-                .containsEntry(HarmCategory.Known.HARM_CATEGORY_SEXUALLY_EXPLICIT.toString(),
-                        "BLOCK_ONLY_HIGH");
+    @DisplayName("기본값은 안전 설정을 싣지 않아 욕설·민감한 상담 발화를 통과시킨다")
+    void defaultsDoNotEnableContentBlocking() {
+        assertThat(props.toSafetySettings()).isEmpty();
     }
 
     @Test
@@ -56,6 +45,7 @@ class GeminiSafetyPropertiesTest {
     @Test
     @DisplayName("임계값을 비우면 그 카테고리만 모델 기본값에 맡긴다")
     void blankThresholdSkipsCategory() {
+        props.setEnabled(true);
         props.setHateSpeech("");
         props.setSexuallyExplicit(null);
 
@@ -66,6 +56,7 @@ class GeminiSafetyPropertiesTest {
     @Test
     @DisplayName("설정값의 공백·소문자를 정규화해 SDK에 넘긴다")
     void normalizesThresholdValue() {
+        props.setEnabled(true);
         props.setDangerousContent("  block_low_and_above  ");
 
         assertThat(byCategory(props.toSafetySettings()))
@@ -76,6 +67,7 @@ class GeminiSafetyPropertiesTest {
     @Test
     @DisplayName("카테고리별로 임계값을 따로 조절할 수 있다 — 운영에서 오탐/미탐을 보며 조인다")
     void thresholdsAreIndependentlyTunable() {
+        props.setEnabled(true);
         props.setDangerousContent("BLOCK_LOW_AND_ABOVE");
 
         Map<String, String> settings = byCategory(props.toSafetySettings());

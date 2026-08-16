@@ -134,28 +134,20 @@ public class SendVoiceReframingMessageUseCase {
         // 5) Pro — 상담 응답 (실패 시 폴백 응답 + FAILED 표시)
         GeneratedReply generated = geminiChatbotClient.generate(prompt);
 
-        // 6) 사후 검사 — 안전 필터 차단 또는 모델의 '위기 상황' 판정
-        CrisisVerdict postVerdict = crisisPolicy.inspect(generated);
-        ChatbotReply reply = postVerdict.detected()
-                ? ChatbotReply.crisis(address)
-                : generated.reply();
+        ChatbotReply reply = generated.reply();
 
         // 7) 응답 확정 (별도 짧은 트랜잭션) — 커밋 후 푸시 이벤트 발행.
         //    위기 응답은 생성 실패가 아니므로 COMPLETED로 남긴다.
         chatbotDomainService.settleMessage(
-                messageId, reply, !postVerdict.detected() && generated.failed());
-
-        if (postVerdict.detected()) {
-            markCrisis(session, postVerdict);
-        }
+                messageId, reply, generated.failed());
 
         return new VoiceReframingResponse(
                 messageId, userInput,
                 reply.empathy(), reply.detectedDistortion(), reply.analysis(),
                 reply.socraticQuestion(), reply.alternativeThought(), reply.topEmotion(),
-                finalTurn || postVerdict.detected(),
-                postVerdict.detected(),
-                postVerdict.detected() ? postVerdict.trigger().name() : null
+                finalTurn,
+                false,
+                null
         );
     }
 

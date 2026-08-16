@@ -39,7 +39,7 @@ public record ReframingResponse(
         @Schema(description = """
                 가드레일 발동 원인 (crisisDetected=false면 null).
                   • HIGH_RISK_KEYWORD  - 발화에 고위험 표현이 직접 담김 (LLM 호출 전 차단)
-                  • SAFETY_BLOCKED     - Gemini 안전 필터가 생성을 차단
+                  • AI_CRISIS_CLASSIFIER - 문맥 분류기가 현재의 적극적 자·타해 위험을 판정
                   • CRISIS_DISTORTION  - 모델이 스스로 '위기 상황'으로 판정
                 UI 분기용이 아니라 로깅·분석용 값이다. 화면 처리는 crisisDetected만 보면 된다.""",
                 example = "HIGH_RISK_KEYWORD")

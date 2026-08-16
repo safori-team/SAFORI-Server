@@ -88,7 +88,6 @@ class SendVoiceReframingMessageUseCaseTest {
                 .willReturn(101L);
         // 기본은 가드레일에 걸리지 않는 정상 대화
         given(crisisPolicy.screen(anyString())).willReturn(CrisisVerdict.none());
-        given(crisisPolicy.inspect(any())).willReturn(CrisisVerdict.none());
     }
 
     @Test
@@ -176,22 +175,20 @@ class SendVoiceReframingMessageUseCaseTest {
     }
 
     @Test
-    @DisplayName("안전 필터에 차단되면 남은 턴과 무관하게 위기 안내로 세션을 닫는다")
-    void safetyBlockClosesSession() throws Exception {
+    @DisplayName("안전 필터 차단만으로 사용자를 위기로 판정하거나 세션을 닫지 않는다")
+    void safetyBlockDoesNotCloseSession() throws Exception {
         givenSession();
         given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
         given(turnPolicy.isFinalTurn(1L)).willReturn(false);
         given(geminiChatbotClient.generate(anyString()))
                 .willReturn(GeneratedReply.safetyBlocked("finishReason=SAFETY"));
-        given(crisisPolicy.inspect(any())).willReturn(
-                CrisisVerdict.of(CrisisTrigger.SAFETY_BLOCKED, "finishReason=SAFETY"));
 
         VoiceReframingResponse response = useCase.execute(USERNAME, request);
 
-        assertThat(response.crisisDetected()).isTrue();
-        assertThat(response.sessionClosed()).isTrue();
-        assertThat(response.crisisTrigger()).isEqualTo("SAFETY_BLOCKED");
-        assertThat(response.detectedDistortion()).isEqualTo("위기 상황");
-        verify(chatbotDomainService).closeSessionByCrisis(SESSION_ID, CrisisTrigger.SAFETY_BLOCKED);
+        assertThat(response.crisisDetected()).isFalse();
+        assertThat(response.sessionClosed()).isFalse();
+        assertThat(response.crisisTrigger()).isNull();
+        verify(chatbotDomainService, org.mockito.Mockito.never())
+                .closeSessionByCrisis(anyString(), any());
     }
 }

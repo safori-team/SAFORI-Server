@@ -36,9 +36,8 @@ import java.util.List;
  * <p>2단계 커밋이 있어야 응답을 기다리는 동안 사용자가 화면을 벗어나 목록/상세를 조회했을 때
  * "처리 중"을 볼 수 있다. 응답 형상은 기존과 동일하다 — 여전히 완성된 응답을 한 번에 반환한다.
  *
- * <p>위기 가드레일({@link CrisisGuardrailPolicy})은 이 흐름을 두 지점에서 가로챈다 —
- * LLM 호출 전(발화 스크리닝)과 응답 직후(안전 필터 차단·모델 위기 판정). 어느 쪽이든
- * 상담 응답을 안전 안내로 갈아끼우고 세션을 영구 종료한다.
+ * <p>위기 가드레일({@link CrisisGuardrailPolicy})은 상담 LLM 호출 전에 키워드·문맥을 분류한다.
+ * 여기서 위기로 확정된 경우에만 안전 안내로 갈아끼우고 세션을 영구 종료한다.
  */
 @Slf4j
 @UseCase
@@ -95,29 +94,20 @@ public class SendReframingMessageUseCase {
         // 4) LLM 호출 (트랜잭션 밖)
         GeneratedReply generated = geminiChatbotClient.generate(prompt);
 
-        // 5) 사후 검사 — 안전 필터 차단 또는 모델의 '위기 상황' 판정.
-        //    차단된 경우 응답 본문이 없으므로 폴백 대신 안전 안내로 확정한다.
-        CrisisVerdict postVerdict = crisisPolicy.inspect(generated);
-        ChatbotReply reply = postVerdict.detected()
-                ? ChatbotReply.crisis(address)
-                : generated.reply();
+        ChatbotReply reply = generated.reply();
 
         // 6) 응답 확정 (별도 짧은 트랜잭션) — 커밋 후 푸시 이벤트 발행.
         //    위기 응답은 생성 실패가 아니므로 COMPLETED로 남긴다(재시도 대상이 아니다).
         chatbotDomainService.settleMessage(
-                messageId, reply, !postVerdict.detected() && generated.failed());
-
-        if (postVerdict.detected()) {
-            markCrisis(session, postVerdict);
-        }
+                messageId, reply, generated.failed());
 
         return new ReframingResponse(
                 messageId,
                 reply.empathy(), reply.detectedDistortion(), reply.analysis(),
                 reply.socraticQuestion(), reply.alternativeThought(), reply.topEmotion(),
-                finalTurn || postVerdict.detected(),
-                postVerdict.detected(),
-                postVerdict.detected() ? postVerdict.trigger().name() : null
+                finalTurn,
+                false,
+                null
         );
     }
 

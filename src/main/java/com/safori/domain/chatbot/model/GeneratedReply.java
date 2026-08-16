@@ -10,9 +10,7 @@ package com.safori.domain.chatbot.model;
  * @param reply         응답 본문 (실패·차단 시 폴백 멘트)
  * @param failed        생성에 실패해 메시지를 FAILED로 기록해야 하는지
  * @param safetyBlocked Gemini 안전 필터가 프롬프트 또는 응답을 차단했는지.
- *                      {@code failed}와 별개다 — 차단은 호출 오류가 아니라 가드레일 신호이며,
- *                      호출자는 이 플래그를 보고 상담을 중단시킨다
- *                      ({@link com.safori.domain.chatbot.policy.CrisisGuardrailPolicy}).
+ *                      사용자의 위기 상태를 뜻하지 않으며 생성 안전 폴백의 운영 근거로만 쓴다.
  * @param safetyDetail  차단 근거 (blockReason·finishReason·카테고리). 로그·운영용, 사용자 비노출.
  */
 public record GeneratedReply(ChatbotReply reply, boolean failed,
@@ -31,8 +29,8 @@ public record GeneratedReply(ChatbotReply reply, boolean failed,
      * 안전 필터 차단 — 응답 본문이 없다.
      *
      * <p>{@code failed=false}인 이유: 호출은 정상적으로 끝났고 모델이 의도대로 막은 것이라
-     * 메시지를 FAILED(=재시도 대상)로 기록하면 오해를 부른다. 본문에는 폴백을 담아 두지만
-     * 호출자가 위기 안내 응답으로 갈아끼우므로 사용자에게 노출되지는 않는다.
+     * 메시지를 FAILED(=재시도 대상)로 기록하면 오해를 부른다. 사용자에게는 일반 생성
+     * 폴백을 반환하되 위기 감지로 기록하거나 세션을 닫지는 않는다.
      */
     public static GeneratedReply safetyBlocked(String detail) {
         return new GeneratedReply(ChatbotReply.fallback(), false, true, detail);
