@@ -156,9 +156,9 @@ public class SendVoiceReframingMessageUseCase {
                                                  String address, String voiceKey,
                                                  CrisisVerdict verdict) {
         ChatbotReply reply = ChatbotReply.crisis(address);
+        markCrisis(session, verdict);
         Long messageId = chatbotDomainService.appendMessage(
                 session.getId(), userInput, reply, MessageOrigin.USER_VOICE, voiceKey);
-        markCrisis(session, verdict);
 
         return new VoiceReframingResponse(
                 messageId, userInput,

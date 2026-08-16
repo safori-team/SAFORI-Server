@@ -115,9 +115,9 @@ public class SendReframingMessageUseCase {
     private ReframingResponse closeByCrisis(ChatSession session, String userInput,
                                             String address, CrisisVerdict verdict) {
         ChatbotReply reply = ChatbotReply.crisis(address);
+        markCrisis(session, verdict);
         Long messageId = chatbotDomainService.appendMessage(
                 session.getId(), userInput, reply, MessageOrigin.USER_TEXT, null);
-        markCrisis(session, verdict);
 
         return new ReframingResponse(
                 messageId,
