@@ -183,8 +183,8 @@ public class GetVoiceAnalysisUseCase {
      * 세부 감정 레이블 → SubEmotionItem 리스트.
      *
      * <ul>
-     *   <li>intensity 내림차순 상위 {@value #SUB_EMOTION_LIMIT}개 (label 수 적으면 그만큼)</li>
-     *   <li>비율 = 해당 label intensityX1000 / 전체 label 합계 × 100 (소수점 1자리). 잘린 만큼 합 < 100</li>
+     *   <li>intensity 내림차순 상위 {@value #SUB_EMOTION_LIMIT}개 (label 수 적으면 그만큼), 동점은 label 사전순</li>
+     *   <li>비율 = 해당 label intensityX1000 / 상위 {@value #SUB_EMOTION_LIMIT}개 합계 × 100 (소수점 1자리). 합 ≈ 100</li>
      *   <li>레이블 표시명: {@link #LABEL_KO} 매핑, 미등록 시 원문 그대로</li>
      * </ul>
      */
@@ -193,13 +193,18 @@ public class GetVoiceAnalysisUseCase {
             return List.of();
         }
 
-        double total = labels.stream()
+        // 잘린 label의 몫이 분모에 남지 않도록 상위 N개를 먼저 확정하고 그 안에서 정규화한다.
+        List<VoiceEmotionLabel> top = labels.stream()
+                .sorted(Comparator.comparingInt(VoiceEmotionLabel::getIntensityX1000).reversed()
+                        .thenComparing(VoiceEmotionLabel::getLabel))
+                .limit(SUB_EMOTION_LIMIT)
+                .toList();
+
+        double total = top.stream()
                 .mapToLong(VoiceEmotionLabel::getIntensityX1000)
                 .sum();
 
-        return labels.stream()
-                .sorted(Comparator.comparingInt(VoiceEmotionLabel::getIntensityX1000).reversed())
-                .limit(SUB_EMOTION_LIMIT)
+        return top.stream()
                 .map(l -> SubEmotionItem.builder()
                         .label(LABEL_KO.getOrDefault(l.getLabel(), l.getLabel()))
                         .percentage(total > 0
