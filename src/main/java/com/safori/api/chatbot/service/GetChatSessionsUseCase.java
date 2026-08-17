@@ -59,13 +59,17 @@ public class GetChatSessionsUseCase {
             emotion = latest.getFeedbackEmotion().getCode();
         }
 
+        // 턴 소진과 위기 종료는 별개 경로다 — 위기는 남은 턴과 무관하게 세션을 닫는다
+        boolean crisisClosed = s.isCrisisClosed();
+
         return new ChatSessionItemResponse(
                 s.getId(),
                 lastMessage,
                 s.getLastMessageAt(),
                 latest == null ? List.of() : mapper.distortionTags(latest.getBotResponse()),
                 emotion,
-                userTurns >= conversationProps.getMaxUserTurns(),
+                userTurns >= conversationProps.getMaxUserTurns() || crisisClosed,
+                crisisClosed,
                 // 최신 메시지가 이미 조회돼 있어 추가 쿼리 없이 상태를 낸다
                 latest == null ? null : latest.getReplyStatus()
         );

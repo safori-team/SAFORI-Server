@@ -9,6 +9,7 @@ import com.safori.domain.chatbot.entity.ChatMessage;
 import com.safori.domain.chatbot.entity.ChatReplyStatus;
 import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.entity.ChatSessionDiary;
+import com.safori.domain.chatbot.entity.CrisisTrigger;
 import com.safori.domain.chatbot.entity.DoranEmotion;
 import com.safori.domain.chatbot.entity.MessageOrigin;
 import com.safori.domain.chatbot.entity.MindDiaryTrigger;
@@ -136,6 +137,14 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
     @Transactional(readOnly = true)
     public boolean hasReplyInProgress(String sessionId) {
         return chatMessageAdaptor.existsProcessingBySessionId(sessionId);
+    }
+
+    @Override
+    @Transactional
+    public void closeSessionByCrisis(String sessionId, CrisisTrigger trigger) {
+        ChatSession session = chatSessionAdaptor.queryById(sessionId);
+        session.closeByCrisis(trigger);   // managed → dirty checking
+        chatSessionAdaptor.save(session);
     }
 
     @Override

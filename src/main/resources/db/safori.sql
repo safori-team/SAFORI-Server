@@ -24,6 +24,10 @@ create table if not exists chat_session
     created_date       datetime(6) null,
     last_modified_date datetime(6) null,
     last_message_at    datetime(6) null,
+    -- 위기 가드레일 발동 기록. null이면 정상 세션.
+    -- HIGH_RISK_KEYWORD | AI_CRISIS_CLASSIFIER | CRISIS_DISTORTION
+    crisis_trigger     varchar(24) null,
+    crisis_detected_at datetime(6) null,
     user_id            bigint      not null,
     constraint FKd17ahlgqfllxn81i7mf3iiurs
     foreign key (user_id) references users (user_id)

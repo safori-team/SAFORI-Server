@@ -34,8 +34,15 @@ public record ChatHistoryResponse(
         boolean hasNext,
         @Schema(description = """
                 상담이 마무리된 세션인지. true면 입력창을 비활성화한다.
-                (메시지 전송 시 4206 CHAT_SESSION_CLOSED)""", example = "false")
+                턴 소진(4회)과 위기 가드레일 두 경로 모두 true다.
+                (메시지 전송 시 4206 CHAT_SESSION_CLOSED, 위기 종료면 4212 CHAT_SESSION_CRISIS_CLOSED)""",
+                example = "false")
         boolean sessionClosed,
+        @Schema(description = """
+                위기 가드레일에 걸려 중단된 세션인지. true면 sessionClosed도 항상 true다.
+                채팅방을 다시 열었을 때도 안전 안내 배너를 유지하려면 이 값을 본다.
+                (남은 턴이 있어도 세션은 다시 열리지 않는다)""", example = "false")
+        boolean crisisDetected,
         @Schema(description = """
                 세션 최신 턴의 응답 생성 상태 (PROCESSING / COMPLETED / FAILED).
                 page와 무관하게 항상 최신 턴 기준이다 — page≥2를 보고 있어도 입력창 잠금을

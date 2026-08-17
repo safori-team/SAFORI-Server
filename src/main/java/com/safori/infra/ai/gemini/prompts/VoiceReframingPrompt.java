@@ -37,7 +37,6 @@ public final class VoiceReframingPrompt {
                 - 말이 평범한데(Neutral) 음성이 슬픔/불안이면 → 음성 신뢰 (감정 숨김 가능성).
                 - 말이 명확히 부정인데 음성이 긍정/중립이면 → 텍스트 신뢰 (음성 모델 오류 가능성).
                 - 'Neutral'은 텍스트와 음성 모두 사무적일 때만 선택.
-                - 자살/자해/범죄 암시가 보이면 음성 결과 무관하게 위기 개입.
                 - **말(STT)이 무의미한 조각이거나, 음성·텍스트 어느 쪽도 신뢰할 근거가 약하면 → 억지 교차검증하지 말고 아래 [불확실성 안전 지침]을 따르세요.**
 
                 %s
@@ -55,10 +54,9 @@ public final class VoiceReframingPrompt {
                 %s
 
                 **⭐⭐[논리적 일관성 검증]⭐⭐**
-                1. '위기 상황' → top_emotion='anxiety'.
-                2. 인지 왜곡 감지('없음', '긍정 정서 강화' 제외) → top_emotion≠neutral.
-                3. neutral은 '없음' 또는 '긍정 정서 강화'일 때만.
-                4. 감정을 확신할 근거가 부족 → detected_distortion='없음', top_emotion='neutral', empathy=범용 공감(불확실성 안전 지침).
+                1. 인지 왜곡 감지('없음', '긍정 정서 강화' 제외) → top_emotion≠neutral.
+                2. neutral은 '없음' 또는 '긍정 정서 강화'일 때만.
+                3. 감정을 확신할 근거가 부족 → detected_distortion='없음', top_emotion='neutral', empathy=범용 공감(불확실성 안전 지침).
 
                 %s
                 """.formatted(

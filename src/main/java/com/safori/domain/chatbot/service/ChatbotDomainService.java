@@ -2,6 +2,7 @@ package com.safori.domain.chatbot.service;
 
 import com.safori.domain.chatbot.entity.ChatMessage;
 import com.safori.domain.chatbot.entity.ChatSession;
+import com.safori.domain.chatbot.entity.CrisisTrigger;
 import com.safori.domain.chatbot.entity.DoranEmotion;
 import com.safori.domain.chatbot.entity.MessageOrigin;
 import com.safori.domain.chatbot.entity.MindDiaryTrigger;
@@ -53,6 +54,14 @@ public interface ChatbotDomainService {
 
     /** 세션에 아직 응답이 확정되지 않은 메시지가 있는지. 처리 중 재전송 차단용. */
     boolean hasReplyInProgress(String sessionId);
+
+    /**
+     * 위기 가드레일 발동을 세션에 기록해 상담을 영구 중단시킨다.
+     *
+     * <p>턴 소진 종료와 달리 메시지 수로 복원할 수 없어(2턴째에 닫힐 수도 있다) 상태로 남긴다.
+     * 이미 위기로 닫힌 세션이면 최초 신호를 유지하고 아무것도 바꾸지 않는다.
+     */
+    void closeSessionByCrisis(String sessionId, CrisisTrigger trigger);
 
     /**
      * 조건을 충족한 일기에 대해 상담 제안(OFFERED) 원장 행을 기록한다. 세션은 만들지 않는다.

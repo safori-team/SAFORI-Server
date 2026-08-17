@@ -11,6 +11,8 @@ import com.safori.domain.chatbot.model.ChatbotReply;
 import com.safori.domain.chatbot.model.GeneratedReply;
 import com.safori.domain.chatbot.model.HistoryTurn;
 import com.safori.domain.chatbot.policy.ConversationTurnPolicy;
+import com.safori.domain.chatbot.policy.CrisisGuardrailPolicy;
+import com.safori.domain.chatbot.policy.CrisisVerdict;
 import com.safori.domain.chatbot.model.VoiceEmotionDigest;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
 import com.safori.domain.chatbot.service.ChatbotMessageMapper;
@@ -38,6 +40,10 @@ import java.util.List;
  * 의도치 않은 채팅 세션 자동 생성 부수효과가 없다. STT 텍스트는 {@code ChatMessage.userInput}에,
  * 재생용 {@code voiceKey}는 {@code ChatMessage.voiceKey}에 저장된다. 감정 분석값은 상담 프롬프트에만
  * 쓰이고 영구 저장하지 않는다.</p>
+ *
+ * <p>위기 가드레일({@link CrisisGuardrailPolicy})은 텍스트 경로와 같은 두 지점에서 가로챈다.
+ * 다만 사전 스크리닝은 STT <b>이후</b>에만 가능하다(그전에는 검사할 텍스트가 없다) — 대신
+ * 여기서 걸리면 비싼 Pro 호출을 건너뛴다.</p>
  */
 @Slf4j
 @UseCase
@@ -51,6 +57,7 @@ public class SendVoiceReframingMessageUseCase {
     private final ChatSessionAdaptor chatSessionAdaptor;
     private final ChatbotDomainService chatbotDomainService;
     private final ConversationTurnPolicy turnPolicy;
+    private final CrisisGuardrailPolicy crisisPolicy;
     private final ChatbotMessageMapper mapper;
     private final GeminiChatbotClient geminiChatbotClient;
     private final GeminiVoiceAnalyzer geminiVoiceAnalyzer;
@@ -66,6 +73,9 @@ public class SendVoiceReframingMessageUseCase {
         if (chatbotDomainService.hasReplyInProgress(session.getId())) {
             throw ChatbotHandler.REPLY_IN_PROGRESS;
         }
+
+        // 위기로 닫힌 세션은 턴이 남아 있어도 열리지 않는다 — 턴 검증보다 먼저
+        crisisPolicy.verifyNotCrisisClosed(session);
 
         // 2) 턴 검증 — STT보다 먼저. 종료된 세션에 Flash/Pro 호출을 쓰지 않는다.
         long turnCount = turnPolicy.verifyCanSendAndGetTurn(session.getId());
@@ -93,7 +103,13 @@ public class SendVoiceReframingMessageUseCase {
                     safeId, safeInput,
                     safe.empathy(), safe.detectedDistortion(), safe.analysis(),
                     safe.socraticQuestion(), safe.alternativeThought(), safe.topEmotion(),
-                    finalTurn);
+                    finalTurn, false, null);
+        }
+
+        // 3-b) 사전 스크리닝 — STT 직후, Pro 호출 전. 걸리면 비싼 상담 호출을 통째로 건너뛴다.
+        CrisisVerdict preVerdict = crisisPolicy.screen(userInput);
+        if (preVerdict.detected()) {
+            return closeByCrisis(session, userInput, address, request.voiceKey(), preVerdict);
         }
 
         VoiceEmotionDigest digest = emotionMapper.toVoiceEmotionDigest(analysis, LABEL_LIMIT);
@@ -117,16 +133,45 @@ public class SendVoiceReframingMessageUseCase {
 
         // 5) Pro — 상담 응답 (실패 시 폴백 응답 + FAILED 표시)
         GeneratedReply generated = geminiChatbotClient.generate(prompt);
+
         ChatbotReply reply = generated.reply();
 
-        // 6) 응답 확정 (별도 짧은 트랜잭션) — 커밋 후 푸시 이벤트 발행
-        chatbotDomainService.settleMessage(messageId, reply, generated.failed());
+        // 7) 응답 확정 (별도 짧은 트랜잭션) — 커밋 후 푸시 이벤트 발행.
+        //    위기 응답은 생성 실패가 아니므로 COMPLETED로 남긴다.
+        chatbotDomainService.settleMessage(
+                messageId, reply, generated.failed());
 
         return new VoiceReframingResponse(
                 messageId, userInput,
                 reply.empathy(), reply.detectedDistortion(), reply.analysis(),
                 reply.socraticQuestion(), reply.alternativeThought(), reply.topEmotion(),
-                finalTurn
+                finalTurn,
+                false,
+                null
         );
+    }
+
+    /** 사전 스크리닝에 걸린 경우 — Pro를 거치지 않고 안전 안내만 저장하고 세션을 닫는다. */
+    private VoiceReframingResponse closeByCrisis(ChatSession session, String userInput,
+                                                 String address, String voiceKey,
+                                                 CrisisVerdict verdict) {
+        ChatbotReply reply = ChatbotReply.crisis(address);
+        markCrisis(session, verdict);
+        Long messageId = chatbotDomainService.appendMessage(
+                session.getId(), userInput, reply, MessageOrigin.USER_VOICE, voiceKey);
+
+        return new VoiceReframingResponse(
+                messageId, userInput,
+                reply.empathy(), reply.detectedDistortion(), reply.analysis(),
+                reply.socraticQuestion(), reply.alternativeThought(), reply.topEmotion(),
+                true, true, verdict.trigger().name()
+        );
+    }
+
+    private void markCrisis(ChatSession session, CrisisVerdict verdict) {
+        // 발화 원문은 남기지 않는다 — 민감 정보이고 메시지 행에 이미 저장돼 있다
+        log.warn("CBT 상담 위기 가드레일 발동 — sessionId={}, trigger={}, detail={}",
+                session.getId(), verdict.trigger(), verdict.detail());
+        chatbotDomainService.closeSessionByCrisis(session.getId(), verdict.trigger());
     }
 }
