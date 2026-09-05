@@ -4,7 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -19,6 +23,7 @@ import java.util.UUID;
 public class S3PresignService {
 
     private final S3Presigner s3Presigner;
+    private final S3Client s3Client;
 
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
@@ -94,6 +99,50 @@ public class S3PresignService {
             if (e instanceof InterruptedException) Thread.currentThread().interrupt();
             throw new IllegalStateException("S3 업로드 중 오류", e);
         }
+    }
+
+    /**
+     * 오브젝트 존재 여부를 확인한다. 본문을 내려받지 않고 headObject로만 조회한다.
+     * TTS 합성 결과 캐시 조회에 사용한다.
+     *
+     * @param objectKey S3 오브젝트 키 (예: tts/shared/ko-KR-Chirp3-HD-Achernar/abc.mp3)
+     * @return 존재하면 true
+     */
+    public boolean existsObject(String objectKey) {
+        try {
+            s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(objectKey)
+                    .build());
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 바이트 배열을 S3에 업로드한다. TTS 합성 결과(MP3) 캐시 저장에 사용한다.
+     *
+     * @param objectKey   S3 오브젝트 키
+     * @param content     업로드할 바이트
+     * @param contentType Content-Type 헤더 (예: audio/mpeg)
+     */
+    public void putObject(String objectKey, byte[] content, String contentType) {
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(objectKey)
+                        .contentType(contentType)
+                        .build(),
+                RequestBody.fromBytes(content)
+        );
+    }
+
+    /**
+     * Presigned GET URL의 유효기간(초). 응답의 expiresInSeconds로 그대로 노출한다.
+     */
+    public int getGetUrlExpirySeconds() {
+        return (int) GET_EXPIRY.toSeconds();
     }
 
     public record PresignedUploadResult(String presignedUrl, String voiceKey) {}

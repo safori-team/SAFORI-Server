@@ -60,7 +60,13 @@ public enum ErrorStatus implements BaseErrorCode {
     CHAT_OFFER_EXPIRED(BAD_REQUEST, 4210, "상담 제안 조건이 더 이상 유효하지 않습니다."),
     CHAT_REPLY_IN_PROGRESS(BAD_REQUEST, 4211, "도란이가 아직 답변을 만들고 있어요."),
     CHAT_SESSION_CRISIS_CLOSED(BAD_REQUEST, 4212,
-            "안전을 위해 종료된 상담입니다. 자살예방 상담전화 109로 전문가의 도움을 받아보세요.");
+            "안전을 위해 종료된 상담입니다. 자살예방 상담전화 109로 전문가의 도움을 받아보세요."),
+
+    // TTS 오류 (4250번대)
+    TTS_TEXT_EMPTY(BAD_REQUEST, 4250, "읽을 문장이 비어 있습니다."),
+    TTS_TEXT_TOO_LONG(BAD_REQUEST, 4251, "읽을 문장이 너무 깁니다."),
+    @ExplainError("GCP Cloud TTS 호출 실패·타임아웃 또는 TTS/S3 미구성. 클라이언트는 기기 내장 TTS로 폴백한다.")
+    TTS_SYNTHESIS_FAILED(BAD_REQUEST, 4252, "음성 합성에 실패했습니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;
