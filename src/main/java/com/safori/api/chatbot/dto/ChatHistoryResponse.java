@@ -35,7 +35,8 @@ public record ChatHistoryResponse(
         @Schema(description = """
                 상담이 마무리된 세션인지. true면 입력창을 비활성화한다.
                 턴 소진(4회)과 위기 가드레일 두 경로 모두 true다.
-                (메시지 전송 시 4206 CHAT_SESSION_CLOSED, 위기 종료면 4212 CHAT_SESSION_CRISIS_CLOSED)""",
+                (메시지 전송 시 4206 CHAT_SESSION_CLOSED, 위기 종료면 4212 CHAT_SESSION_CRISIS_CLOSED)
+                crisisDetected=false면 POST /sessions/{sessionId}/extend로 연장할 수 있고, 연장 후엔 false가 된다.""",
                 example = "false")
         boolean sessionClosed,
         @Schema(description = """

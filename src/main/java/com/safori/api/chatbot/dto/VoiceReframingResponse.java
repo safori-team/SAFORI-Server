@@ -25,7 +25,9 @@ public record VoiceReframingResponse(
                 (보내면 4206 CHAT_SESSION_CLOSED, 위기 종료면 4212 CHAT_SESSION_CRISIS_CLOSED),
                 socraticQuestion에는 질문 대신 마무리 말이 담긴다.
 
-                턴 소진(4회)과 위기 가드레일 두 경로 모두 이 값이 true다.""",
+                턴 소진(4회)과 위기 가드레일 두 경로 모두 이 값이 true다.
+                턴 소진이면(crisisDetected=false) POST /sessions/{sessionId}/extend로 연장해 이어서 대화할 수 있다.
+                연장된 세션에서는 이 값이 true로 오지 않는다(위기 종료 제외).""",
                 example = "false")
         boolean sessionClosed,
         @Schema(description = """

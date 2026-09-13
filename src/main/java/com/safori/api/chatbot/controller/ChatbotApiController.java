@@ -56,6 +56,10 @@ import org.springframework.web.bind.annotation.RestController;
                4) GET /sessions, /history/{sessionId} → 채팅방 목록·상세 화면
                5) DELETE /sessions/{sessionId}  → 채팅방 삭제 (cascade hard delete)
 
+             대화 연장:
+               턴을 모두 써서 sessionClosed=true(crisisDetected=false)가 되면 "더 이야기하시겠어요?"를 띄운다.
+                 POST /sessions/{sessionId}/extend → 턴 제한 해제, 이후 같은 세션에서 계속 대화
+
              마음일기 상담 제안(모달 opt-in):
                마음일기가 조건(예: 3일 연속 부정 감정)을 충족하면 서버가 상담 '제안'을 만든다.
                세션은 이때 만들어지지 않는다.

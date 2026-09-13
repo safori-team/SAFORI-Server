@@ -22,10 +22,12 @@ public record ReframingResponse(
                 이 응답으로 상담이 마무리됐는지 여부. true면 이 세션에는 더 이상 메시지를 보낼 수 없고
                 (보내면 4206 CHAT_SESSION_CLOSED, 위기 종료면 4212 CHAT_SESSION_CRISIS_CLOSED),
                 socraticQuestion에는 질문 대신 마무리 말이 담긴다.
-                입력창을 비활성화하고 새 상담을 안내하면 된다.
+                입력창을 비활성화하고, 턴 소진이면 "더 이야기하시겠어요?"(연장)를 안내하면 된다.
 
                 턴 소진(4회)과 위기 가드레일 두 경로 모두 이 값이 true다.
-                둘을 구분하려면 crisisDetected를 함께 본다.""", example = "false")
+                둘을 구분하려면 crisisDetected를 함께 본다.
+                턴 소진이면(crisisDetected=false) POST /sessions/{sessionId}/extend로 연장해 이어서 대화할 수 있다.
+                연장된 세션에서는 이 값이 true로 오지 않는다(위기 종료 제외).""", example = "false")
         boolean sessionClosed,
         @Schema(description = """
                 위기 가드레일이 발동해 상담이 중단됐는지. true면 sessionClosed도 항상 true다.
