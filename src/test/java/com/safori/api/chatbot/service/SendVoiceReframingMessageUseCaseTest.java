@@ -94,7 +94,7 @@ class SendVoiceReframingMessageUseCaseTest {
     @DisplayName("턴이 소진됐으면 STT(Flash)조차 호출하지 않는다 — 음성 경로는 LLM을 두 번 타므로 비용 영향이 크다")
     void rejectsClosedSessionBeforeStt() throws Exception {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID))
+        given(turnPolicy.verifyCanSendAndGetTurn(session))
                 .willThrow(ChatbotHandler.SESSION_CLOSED);
 
         assertThatThrownBy(() -> useCase.execute(USERNAME, request))
@@ -108,8 +108,8 @@ class SendVoiceReframingMessageUseCaseTest {
     @DisplayName("마지막 턴이면 마무리 지시 프롬프트 + sessionClosed=true")
     void finalTurnClosesSession() throws Exception {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(4L);
-        given(turnPolicy.isFinalTurn(4L)).willReturn(true);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(4L);
+        given(turnPolicy.isFinalTurn(session, 4L)).willReturn(true);
 
         VoiceReframingResponse response = useCase.execute(USERNAME, request);
 
@@ -125,8 +125,8 @@ class SendVoiceReframingMessageUseCaseTest {
     @DisplayName("마지막 턴이 아니면 sessionClosed=false")
     void normalTurnKeepsSessionOpen() throws Exception {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
-        given(turnPolicy.isFinalTurn(1L)).willReturn(false);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(1L);
+        given(turnPolicy.isFinalTurn(session, 1L)).willReturn(false);
 
         VoiceReframingResponse response = useCase.execute(USERNAME, request);
 
@@ -153,7 +153,7 @@ class SendVoiceReframingMessageUseCaseTest {
     @DisplayName("STT 결과가 사전 스크리닝에 걸리면 Pro 호출을 건너뛰고 위기 안내로 세션을 닫는다")
     void preScreenCrisisSkipsProCall() throws Exception {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(1L);
         given(analysisResult.transcript()).willReturn("이제 그만 죽고 싶어요");
         given(crisisPolicy.screen(anyString())).willReturn(
                 CrisisVerdict.of(CrisisTrigger.HIGH_RISK_KEYWORD, "keyword=죽고싶"));
@@ -178,8 +178,8 @@ class SendVoiceReframingMessageUseCaseTest {
     @DisplayName("안전 필터 차단만으로 사용자를 위기로 판정하거나 세션을 닫지 않는다")
     void safetyBlockDoesNotCloseSession() throws Exception {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
-        given(turnPolicy.isFinalTurn(1L)).willReturn(false);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(1L);
+        given(turnPolicy.isFinalTurn(session, 1L)).willReturn(false);
         given(geminiChatbotClient.generate(anyString()))
                 .willReturn(GeneratedReply.safetyBlocked("finishReason=SAFETY"));
 

@@ -28,6 +28,8 @@ create table if not exists chat_session
     -- HIGH_RISK_KEYWORD | AI_CRISIS_CLASSIFIER | CRISIS_DISTORTION
     crisis_trigger     varchar(24) null,
     crisis_detected_at datetime(6) null,
+    -- "더 이야기하기"로 턴 제한을 해제한 시각. null이면 턴 제한 적용.
+    extended_at        datetime(6) null,
     user_id            bigint      not null,
     constraint FKd17ahlgqfllxn81i7mf3iiurs
     foreign key (user_id) references users (user_id)

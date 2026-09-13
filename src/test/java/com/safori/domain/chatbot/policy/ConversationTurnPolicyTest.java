@@ -3,6 +3,7 @@ package com.safori.domain.chatbot.policy;
 import com.safori.common.exception.GeneralException;
 import com.safori.domain.chatbot.adaptor.ChatMessageAdaptor;
 import com.safori.domain.chatbot.entity.ChatMessage;
+import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.common.exception.ErrorStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,12 +26,14 @@ class ConversationTurnPolicyTest {
     private FakeMessageAdaptor adaptor;
     private ConversationLimitProperties props;
     private ConversationTurnPolicy policy;
+    private ChatSession session;
 
     @BeforeEach
     void setUp() {
         adaptor = new FakeMessageAdaptor();
         props = new ConversationLimitProperties();
         policy = new ConversationTurnPolicy(props, adaptor);
+        session = ChatSession.builder().id(SESSION_ID).build();
     }
 
     @Test
@@ -38,20 +41,20 @@ class ConversationTurnPolicyTest {
     void mindDiarySessionEndsAfterFourUserTurns() {
         // 도란이 첫 질문(MIND_DIARY)은 사용자 발화가 아니므로 턴에 포함되지 않는다
         adaptor.userTurns = 0;
-        assertThat(policy.verifyCanSendAndGetTurn(SESSION_ID)).isEqualTo(1);
-        assertThat(policy.isFinalTurn(1)).isFalse();
+        assertThat(policy.verifyCanSendAndGetTurn(session)).isEqualTo(1);
+        assertThat(policy.isFinalTurn(session, 1)).isFalse();
 
         adaptor.userTurns = 1;
-        assertThat(policy.verifyCanSendAndGetTurn(SESSION_ID)).isEqualTo(2);
-        assertThat(policy.isFinalTurn(2)).isFalse();
+        assertThat(policy.verifyCanSendAndGetTurn(session)).isEqualTo(2);
+        assertThat(policy.isFinalTurn(session, 2)).isFalse();
 
         adaptor.userTurns = 2;
-        assertThat(policy.verifyCanSendAndGetTurn(SESSION_ID)).isEqualTo(3);
-        assertThat(policy.isFinalTurn(3)).isFalse();
+        assertThat(policy.verifyCanSendAndGetTurn(session)).isEqualTo(3);
+        assertThat(policy.isFinalTurn(session, 3)).isFalse();
 
         adaptor.userTurns = 3;
-        assertThat(policy.verifyCanSendAndGetTurn(SESSION_ID)).isEqualTo(4);
-        assertThat(policy.isFinalTurn(4)).isTrue();  // 마무리 멘트
+        assertThat(policy.verifyCanSendAndGetTurn(session)).isEqualTo(4);
+        assertThat(policy.isFinalTurn(session, 4)).isTrue();  // 마무리 멘트
     }
 
     @Test
@@ -59,8 +62,8 @@ class ConversationTurnPolicyTest {
     void rejectsSendAfterLimit() {
         adaptor.userTurns = 4;
 
-        assertThat(policy.isClosed(SESSION_ID)).isTrue();
-        assertThatThrownBy(() -> policy.verifyCanSendAndGetTurn(SESSION_ID))
+        assertThat(policy.isClosed(session)).isTrue();
+        assertThatThrownBy(() -> policy.verifyCanSendAndGetTurn(session))
                 .isInstanceOf(GeneralException.class)
                 .isSameAs(com.safori.domain.chatbot.exception.ChatbotHandler.SESSION_CLOSED);
     }
@@ -70,8 +73,8 @@ class ConversationTurnPolicyTest {
     void notClosedBeforeLimit() {
         adaptor.userTurns = 3;
 
-        assertThat(policy.isClosed(SESSION_ID)).isFalse();
-        assertThatCode(() -> policy.verifyCanSendAndGetTurn(SESSION_ID)).doesNotThrowAnyException();
+        assertThat(policy.isClosed(session)).isFalse();
+        assertThatCode(() -> policy.verifyCanSendAndGetTurn(session)).doesNotThrowAnyException();
     }
 
     @Test
@@ -80,10 +83,24 @@ class ConversationTurnPolicyTest {
         props.setMaxUserTurns(6);
         adaptor.userTurns = 4;
 
-        assertThat(policy.isClosed(SESSION_ID)).isFalse();
-        assertThat(policy.verifyCanSendAndGetTurn(SESSION_ID)).isEqualTo(5);
-        assertThat(policy.isFinalTurn(5)).isFalse();
-        assertThat(policy.isFinalTurn(6)).isTrue();
+        assertThat(policy.isClosed(session)).isFalse();
+        assertThat(policy.verifyCanSendAndGetTurn(session)).isEqualTo(5);
+        assertThat(policy.isFinalTurn(session, 5)).isFalse();
+        assertThat(policy.isFinalTurn(session, 6)).isTrue();
+    }
+
+    @Test
+    @DisplayName("연장된 세션은 턴을 다 써도 닫히지 않고 마지막 턴도 없다")
+    void extendedSessionHasNoTurnLimit() {
+        adaptor.userTurns = 4;
+        assertThat(policy.isClosed(session)).isTrue();
+
+        session.extend();
+        adaptor.userTurns = 10;
+
+        assertThat(policy.isClosed(session)).isFalse();
+        assertThat(policy.verifyCanSendAndGetTurn(session)).isEqualTo(11);
+        assertThat(policy.isFinalTurn(session, 11)).isFalse();
     }
 
     /** userTurns만 흉내내는 스텁. */

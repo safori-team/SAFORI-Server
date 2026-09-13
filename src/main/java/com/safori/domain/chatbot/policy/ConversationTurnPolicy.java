@@ -1,6 +1,7 @@
 package com.safori.domain.chatbot.policy;
 
 import com.safori.domain.chatbot.adaptor.ChatMessageAdaptor;
+import com.safori.domain.chatbot.entity.ChatSession;
 import com.safori.domain.chatbot.exception.ChatbotHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,8 @@ import org.springframework.stereotype.Component;
  *   그 이후 발화                       → CHAT_SESSION_CLOSED
  * </pre>
  *
+ * <p>사용자가 "더 이야기하기"로 세션을 연장하면({@link ChatSession#extend}) 턴 제한이 풀린다.
+ *
  * <p>제한을 프롬프트 지시에만 맡기지 않고 여기서 강제한다 — LLM이 종료 권유를 무시하면
  * 대화가 무한정 길어지기 때문이다. 프롬프트에는 "마지막 턴이니 마무리하라"는 지시를 함께
  * 넣어 멘트의 톤을 맞춘다.
@@ -36,9 +39,9 @@ public class ConversationTurnPolicy {
         return chatMessageAdaptor.countUserTurnsBySessionId(sessionId);
     }
 
-    /** 이미 마무리된 세션인지. */
-    public boolean isClosed(String sessionId) {
-        return userTurns(sessionId) >= props.getMaxUserTurns();
+    /** 턴 소진으로 마무리된 세션인지. 연장된 세션은 닫히지 않는다. */
+    public boolean isClosed(ChatSession session) {
+        return !session.isExtended() && userTurns(session.getId()) >= props.getMaxUserTurns();
     }
 
     /**
@@ -46,19 +49,19 @@ public class ConversationTurnPolicy {
      * 종료된 세션에 토큰을 쓰지 않기 위해서다.
      *
      * @return 이번 발화의 순번 (1-based)
-     * @throws com.safori.common.exception.GeneralException 이미 4턴을 모두 쓴 세션이면
+     * @throws com.safori.common.exception.GeneralException 연장하지 않았는데 턴을 모두 쓴 세션이면
      */
-    public long verifyCanSendAndGetTurn(String sessionId) {
-        long used = userTurns(sessionId);
-        if (used >= props.getMaxUserTurns()) {
+    public long verifyCanSendAndGetTurn(ChatSession session) {
+        long used = userTurns(session.getId());
+        if (!session.isExtended() && used >= props.getMaxUserTurns()) {
             throw ChatbotHandler.SESSION_CLOSED;
         }
         return used + 1;
     }
 
-    /** 이번 발화가 마지막 턴이라 도란이가 마무리 멘트를 해야 하는지. */
-    public boolean isFinalTurn(long currentTurn) {
-        return currentTurn >= props.getMaxUserTurns();
+    /** 이번 발화가 마지막 턴이라 도란이가 마무리 멘트를 해야 하는지. 연장된 세션엔 마지막 턴이 없다. */
+    public boolean isFinalTurn(ChatSession session, long currentTurn) {
+        return !session.isExtended() && currentTurn >= props.getMaxUserTurns();
     }
 
     public int maxUserTurns() {

@@ -53,6 +53,13 @@ public class ChatSession extends BaseTimeEntity {
     private LocalDateTime crisisDetectedAt;
 
     /**
+     * 사용자가 턴 소진 후 "더 이야기하기"를 선택한 시각. null이면 턴 제한이 적용되는 세션이다.
+     * 연장된 세션은 턴 제한 없이 대화를 이어간다(위기 종료는 여전히 적용).
+     */
+    @Column(name = "extended_at")
+    private LocalDateTime extendedAt;
+
+    /**
      * 세션 생성. 사용자가 직접 열든, 마음일기 트리거로 열든 세션 자체는 동일하다.
      * "이 세션이 어떤 일기로 왜 생겼는지"는 {@code mind_diary_trigger} 원장이 소유한다.
      */
@@ -86,5 +93,17 @@ public class ChatSession extends BaseTimeEntity {
     /** 가드레일에 걸려 중단된 세션인지. */
     public boolean isCrisisClosed() {
         return this.crisisTrigger != null;
+    }
+
+    /** 턴 제한을 해제한다. 이미 연장된 세션이면 최초 시각을 유지한다(더블탭 멱등). */
+    public void extend() {
+        if (this.extendedAt == null) {
+            this.extendedAt = LocalDateTime.now();
+        }
+    }
+
+    /** 턴 제한이 해제된 세션인지. */
+    public boolean isExtended() {
+        return this.extendedAt != null;
     }
 }
