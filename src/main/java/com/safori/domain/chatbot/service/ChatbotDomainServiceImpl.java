@@ -149,6 +149,14 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
 
     @Override
     @Transactional
+    public void extendSession(String sessionId) {
+        ChatSession session = chatSessionAdaptor.queryById(sessionId);
+        session.extend();
+        chatSessionAdaptor.save(session);
+    }
+
+    @Override
+    @Transactional
     public void recordOffer(Voice triggerVoice, String reason) {
         // 멱등성 키. voice_id UNIQUE 위반 시 예외를 잡지 않고 전파한다 — 트랜잭션 안에서
         // 잡으면 rollback-only로 마킹돼 커밋 시 UnexpectedRollbackException이 터진다.

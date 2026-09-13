@@ -77,7 +77,7 @@ class SendReframingMessageUseCaseTest {
     @DisplayName("턴이 소진된 세션이면 LLM을 호출하지 않고 즉시 거부한다 — 종료된 세션에 토큰을 쓰지 않는다")
     void rejectsClosedSessionBeforeCallingLlm() {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID))
+        given(turnPolicy.verifyCanSendAndGetTurn(session))
                 .willThrow(ChatbotHandler.SESSION_CLOSED);
 
         assertThatThrownBy(() -> useCase.execute(USERNAME, request))
@@ -92,8 +92,8 @@ class SendReframingMessageUseCaseTest {
     @DisplayName("마지막 턴이면 마무리 지시가 담긴 프롬프트를 보내고 sessionClosed=true로 응답한다")
     void finalTurnClosesSession() {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(4L);
-        given(turnPolicy.isFinalTurn(4L)).willReturn(true);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(4L);
+        given(turnPolicy.isFinalTurn(session, 4L)).willReturn(true);
 
         ReframingResponse response = useCase.execute(USERNAME, request);
 
@@ -110,8 +110,8 @@ class SendReframingMessageUseCaseTest {
     @DisplayName("마지막 턴이 아니면 sessionClosed=false이고 마무리 지시도 들어가지 않는다")
     void normalTurnKeepsSessionOpen() {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(2L);
-        given(turnPolicy.isFinalTurn(2L)).willReturn(false);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(2L);
+        given(turnPolicy.isFinalTurn(session, 2L)).willReturn(false);
 
         ReframingResponse response = useCase.execute(USERNAME, request);
 
@@ -121,6 +121,25 @@ class SendReframingMessageUseCaseTest {
         verify(geminiChatbotClient).generate(prompt.capture());
         assertThat(prompt.getValue()).doesNotContain("상담 마무리");
         assertThat(prompt.getValue()).contains("2번째 대화");
+    }
+
+    @Test
+    @DisplayName("연장된 세션이면 마무리 대신 이어가는 대화 지시가 들어간다")
+    void extendedSessionPromptKeepsConversationOpen() {
+        givenSession();
+        given(session.isExtended()).willReturn(true);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(6L);
+        given(turnPolicy.isFinalTurn(session, 6L)).willReturn(false);
+
+        ReframingResponse response = useCase.execute(USERNAME, request);
+
+        assertThat(response.sessionClosed()).isFalse();
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(geminiChatbotClient).generate(prompt.capture());
+        assertThat(prompt.getValue())
+                .contains("횟수 제한은 없습니다")
+                .doesNotContain("상담 마무리")
+                .doesNotContain("기회는");
     }
 
     @Test
@@ -153,7 +172,7 @@ class SendReframingMessageUseCaseTest {
     @DisplayName("사전 스크리닝에 걸리면 LLM을 호출하지 않고 위기 안내로 세션을 닫는다")
     void preScreenCrisisSkipsLlm() {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(1L);
         given(crisisPolicy.screen(anyString())).willReturn(
                 CrisisVerdict.of(CrisisTrigger.HIGH_RISK_KEYWORD, "keyword=자살"));
         given(chatbotDomainService.appendMessage(
@@ -177,8 +196,8 @@ class SendReframingMessageUseCaseTest {
     @DisplayName("안전 필터 차단만으로 사용자를 위기로 판정하거나 세션을 닫지 않는다")
     void safetyBlockDoesNotCloseSession() {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(2L);
-        given(turnPolicy.isFinalTurn(2L)).willReturn(false);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(2L);
+        given(turnPolicy.isFinalTurn(session, 2L)).willReturn(false);
         given(geminiChatbotClient.generate(anyString()))
                 .willReturn(GeneratedReply.safetyBlocked("promptBlockReason=SAFETY"));
 
@@ -201,8 +220,8 @@ class SendReframingMessageUseCaseTest {
     @DisplayName("전용 사전 분류를 통과한 발화는 상담 모델 응답이 위기 라벨이어도 세션을 닫지 않는다")
     void generatedCrisisLabelCannotOverrideClassifier() {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(1L);
-        given(turnPolicy.isFinalTurn(1L)).willReturn(false);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(1L);
+        given(turnPolicy.isFinalTurn(session, 1L)).willReturn(false);
         given(geminiChatbotClient.generate(anyString())).willReturn(GeneratedReply.ok(
                 new ChatbotReply("공감", "위기 상황", "분석", "질문", "대안", "anxiety")));
 
@@ -219,8 +238,8 @@ class SendReframingMessageUseCaseTest {
     @DisplayName("정상 대화는 crisisDetected=false로 나가고 세션을 닫지 않는다")
     void normalTurnReportsNoCrisis() {
         givenSession();
-        given(turnPolicy.verifyCanSendAndGetTurn(SESSION_ID)).willReturn(2L);
-        given(turnPolicy.isFinalTurn(2L)).willReturn(false);
+        given(turnPolicy.verifyCanSendAndGetTurn(session)).willReturn(2L);
+        given(turnPolicy.isFinalTurn(session, 2L)).willReturn(false);
 
         ReframingResponse response = useCase.execute(USERNAME, request);
 

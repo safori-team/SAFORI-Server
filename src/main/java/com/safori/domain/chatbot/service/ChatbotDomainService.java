@@ -63,6 +63,9 @@ public interface ChatbotDomainService {
      */
     void closeSessionByCrisis(String sessionId, CrisisTrigger trigger);
 
+    /** 턴 제한을 해제해 대화를 이어갈 수 있게 한다. 이미 연장된 세션이면 아무것도 바꾸지 않는다. */
+    void extendSession(String sessionId);
+
     /**
      * 조건을 충족한 일기에 대해 상담 제안(OFFERED) 원장 행을 기록한다. 세션은 만들지 않는다.
      *

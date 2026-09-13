@@ -19,11 +19,12 @@ public final class VoiceReframingPrompt {
             String emotionDesc,
             String emotionHint,
             int maxUserTurns,
-            boolean finalTurn
+            boolean finalTurn,
+            boolean extended
     ) {
         return """
                 당신은 따뜻하고 통찰력 있는 전문 심리상담사 '도란이'입니다.
-                현재 내담자 **'%s'**와 **음성**으로 대화를 나누고 있으며, 이 세션의 **%d번째 대화**가 진행 중입니다. (총 %d회로 끝나는 상담입니다)
+                현재 내담자 **'%s'**와 **음성**으로 대화를 나누고 있으며, 이 세션의 **%d번째 대화**가 진행 중입니다. (대화 분량은 아래 [대화 분량 안내]를 따르세요)
                 **[호칭 — 반드시 준수]** 사용자를 '%s'라고 부르세요. '~님'이 아니라 이 호칭(할아버지/할머니)을 그대로 쓰세요.
 
                 [음성 감정 분석 정보]
@@ -62,7 +63,6 @@ public final class VoiceReframingPrompt {
                 """.formatted(
                         address,
                         turnCount,
-                        maxUserTurns,
                         address,
                         emotionDesc == null || emotionDesc.isBlank() ? "(감정 분석 정보 없음)" : emotionDesc,
                         userInput,
@@ -72,7 +72,7 @@ public final class VoiceReframingPrompt {
                         EmotionStrategies.DISTORTION_GUIDE,
                         EmotionStrategies.QUESTION_STYLE,
                         EmotionStrategies.LENGTH_GUIDE,
-                        ClosingGuide.block(turnCount, maxUserTurns, finalTurn)
+                        ClosingGuide.block(turnCount, maxUserTurns, finalTurn, extended)
                 );
     }
 

@@ -36,8 +36,8 @@ class PromptFormatTest {
     @DisplayName("ReframingPrompt — 일반 턴/마지막 턴 모두 포맷 예외 없이 빌드되고 분량 지침 포함")
     void reframingBuilds() {
         assertThatCode(() -> {
-            String normal = ReframingPrompt.build("오늘 힘들어요", history, 2, "sad", "홍길동 할아버지", 4, false);
-            String last = ReframingPrompt.build("이제 괜찮아요", history, 4, "sad", "홍길동 할아버지", 4, true);
+            String normal = ReframingPrompt.build("오늘 힘들어요", history, 2, "sad", "홍길동 할아버지", 4, false, false);
+            String last = ReframingPrompt.build("이제 괜찮아요", history, 4, "sad", "홍길동 할아버지", 4, true, false);
             assertThat(normal).contains("분량 지침");
             assertThat(last).contains("분량 지침").contains("상담 마무리");
         }).doesNotThrowAnyException();
@@ -48,9 +48,9 @@ class PromptFormatTest {
     void voiceReframingBuilds() {
         assertThatCode(() -> {
             String normal = VoiceReframingPrompt.build(
-                    "오늘 힘들어요", history, 1, "홍길동", "- 주된 감정: sad", "sad", 4, false);
+                    "오늘 힘들어요", history, 1, "홍길동", "- 주된 감정: sad", "sad", 4, false, false);
             String last = VoiceReframingPrompt.build(
-                    "이제 괜찮아요", history, 4, "홍길동", "- 주된 감정: sad", "sad", 4, true);
+                    "이제 괜찮아요", history, 4, "홍길동", "- 주된 감정: sad", "sad", 4, true, false);
             assertThat(normal).contains("분량 지침");
             assertThat(last).contains("분량 지침").contains("상담 마무리");
         }).doesNotThrowAnyException();

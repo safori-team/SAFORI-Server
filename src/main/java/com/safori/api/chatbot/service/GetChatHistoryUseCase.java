@@ -100,7 +100,7 @@ public class GetChatHistoryUseCase {
                 p.getTotalElements(),
                 p.getTotalPages() == 0 ? 1 : p.getTotalPages(),
                 p.hasNext(),
-                turnPolicy.isClosed(sessionId) || crisisClosed,
+                turnPolicy.isClosed(session) || crisisClosed,
                 crisisClosed,
                 sessionReplyStatus
         );

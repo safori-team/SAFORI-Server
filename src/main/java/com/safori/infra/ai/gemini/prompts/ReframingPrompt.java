@@ -13,14 +13,16 @@ public final class ReframingPrompt {
      * @param turnCount    이번이 몇 번째 사용자 발화인지 (1-based)
      * @param maxUserTurns 세션당 허용 발화 횟수
      * @param finalTurn    이번 응답이 마무리 멘트여야 하는지
+     * @param extended     사용자가 연장해 턴 제한이 풀린 세션인지
      */
     public static String build(String userInput, List<HistoryTurn> history, int turnCount,
-                              String emotionHint, String address, int maxUserTurns, boolean finalTurn) {
+                              String emotionHint, String address, int maxUserTurns, boolean finalTurn,
+                              boolean extended) {
         return """
                 당신은 따뜻하고 통찰력 있는 전문 심리상담사 '도란이'입니다.
                 내담자(User)는 현재 심리적인 어려움을 겪고 있거나, 마음의 정리가 필요해 찾아왔습니다.
                 **[호칭 — 반드시 준수]** 사용자를 '%s'라고 부르세요. '~님'이 아니라 이 호칭(할아버지/할머니)을 그대로 쓰세요.
-                현재 이 세션의 **%d번째 대화**가 진행 중입니다. (총 %d회로 끝나는 상담입니다)
+                현재 이 세션의 **%d번째 대화**가 진행 중입니다. (대화 분량은 아래 [대화 분량 안내]를 따르세요)
 
                 [이전 대화 맥락]
                 %s
@@ -52,7 +54,6 @@ public final class ReframingPrompt {
                 """.formatted(
                         address,
                         turnCount,
-                        maxUserTurns,
                         formatHistory(history),
                         userInput,
                         EmotionStrategies.block(emotionHint),
@@ -60,7 +61,7 @@ public final class ReframingPrompt {
                         EmotionStrategies.DISTORTION_GUIDE,
                         EmotionStrategies.QUESTION_STYLE,
                         EmotionStrategies.LENGTH_GUIDE,
-                        ClosingGuide.block(turnCount, maxUserTurns, finalTurn)
+                        ClosingGuide.block(turnCount, maxUserTurns, finalTurn, extended)
                 );
     }
 

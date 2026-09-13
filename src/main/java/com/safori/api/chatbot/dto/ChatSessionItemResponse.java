@@ -20,7 +20,9 @@ public record ChatSessionItemResponse(
         String emotion,
         @Schema(description = """
                 상담이 마무리된 세션인지. true면 이어서 대화할 수 없다.
-                턴 소진과 위기 가드레일 두 경로 모두 true다.""", example = "false")
+                턴 소진과 위기 가드레일 두 경로 모두 true다.
+                crisisDetected=false면 POST /sessions/{sessionId}/extend로 연장할 수 있고, 연장 후엔 false가 된다.""",
+                example = "false")
         boolean sessionClosed,
         @Schema(description = "위기 가드레일에 걸려 중단된 세션인지. true면 sessionClosed도 항상 true다.",
                 example = "false")

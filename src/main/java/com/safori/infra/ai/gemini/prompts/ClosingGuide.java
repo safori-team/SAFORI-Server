@@ -13,8 +13,18 @@ public final class ClosingGuide {
     /**
      * @param currentTurn  이번이 몇 번째 사용자 발화인지 (1-based)
      * @param maxUserTurns 세션당 허용 발화 횟수
+     * @param extended     사용자가 연장해 턴 제한이 풀린 세션인지 (true면 finalTurn은 무시된다)
      */
-    public static String block(int currentTurn, int maxUserTurns, boolean finalTurn) {
+    public static String block(int currentTurn, int maxUserTurns, boolean finalTurn, boolean extended) {
+        if (extended) {
+            return """
+
+                    **[대화 분량 안내]**
+                    기본 상담을 마친 뒤 내담자가 **더 이야기하기를 원해** 이어가는 대화입니다. 횟수 제한은 없습니다.
+                    - 앞서 나눈 이야기를 이어받아 편안하게 대화를 계속하세요.
+                    - 종료를 먼저 권유하거나 마무리 멘트를 하지 마세요.
+                    """;
+        }
         if (finalTurn) {
             return """
 

@@ -78,8 +78,8 @@ public class SendVoiceReframingMessageUseCase {
         crisisPolicy.verifyNotCrisisClosed(session);
 
         // 2) 턴 검증 — STT보다 먼저. 종료된 세션에 Flash/Pro 호출을 쓰지 않는다.
-        long turnCount = turnPolicy.verifyCanSendAndGetTurn(session.getId());
-        boolean finalTurn = turnPolicy.isFinalTurn(turnCount);
+        long turnCount = turnPolicy.verifyCanSendAndGetTurn(session);
+        boolean finalTurn = turnPolicy.isFinalTurn(session, turnCount);
 
         // 3) Flash — STT + 감정 분석. 음성이 유일 입력이므로 실패 시 폴백 없이 에러.
         GeminiAnalysisResult analysis;
@@ -124,7 +124,7 @@ public class SendVoiceReframingMessageUseCase {
         String prompt = VoiceReframingPrompt.build(
                 userInput, history, (int) turnCount, address,
                 emotionDesc, emotionHint,
-                turnPolicy.maxUserTurns(), finalTurn);
+                turnPolicy.maxUserTurns(), finalTurn, session.isExtended());
 
         // 4) PROCESSING 행 선(先) 커밋 — 이때부터 조회 API에 "처리 중"으로 노출된다.
         //    STT가 끝나야 userInput이 정해지므로 Flash 구간은 덮지 못하고 Pro 구간만 덮는다.

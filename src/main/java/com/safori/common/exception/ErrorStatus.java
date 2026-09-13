@@ -61,6 +61,8 @@ public enum ErrorStatus implements BaseErrorCode {
     CHAT_REPLY_IN_PROGRESS(BAD_REQUEST, 4211, "도란이가 아직 답변을 만들고 있어요."),
     CHAT_SESSION_CRISIS_CLOSED(BAD_REQUEST, 4212,
             "안전을 위해 종료된 상담입니다. 자살예방 상담전화 109로 전문가의 도움을 받아보세요."),
+    @ExplainError("턴이 남아 있는 세션에 연장(POST /sessions/{sessionId}/extend)을 호출한 경우. 연장은 턴 소진 후에만 가능하다.")
+    CHAT_SESSION_NOT_EXTENDABLE(BAD_REQUEST, 4213, "아직 대화 횟수가 남아 있어 연장할 수 없습니다."),
 
     // TTS 오류 (4250번대)
     TTS_TEXT_EMPTY(BAD_REQUEST, 4250, "읽을 문장이 비어 있습니다."),

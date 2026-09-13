@@ -32,6 +32,8 @@ public class ChatbotHandler extends GeneralException {
             new ChatbotHandler(ErrorStatus.CHAT_REPLY_IN_PROGRESS);
     public static final GeneralException SESSION_CRISIS_CLOSED =
             new ChatbotHandler(ErrorStatus.CHAT_SESSION_CRISIS_CLOSED);
+    public static final GeneralException SESSION_NOT_EXTENDABLE =
+            new ChatbotHandler(ErrorStatus.CHAT_SESSION_NOT_EXTENDABLE);
 
     public ChatbotHandler(BaseErrorCode code) {
         super(code);

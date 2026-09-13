@@ -68,8 +68,8 @@ public class SendReframingMessageUseCase {
         crisisPolicy.verifyNotCrisisClosed(session);
 
         // 턴 소진 시 여기서 끊는다 — 종료된 세션에 LLM 토큰을 쓰지 않는다
-        long turnCount = turnPolicy.verifyCanSendAndGetTurn(session.getId());
-        boolean finalTurn = turnPolicy.isFinalTurn(turnCount);
+        long turnCount = turnPolicy.verifyCanSendAndGetTurn(session);
+        boolean finalTurn = turnPolicy.isFinalTurn(session, turnCount);
 
         String address = UserHonorific.of(user);
 
@@ -85,7 +85,7 @@ public class SendReframingMessageUseCase {
 
         String prompt = ReframingPrompt.build(
                 request.userInput(), history, (int) turnCount, request.emotion(),
-                address, turnPolicy.maxUserTurns(), finalTurn);
+                address, turnPolicy.maxUserTurns(), finalTurn, session.isExtended());
 
         // 3) PROCESSING 행 선(先) 커밋 — 이때부터 조회 API에 "처리 중"으로 노출된다
         Long messageId = chatbotDomainService.beginMessage(

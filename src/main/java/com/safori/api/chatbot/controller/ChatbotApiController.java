@@ -14,6 +14,7 @@ import com.safori.api.chatbot.dto.VoiceReframingResponse;
 import com.safori.api.common.dto.PagedResponse;
 import com.safori.api.chatbot.service.CreateChatSessionUseCase;
 import com.safori.api.chatbot.service.DeleteChatSessionUseCase;
+import com.safori.api.chatbot.service.ExtendChatSessionUseCase;
 import com.safori.api.chatbot.service.GetChatHistoryUseCase;
 import com.safori.api.chatbot.service.GetChatSessionsUseCase;
 import com.safori.api.chatbot.service.GetChatVoicePlaybackUrlUseCase;
@@ -55,6 +56,10 @@ import org.springframework.web.bind.annotation.RestController;
                4) GET /sessions, /history/{sessionId} → 채팅방 목록·상세 화면
                5) DELETE /sessions/{sessionId}  → 채팅방 삭제 (cascade hard delete)
 
+             대화 연장:
+               턴을 모두 써서 sessionClosed=true(crisisDetected=false)가 되면 "더 이야기하시겠어요?"를 띄운다.
+                 POST /sessions/{sessionId}/extend → 턴 제한 해제, 이후 같은 세션에서 계속 대화
+
              마음일기 상담 제안(모달 opt-in):
                마음일기가 조건(예: 3일 연속 부정 감정)을 충족하면 서버가 상담 '제안'을 만든다.
                세션은 이때 만들어지지 않는다.
@@ -70,6 +75,7 @@ public class ChatbotApiController {
 
     private final CreateChatSessionUseCase createChatSessionUseCase;
     private final DeleteChatSessionUseCase deleteChatSessionUseCase;
+    private final ExtendChatSessionUseCase extendChatSessionUseCase;
     private final GetChatSessionsUseCase getChatSessionsUseCase;
     private final GetChatHistoryUseCase getChatHistoryUseCase;
     private final SendReframingMessageUseCase sendReframingMessageUseCase;
@@ -173,6 +179,33 @@ public class ChatbotApiController {
         return ApiResponseDto.onSuccess(null);
     }
 
+    @PostMapping("/sessions/{sessionId}/extend")
+    @Operation(
+            summary = "대화 연장 (턴 제한 해제)",
+            description = """
+                    턴을 모두 써서 sessionClosed=true가 된 세션에서 "더 이야기하시겠어요?" → 예를 누르면 호출.
+                    이후 이 세션은 턴 제한 없이 POST /reframing, /voice-reframing으로 대화를 이어간다.
+                    body 불필요.
+
+                    • 연장된 세션은 목록/상세의 sessionClosed가 다시 false가 된다.
+                    • 도란이는 연장 후 마무리 멘트 없이 대화를 이어간다.
+                    • 이미 연장된 세션에 다시 호출해도 성공(멱등).
+                    • 앱은 sessionClosed=true && crisisDetected=false일 때만 연장 버튼을 노출하면 된다.
+
+                    오류:
+                      • 4200 CHAT_SESSION_NOT_FOUND
+                      • 4201 CHAT_SESSION_NO_PERMISSION
+                      • 4212 CHAT_SESSION_CRISIS_CLOSED   - 위기 가드레일로 종료된 세션은 연장 불가
+                      • 4213 CHAT_SESSION_NOT_EXTENDABLE  - 아직 턴이 남아 있는 세션
+                    """)
+    public ApiResponseDto<Void> extendSession(
+            @UserCode String username,
+            @PathVariable String sessionId
+    ) {
+        extendChatSessionUseCase.execute(username, sessionId);
+        return ApiResponseDto.onSuccess(null);
+    }
+
     @GetMapping("/sessions")
     @Operation(
             summary = "내 채팅방 목록 조회 (최신 활동순, 페이징)",
@@ -258,6 +291,7 @@ public class ChatbotApiController {
                       • 마무리 응답은 sessionClosed=true로 오고, socraticQuestion에 질문 대신 마무리 말이 담긴다.
                         (응답 형상은 동일하니 렌더링 분기는 필요 없음. 입력창만 비활성화하면 됨)
                       • 닫힌 세션에 또 보내면 4206 CHAT_SESSION_CLOSED.
+                      • POST /sessions/{sessionId}/extend로 연장하면 턴 제한 없이 이어서 대화할 수 있다.
                       • 마음일기 세션은 도란이 첫 질문으로 시작하므로 (질문 → 응답)이 4번 오간다.
 
                     위기 가드레일 (턴 제한과 같은 방식으로 상담을 멈춘다):
