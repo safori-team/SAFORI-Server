@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springdoc.openapi-gradle-plugin' version '1.8.0'
+    id 'jacoco'
 }
 
 group = 'com.safori'
@@ -23,11 +25,63 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        mavenBom 'io.opentelemetry:opentelemetry-bom:1.60.1'
+        mavenBom 'io.opentelemetry:opentelemetry-bom-alpha:1.60.1-alpha'
+    }
+}
+
 dependencies {
     // Spring Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    // Spring JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // Spring Data Redis (Refresh Token 보관)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Spring Validation (@Valid / ConstraintViolation 예외 처리)
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     // Spring Actuator (기동/헬스 확인)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Spring Security (PasswordEncoder, UserDetails/Authentication, JWT 인증 필터)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // Swagger / OpenAPI
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
+
+    // Sentry: 에러 자동수집(스타터) + OTel OTLP 트레이스 export
+    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.47.0'
+    implementation 'io.sentry:sentry-opentelemetry-otlp-spring:8.47.0'
+
+    // AWS SDK S3 (Presigned URL 발급)
+    implementation platform('software.amazon.awssdk:bom:2.26.22')
+    implementation 'software.amazon.awssdk:s3'
+    // AWS SDK SQS (소분류 감정 분석 비동기 파이프라인)
+    implementation 'software.amazon.awssdk:sqs'
+
+    // Firebase Admin SDK (FCM 푸시 알림)
+    implementation 'com.google.firebase:firebase-admin:9.4.3'
+
+    // Google Gemini SDK (음성 분석 어댑터)
+    implementation 'com.google.genai:google-genai:1.52.0'
+    // google-genai jar 내부에 META-INF/services/KotlinModule 등록이 내장되어 있어
+    // Hibernate ObjectMapper.findAndRegisterModules() 시 클래스를 찾을 수 있어야 함
+    runtimeOnly 'com.fasterxml.jackson.module:jackson-module-kotlin'
+    runtimeOnly 'org.jetbrains.kotlin:kotlin-reflect'
+
+    // MySQL
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // H2 (test)
+    testImplementation 'com.h2database:h2'
+    // H2 (apidocs 프로파일 전용 — generateOpenApiDocs bootRun에만 포함, bootJar에는 제외)
+    developmentOnly 'com.h2database:h2'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -40,8 +94,76 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+openApi {
+    apiDocsUrl = "http://localhost:8080/v3/api-docs"
+    outputDir = layout.buildDirectory.dir("docs")
+    outputFileName = "openapi.json"
+    waitTimeInSeconds = 60
+    // 외부 DB 없이 H2 인메모리로 부팅해 스펙만 추출
+    customBootRun {
+        jvmArgs = ["-Dspring.profiles.active=apidocs", "-Dotel.sdk.disabled=true"]
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+// 커버리지 측정 대상 = 비즈니스 로직 레이어만.
+// DTO, config, advice(thin), 예외/핸들러, MapStruct 생성코드 등은 제외.
+def jacocoExcludes = [
+        'com/safori/SaforiServerApplication*',
+        '**/config/**',
+        '**/*Config*',
+        '**/dto/**',
+        '**/*Request*',
+        '**/*Response*',
+        '**/*Dto*',
+        '**/advice/**',
+        '**/controller/**',
+        '**/exception/**',
+        '**/*Handler*',
+        '**/*ErrorStatus*',
+        '**/*SuccessStatus*',
+        '**/*Exception*',
+        '**/*MapperImpl*',
+]
+
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                // 베이스라인 측정 후 단계적 상향. 최종 목표 0.70.
+                minimum = 0.00
+            }
+        }
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {

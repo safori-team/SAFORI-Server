@@ -1,0 +1,157 @@
+package com.safori.api.voice.controller;
+
+import com.safori.api.common.dto.ApiResponseDto;
+import com.safori.api.voice.dto.DiaryAnalysisResponse;
+import com.safori.api.voice.dto.PresignedUrlResponse;
+import com.safori.api.voice.dto.RecentVoiceItem;
+import com.safori.api.voice.dto.ReportVoiceEmotionRequest;
+import com.safori.api.voice.dto.VoiceDetailResponse;
+import com.safori.api.voice.dto.VoiceDiaryStatusResponse;
+import com.safori.api.voice.dto.VoiceListResponse;
+import com.safori.api.voice.service.DeleteVoiceUseCase;
+import com.safori.api.voice.service.GenerateVoicePresignedUrlUseCase;
+import com.safori.api.voice.service.GetRecentVoicesUseCase;
+import com.safori.api.voice.service.GetUserVoiceDetailUseCase;
+import com.safori.api.voice.service.GetUserVoiceListUseCase;
+import com.safori.api.voice.service.GetVoiceAnalysisUseCase;
+import com.safori.api.voice.service.GetVoiceDiaryStatusUseCase;
+import com.safori.api.voice.service.ReportVoiceEmotionUseCase;
+import com.safori.api.voice.service.UploadVoiceFileUseCase;
+import com.safori.common.annotation.UserCode;
+import com.safori.domain.question.entity.QuestionCategory;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@Tag(name = "[마음일기(음성)]", description = "마음일기(음성) 업로드 · 등록 · 삭제 API.")
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/v1/api/users/voices")
+public class VoiceApiController {
+
+    private final GenerateVoicePresignedUrlUseCase generateVoicePresignedUrlUseCase;
+    private final UploadVoiceFileUseCase uploadVoiceFileUseCase;
+    private final DeleteVoiceUseCase deleteVoiceUseCase;
+    private final GetUserVoiceListUseCase getUserVoiceListUseCase;
+    private final GetUserVoiceDetailUseCase getUserVoiceDetailUseCase;
+    private final GetVoiceAnalysisUseCase getVoiceAnalysisUseCase;
+    private final GetVoiceDiaryStatusUseCase getVoiceDiaryStatusUseCase;
+    private final GetRecentVoicesUseCase getRecentVoicesUseCase;
+    private final ReportVoiceEmotionUseCase reportVoiceEmotionUseCase;
+
+    @Operation(summary = "최근 마음일기 3건 조회 (홈화면용)",
+            description = "홈화면에 표시할 최근 마음일기 3건을 반환합니다. 분석 전이면 topEmotion·content는 null입니다. (보호 엔드포인트)")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping("/recent")
+    public ApiResponseDto<List<RecentVoiceItem>> getRecentVoices(@UserCode String username) {
+        return ApiResponseDto.onSuccess(getRecentVoicesUseCase.execute(username));
+    }
+
+    @Operation(summary = "마음일기 분석 처리 상태 조회",
+            description = "음성 분석 진행 상황을 조회합니다. 분석 완료 폴링에 사용합니다. (보호 엔드포인트)")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음")
+    @GetMapping("/{voiceId}/status")
+    public ApiResponseDto<VoiceDiaryStatusResponse> getVoiceDiaryStatus(@PathVariable Long voiceId,
+                                                                        @UserCode String username) {
+        return ApiResponseDto.onSuccess(getVoiceDiaryStatusUseCase.execute(voiceId, username));
+    }
+
+    @Operation(summary = "AI 감정 분석 결과 오류 신고",
+            description = "AI가 분석한 감정이 실제와 다를 때 사용자가 실제 감정을 신고합니다. 동일 voiceId 재신고 시 기존 내용을 덮어씁니다. (보호 엔드포인트)")
+    @ApiResponse(responseCode = "200", description = "신고 접수 성공 — result: null")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음")
+    @PostMapping("/{voiceId}/report")
+    public ApiResponseDto<Void> reportVoiceEmotion(@PathVariable Long voiceId,
+                                                   @UserCode String username,
+                                                   @Valid @RequestBody ReportVoiceEmotionRequest request) {
+        reportVoiceEmotionUseCase.execute(voiceId, username, request.getReportedEmotion(), request.getMessage());
+        return ApiResponseDto.onSuccess(null);
+    }
+
+    @Operation(summary = "마음일기 감정 분석 결과 조회",
+            description = "분석 완료된 마음일기의 대표 감정·요약·세부 감정 breakdown을 반환합니다. (보호 엔드포인트)")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음 / `4152`: 분석 미완료 / `4153`: 분석 결과 없음")
+    @GetMapping("/{voiceId}/analysis")
+    public ApiResponseDto<DiaryAnalysisResponse> getVoiceAnalysis(@PathVariable Long voiceId,
+                                                                  @UserCode String username) {
+        return ApiResponseDto.onSuccess(getVoiceAnalysisUseCase.execute(voiceId, username));
+    }
+
+    @Operation(summary = "마음일기 목록 조회",
+            description = """
+                    사용자의 마음일기 목록을 반환합니다.
+                    - `date` 미전달 시: 전체 목록
+                    - `date=yyyy-MM-dd` 전달 시: 해당 날짜의 일기만 반환
+                    """)
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @GetMapping
+    public ApiResponseDto<VoiceListResponse> getUserVoiceList(@UserCode String username,
+                                                              @Parameter(description = "날짜 필터 (yyyy-MM-dd). 생략 시 전체 목록")
+                                                              @RequestParam(required = false) String date) {
+        VoiceListResponse result = (date == null) ?
+                getUserVoiceListUseCase.execute(username) : getUserVoiceListUseCase.execute(username, date);
+        return ApiResponseDto.onSuccess(result);
+    }
+
+    @Operation(summary = "마음일기 상세 조회",
+            description = "voiceId에 해당하는 마음일기의 상세 정보(감정, STT 내용 등)를 반환합니다.")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음")
+    @GetMapping("/{voiceId}")
+    public ApiResponseDto<VoiceDetailResponse> getUserVoiceDetail(@PathVariable Long voiceId,
+                                                                  @UserCode String username) {
+        return ApiResponseDto.onSuccess(getUserVoiceDetailUseCase.execute(voiceId, username));
+    }
+
+    @Operation(summary = "음성 파일 업로드용 Presigned URL 발급",
+            description = "S3에 음성 파일을 직접 업로드하기 위한 Presigned PUT URL과 voiceKey를 발급합니다. (유효시간 10분)")
+    @ApiResponse(responseCode = "200", description = "presignedUrl · voiceKey 반환")
+    @GetMapping("/presigned-url")
+    public ApiResponseDto<PresignedUrlResponse> getPresignedUrl(@UserCode String username,
+                                                                @Parameter(description = "파일 확장자 (예: m4a, mp3)")
+                                                                @RequestParam String extension) {
+        return ApiResponseDto.onSuccess(generateVoicePresignedUrlUseCase.execute(username, extension));
+    }
+
+    @Operation(summary = "음성 파일 업로드 완료 등록",
+            description = "S3 업로드 완료 후 voiceKey와 질문(카테고리/인덱스)을 함께 등록합니다. 생성된 voiceId를 반환합니다.")
+    @ApiResponse(responseCode = "200", description = "등록 성공 — 생성된 voiceId 반환")
+    @ApiResponse(responseCode = "400", description = "- `4100`: 존재하지 않는 질문입니다")
+    @PostMapping
+    public ApiResponseDto<Long> uploadVoiceWithQuestion(@UserCode String username,
+                                                        @Parameter(description = "질문 카테고리 (enum)")
+                                                        @RequestParam QuestionCategory questionCategory,
+                                                        @Parameter(description = "질문 인덱스 번호")
+                                                        @RequestParam int questionIndex,
+                                                        @Parameter(description = "S3 업로드 완료 후 받은 voiceKey")
+                                                        @RequestParam String voiceKey) {
+        return ApiResponseDto.onSuccess(
+                uploadVoiceFileUseCase.execute(username, questionCategory, questionIndex, voiceKey));
+    }
+
+    @Operation(summary = "마음일기 삭제",
+            description = "본인 소유의 음성을 삭제합니다.")
+    @ApiResponse(responseCode = "200", description = "삭제 성공 — result: null")
+    @ApiResponse(responseCode = "400", description = "- `4150`: 존재하지 않는 음성파일 / `4151`: 접근권한 없음")
+    @DeleteMapping("/{voiceId}")
+    public ApiResponseDto<Void> deleteUserVoice(@PathVariable Long voiceId,
+                                                @UserCode String username) {
+        deleteVoiceUseCase.execute(voiceId, username);
+        return ApiResponseDto.onSuccess(null);
+    }
+}

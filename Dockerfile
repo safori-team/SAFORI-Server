@@ -13,6 +13,9 @@ FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
+# 앱 전역 타임존 KST 고정 (createdDate 등 LocalDateTime 저장/조회 tz 일치)
+ENV TZ=Asia/Seoul
+
 COPY --from=builder /workspace/build/libs/*.jar app.jar
 COPY docker/entrypoint.sh /app/entrypoint.sh
 

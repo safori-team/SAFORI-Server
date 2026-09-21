@@ -1,0 +1,66 @@
+name: API Docs Generation and Deploy
+
+# OpenAPI 스펙 생성 → Redocly HTML → S3(정적 웹사이트) 브랜치별 경로 배포
+#   main    → environment: prod
+#   develop → environment: alpha
+# 필요 키: vars.AWS_REGION, vars.DOCS_S3_BUCKET / secrets.AWS_ROLE_TO_ASSUME
+# (배포 role 에 docs 버킷 s3:PutObject/DeleteObject/ListBucket 권한 필요)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: docs-deploy-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  generate-and-deploy:
+    runs-on: ubuntu-22.04
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'alpha' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate OpenAPI spec
+        run: ./gradlew generateOpenApiDocs
+
+      - name: Install Redocly CLI and build HTML
+        run: |
+          npm install -g @redocly/cli@latest
+          redocly build-docs build/docs/openapi.json --output build/docs/index.html
+
+      - name: Sanitize branch name
+        id: branch
+        run: echo "name=$(echo '${{ github.ref_name }}' | sed 's|/|-|g')" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-docs-deploy
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync build/docs/ \
+            s3://${{ vars.DOCS_S3_BUCKET }}/docs/${{ steps.branch.outputs.name }}/ \
+            --delete \
+            --cache-control "max-age=300,must-revalidate"
+
+      - name: Output docs URL
+        run: |
+          echo "Docs: http://${{ vars.DOCS_S3_BUCKET }}.s3-website.${{ vars.AWS_REGION }}.amazonaws.com/docs/${{ steps.branch.outputs.name }}/"

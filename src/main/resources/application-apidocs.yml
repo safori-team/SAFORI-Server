@@ -1,0 +1,25 @@
+# OpenAPI 문서 생성 전용 프로파일 (generateOpenApiDocs)
+# 외부 DB/Redis 없이 H2 인메모리로 부팅해 /v3/api-docs 스펙만 추출한다.
+spring:
+  datasource:
+    url: jdbc:h2:mem:apidocs;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# 문서 생성용 더미 JWT 시크릿 (Base64, 운영 키 아님)
+token:
+  secret-user: ZHVtbXktc2VjcmV0LWZvci1hcGlkb2NzLW9ubHktc2Fmb3JpLTIwMjYtand0LWtleQ==
