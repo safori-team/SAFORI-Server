@@ -1,5 +1,7 @@
 # 권한 설계 ERD 비교
 
+최종 선택: **설계 A — 기관별 Role + Group 상속**
+
 두 설계 모두 `organization`과 `organization_member`가 이미 존재한다고 가정한다. `Permission`은 API에서 검사하는 최소 행동이고, 어르신 조회 범위는 `care_assignment`나 보호자 연결 관계로 별도 검사한다.
 
 ## 설계 A: 기관별 Role + Group 상속
@@ -68,9 +70,11 @@ erDiagram
 
     ACCESS_GROUP {
         bigint group_id PK
+        char group_uuid UK
         bigint organization_id FK
-        varchar code
+        varchar system_code
         varchar name
+        varchar group_type
         varchar status
     }
 
@@ -248,16 +252,17 @@ GUARDIAN    → LINKED_RECIPIENT
 | 초기 구현 난이도 | 비교적 단순 | Policy/profile 해석 로직이 추가됨 |
 | 장기 확장 | 기관 Role 복사본 관리 필요 | Group·개인·서비스 계정으로 Policy 부착 확장 가능 |
 
-## 권장안
+## 최종 선택: 설계 A
 
-요구사항의 중심이 기관별 Role 생성보다 **기본 권한을 제공하면서 Role의 권한 구성을 커스텀하고, 개인 예외를 추가하는 것**이라면 설계 B가 더 적합하다.
+기관별 Role에서 Permission을 직접 조합하고, Group에 Role을 부여하며, 개인 예외는 추가 Role로 처리하는 설계 A를 선택한다.
 
-초기 구현에서는 다음 범위만 활성화할 수 있다.
+1. `access_role_template`은 SAFORI가 제공하는 기본 Role 구성을 정의한다.
+2. 기관 생성 시 템플릿을 기준으로 기관 소유 `access_role`과 `access_role_permission`을 생성한다.
+3. 기본 Group에는 해당 기관의 Role을 연결한다.
+4. 개인 추가 권한은 작은 목적별 Role을 `access_member_role`로 부여한다.
+5. API는 최종 Permission을 검사하고, 기관·배정·보호자 연결 등 데이터 범위는 별도 정책으로 검사한다.
+6. 기본 템플릿이 변경돼도 기존 기관 Role을 자동 덮어쓰지 않는다. 템플릿 버전과 차이를 확인한 뒤 기관이 선택적으로 반영한다.
 
-1. System Policy와 전역 Role을 기본 연결한다.
-2. 구성원에게 전역 Role을 부여한다.
-3. API는 최종 Permission과 별도 데이터 scope를 검사한다.
-4. 기관 Policy, `INHERIT`/`REPLACE`, 개인 Policy 테이블은 구조를 마련하되 관리 API와 화면은 후속 개발한다.
-5. Group이 필요해지면 `organization_group`, `organization_group_member`, `organization_group_policy`를 추가한다. 기존 Role·Policy·Permission 구조는 변경하지 않는다.
+`access_group.system_code`는 시스템 기본 Group에만 사용하고 사용자 정의 Group은 `NULL`로 둔다. 화면에 노출하는 안정적인 식별자는 `group_uuid`를 사용한다. 권한 판정은 Group 코드가 아니라 연결된 Role과 Permission을 기준으로 수행한다.
 
-`DENY` 정책과 조건식, 리소스 패턴은 초기 범위에서 제외한다. 추후 도입한다면 명시적 `DENY`가 모든 `ALLOW`보다 우선하도록 별도의 Policy Statement 모델과 충돌 규칙을 함께 설계해야 한다.
+설계 B는 비교 자료로 유지한다. Policy Statement, `DENY`, 조건식, 리소스 패턴이 실제로 필요해질 때 별도 마이그레이션 대상으로 다시 검토한다.

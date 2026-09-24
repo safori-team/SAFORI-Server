@@ -76,23 +76,29 @@ caring-back 참고 지점:
 
 ## 4. DB 추가 설계
 
-다음은 **논리 스키마 제안**이다. 이번 준비 단계에서 실행 가능한 DDL을 기존 safori.sql에 넣거나 운영 DB에 적용하지 않는다. 기본 PK는 bigint, 외부 노출 식별자는 UUID 등 안정된 별도 키, 생성/수정 시각은 기존 datetime(6) 패턴을 따른다. 시각은 UTC로 일관되게 저장한다.
+최종 선택은 **설계 A: 기관별 Role + Group 상속**이다. SAFORI가 기본 Role Template을 제공하고, 기관별 Role은 이를 기준으로 생성한 뒤 Permission 구성을 커스텀한다. 구성원은 Group에서 Role을 상속하며 개인 예외는 추가 Role로 부여한다. 이번 준비 단계에서 실행 가능한 DDL을 기존 safori.sql에 넣거나 운영 DB에 적용하지 않는다. 기본 PK는 bigint, 외부 노출 식별자는 UUID 등 안정된 별도 키, 생성/수정 시각은 기존 datetime(6) 패턴을 따른다. 시각은 UTC로 일관되게 저장한다.
 
-| 신규 테이블 | 주요 컬럼 | 제약/인덱스와 용도 |
-|---|---|---|
-| organization | organization_id, public_id, name, status | public_id UNIQUE; 활성 기관 여부 |
-| backoffice_account | account_id, public_id, login_id, password_hash, status, auth_version | login_id/public_id UNIQUE; 어르신 users와 인증 영역 분리 |
-| organization_member | member_id, organization_id, account_id, status, invited_by, approved_by, approved_at, revoked_at | UNIQUE(org, account), UNIQUE(org, member); INVITED/PENDING/ACTIVE/SUSPENDED/REVOKED |
-| access_role | role_id, code, name | code UNIQUE; ORG_ADMIN/CARE_WORKER/GUARDIAN seed |
-| access_permission | permission_id, code, description | code UNIQUE; DB 매핑 코드와 Java 상수 계약 검사 |
-| access_role_permission | role_id, permission_id | 복합 PK; 역할별 최소 권한 seed |
-| organization_member_role | organization_id, member_id, role_id | 복합 PK(member, role); (org, member) 복합 FK |
-| care_recipient | recipient_id, organization_id, user_id nullable, public_id, status | UNIQUE(org, user_id), UNIQUE(org, recipient_id), public_id UNIQUE; 계정 활성화 전 등록 지원 |
-| care_assignment | assignment_id, organization_id, recipient_id, worker_member_id, started_at, ended_at, assigned_by, ended_by, reason | 대상/멤버의 (org, id) 복합 FK; 활성 배정 중복 방지; 담당자 조회 인덱스 |
-| guardian_recipient_link | link_id, organization_id, recipient_id, guardian_member_id, started_at, ended_at, linked_by, ended_by | (org, recipient)/(org, member) 복합 FK; 활성 동일 쌍 중복 방지 |
-| work_log_access_request | request_id, organization_id, recipient_id, requester_member_id, assignment_id, from_at, to_at, reason, status, reviewed_by, reviewed_at | PENDING/APPROVED/REJECTED/CANCELLED; 요청/결정은 감사 대상 |
-| work_log_access_grant | grant_id, request_id, organization_id, recipient_id, grantee_member_id, assignment_id, from_at, to_at, granted_by, granted_at, expires_at, revoked_at | request_id UNIQUE; 대상/수혜자/배정 동일 기관 FK; 수혜자+대상+만료 인덱스 |
-| access_audit_log | audit_id, organization_id, actor_account_id, action, resource_type, resource_id, result, occurred_at, request_id | org+시간, actor+시간; 변경/승인/민감 조회 기록; 원문·비밀번호·토큰은 저장 금지 |
+| 신규 테이블 | 주요 컬럼 | 제약/인덱스 | 사용 용도 |
+|---|---|---|---|
+| organization | organization_id, public_id, name, status | public_id UNIQUE | 기관 기본 정보와 활성 상태 관리 |
+| backoffice_account | account_id, public_id, login_id, password_hash, status, auth_version | login_id/public_id UNIQUE | 백오피스 로그인 계정 관리 |
+| organization_member | member_id, organization_id, account_id, status, invited_by, approved_by, approved_at, revoked_at | UNIQUE(org, account), UNIQUE(org, member) | 계정의 기관 소속·승인 상태 관리 |
+| access_permission | permission_id, code, description, organization_assignable | code UNIQUE | API에서 검사할 최소 행동 권한 정의 |
+| access_role_template | role_template_id, code, name, version, status | code/version UNIQUE | SAFORI 기본 Role 구성을 기관에 제공 |
+| access_role | role_id, organization_id, source_template_id, code, name, status | UNIQUE(org, code), (org, role_id) UNIQUE | 기관별로 Permission을 조합하는 실제 Role |
+| access_role_permission | role_id, permission_id | 복합 PK(role, permission) | 기관 Role에 Permission 부여 |
+| access_group | group_id, group_uuid, organization_id, system_code nullable, name, group_type, status | group_uuid UNIQUE, UNIQUE(org, system_code) | 기관 구성원을 권한 관리 단위로 묶음 |
+| access_group_member | group_id, organization_member_id | 복합 PK(group, member), 동일 기관 검증 | 구성원을 Group에 소속 |
+| access_group_role | group_id, role_id | 복합 PK(group, role), 동일 기관 검증 | Group 구성원에게 Role을 일괄 상속 |
+| access_member_role | organization_member_id, role_id, granted_by, granted_at, expires_at, revoked_at, reason | 복합 PK(member, role), 동일 기관·유효 기간 검증 | 개인 예외 Role의 부여·만료·회수 관리 |
+| care_recipient | recipient_id, organization_id, user_id nullable, public_id, status | UNIQUE(org, user_id), public_id UNIQUE | 기관이 관리하는 어르신 연결 |
+| care_assignment | assignment_id, organization_id, recipient_id, worker_member_id, started_at, ended_at, assigned_by, ended_by, reason | 동일 기관 복합 FK, 활성 배정 중복 방지 | 담당자와 어르신 배정·이력 관리 |
+| guardian_recipient_link | link_id, organization_id, recipient_id, guardian_member_id, started_at, ended_at, linked_by, ended_by | 동일 기관 복합 FK, 활성 동일 쌍 중복 방지 | 보호자와 어르신 연결 관리 |
+| work_log_access_request | request_id, organization_id, recipient_id, requester_member_id, assignment_id, from_at, to_at, reason, status, reviewed_by, reviewed_at | 요청 상태·기관·대상 인덱스 | 이전 업무일지 열람 승인 요청 |
+| work_log_access_grant | grant_id, request_id, organization_id, recipient_id, grantee_member_id, assignment_id, from_at, to_at, granted_by, granted_at, expires_at, revoked_at | request_id UNIQUE, 수혜자+대상+만료 인덱스 | 승인된 열람 범위와 만료 관리 |
+| access_audit_log | audit_id, organization_id, actor_account_id, action, resource_type, resource_id, result, occurred_at, request_id | org+시간, actor+시간 인덱스 | 권한 변경·승인·민감 조회 감사 |
+
+권한 계산은 **Group에서 상속한 Role의 Permission + 개인에게 직접 부여한 Role의 Permission**의 합집합이다. `access_group.system_code`는 시스템 기본 Group에만 사용하고 사용자 정의 Group은 `NULL`로 둔다. 권한 판정은 Group 코드가 아니라 연결된 Role과 Permission을 기준으로 수행한다. 어르신 데이터 범위는 `care_assignment`와 보호자 연결 관계로 별도 검사한다.
 
 다음 업무 테이블은 API 담당자에게 전달할 참고 모델이며 이슈 #135의 구현 대상이 아니다. API 담당자가 업무 기능과 함께 설계·생성한다. 권한 모듈은 필요한 대상/기관/작성시각/공개 상태를 조회 계약으로 전달받는다. 기존 voice/chat 테이블을 업무일지로 재사용하지 않는다.
 
