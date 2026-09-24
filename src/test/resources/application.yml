@@ -19,9 +19,6 @@ spring:
     show-sql: true
 
   data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
 
 # 테스트용 JWT 시크릿 (Base64, 운영 키 아님)
 token:

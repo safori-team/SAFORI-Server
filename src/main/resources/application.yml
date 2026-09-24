@@ -36,9 +36,6 @@ spring:
     show-sql: ${JPA_SHOW_SQL:false}
 
   data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
 
   # @Scheduled 공용 스케줄러 스레드 풀. 기본값 1이라 한 태스크가 길어지면 나머지가 밀린다.
   # 현재 태스크 4개(감정분석 타임아웃 스윕·마음일기 제안 스캔·미확정 응답 마감·주간 리포트 푸시)
