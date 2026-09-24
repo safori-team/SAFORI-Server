@@ -81,7 +81,7 @@ caring-back 참고 지점:
 | 신규 테이블 | 주요 컬럼 | 제약/인덱스 | 사용 용도 |
 |---|---|---|---|
 | organization | organization_id, public_id, name, status | public_id UNIQUE | 기관 기본 정보와 활성 상태 관리 |
-| backoffice_account | account_id, public_id, login_id, password_hash, status, auth_version | login_id/public_id UNIQUE | 백오피스 로그인 계정 관리 |
+| backoffice_account | account_id, account_uuid, login_id, password_hash, name, status, auth_version, created_date, last_modified_date | login_id/account_uuid UNIQUE; 기존 users FK 없음 | 관리자·담당자·보호자의 독립 로그인 계정 관리 |
 | organization_member | member_id, organization_id, account_id, status, invited_by, approved_by, approved_at, revoked_at | UNIQUE(org, account), UNIQUE(org, member) | 계정의 기관 소속·승인 상태 관리 |
 | access_permission | permission_id, code, description, organization_assignable | code UNIQUE | API에서 검사할 최소 행동 권한 정의 |
 | access_role_template | role_template_id, code, name, version, status | code/version UNIQUE | SAFORI 기본 Role 구성을 기관에 제공 |
@@ -99,6 +99,8 @@ caring-back 참고 지점:
 | access_audit_log | audit_id, organization_id, actor_account_id, action, resource_type, resource_id, result, occurred_at, request_id | org+시간, actor+시간 인덱스 | 권한 변경·승인·민감 조회 감사 |
 
 권한 계산은 **Group에서 상속한 Role의 Permission + 개인에게 직접 부여한 Role의 Permission**의 합집합이다. `access_group.system_code`는 시스템 기본 Group에만 사용하고 사용자 정의 Group은 `NULL`로 둔다. 권한 판정은 Group 코드가 아니라 연결된 Role과 Permission을 기준으로 수행한다. 어르신 데이터 범위는 `care_assignment`와 보호자 연결 관계로 별도 검사한다.
+
+`backoffice_account`는 기존 `users`의 하위 타입이 아니며 Java/JPA 상속과 DB FK를 두지 않는다. 기존 `users`는 어르신 앱의 음성·상담·감정 데이터 소유자로 유지한다. `backoffice_account`는 로그인 정체성만 담당하고, 실제 기관 소속·초대·승인·정지는 `organization_member`가 담당한다. Group과 Role은 account가 아니라 기관 컨텍스트를 가진 `organization_member`에 연결한다. 어르신과 기관의 연결은 `care_recipient.user_id → users.user_id`로 표현한다.
 
 다음 업무 테이블은 API 담당자에게 전달할 참고 모델이며 이슈 #135의 구현 대상이 아니다. API 담당자가 업무 기능과 함께 설계·생성한다. 권한 모듈은 필요한 대상/기관/작성시각/공개 상태를 조회 계약으로 전달받는다. 기존 voice/chat 테이블을 업무일지로 재사용하지 않는다.
 

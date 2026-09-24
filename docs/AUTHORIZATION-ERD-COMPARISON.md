@@ -2,7 +2,7 @@
 
 최종 선택: **설계 A — 기관별 Role + Group 상속**
 
-두 설계 모두 `organization`과 `organization_member`가 이미 존재한다고 가정한다. `Permission`은 API에서 검사하는 최소 행동이고, 어르신 조회 범위는 `care_assignment`나 보호자 연결 관계로 별도 검사한다.
+두 설계 모두 기존 어르신 앱 계정 `users`와 Java/JPA 상속 관계가 없는 신규 `backoffice_account`를 사용한다. `organization_member`는 백오피스 계정의 기관별 소속이며 Role과 Group은 이 멤버십에 연결한다. `Permission`은 API에서 검사하는 최소 행동이고, 어르신 조회 범위는 `care_assignment`나 보호자 연결 관계로 별도 검사한다.
 
 ## 설계 A: 기관별 Role + Group 상속
 
@@ -11,6 +11,7 @@
 ```mermaid
 erDiagram
     ORGANIZATION ||--o{ ORGANIZATION_MEMBER : has
+    BACKOFFICE_ACCOUNT ||--o{ ORGANIZATION_MEMBER : joins
     ORGANIZATION ||--o{ ACCESS_ROLE : owns
     ORGANIZATION ||--o{ ACCESS_GROUP : owns
 
@@ -32,6 +33,18 @@ erDiagram
         bigint organization_id PK
         varchar name
         varchar status
+    }
+
+    BACKOFFICE_ACCOUNT {
+        bigint account_id PK
+        char account_uuid UK
+        varchar login_id UK
+        varchar password_hash
+        varchar name
+        varchar status
+        bigint auth_version
+        datetime created_date
+        datetime last_modified_date
     }
 
     ORGANIZATION_MEMBER {
@@ -118,6 +131,7 @@ Role은 `ORG_ADMIN`, `CARE_WORKER`, `GUARDIAN` 같은 전역 의미와 기본 �
 ```mermaid
 erDiagram
     ORGANIZATION ||--o{ ORGANIZATION_MEMBER : has
+    BACKOFFICE_ACCOUNT ||--o{ ORGANIZATION_MEMBER : joins
     ORGANIZATION o|--o{ ACCESS_POLICY : owns_custom
 
     ACCESS_POLICY ||--o{ ACCESS_POLICY_PERMISSION : contains
@@ -142,6 +156,18 @@ erDiagram
         bigint organization_id PK
         varchar name
         varchar status
+    }
+
+    BACKOFFICE_ACCOUNT {
+        bigint account_id PK
+        char account_uuid UK
+        varchar login_id UK
+        varchar password_hash
+        varchar name
+        varchar status
+        bigint auth_version
+        datetime created_date
+        datetime last_modified_date
     }
 
     ORGANIZATION_MEMBER {
