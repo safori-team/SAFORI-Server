@@ -48,6 +48,7 @@ module "safori" {
   instance_count = 1
 
   emotion_analysis_image_uri = var.emotion_analysis_image_uri
+  emotion_pipeline_enabled   = true
 }
 
 output "safori" {
