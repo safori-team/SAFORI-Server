@@ -9,7 +9,12 @@ output "tunnel_service_url" {
 }
 
 output "instance_ids" {
-  value = aws_instance.app[*].id
+  description = "일반 인스턴스 ID (auto_recovery 면 비어 있음 — ASG 가 관리)"
+  value       = aws_instance.app[*].id
+}
+
+output "asg_name" {
+  value = try(aws_autoscaling_group.app[0].name, null)
 }
 
 output "db_schema" {
@@ -34,7 +39,7 @@ output "github_environment" {
       SSM_TARGET_KEY   = "tag:Name"
       SSM_TARGET_VALUE = local.name
       APP_DIR          = var.app_dir
-      CONTAINER_NAME   = "safori-server"
+      CONTAINER_NAME   = local.container_name
       DOCKER_NETWORK   = var.docker_network
       DOCS_S3_BUCKET   = local.docs_bucket
     }

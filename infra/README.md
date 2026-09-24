@@ -218,6 +218,21 @@ Tunnel → Public Hostname 에 경로 규칙을 위에서부터 매칭 순서대
 - 현재 색깔은 `/opt/safori/active-color`. 앱 메모리 상한 2GB(두 색깔이 잠깐 겹쳐도 4GB 안).
 - 인스턴스를 늘리면 같은 토큰으로 replica 가 더 붙는다(장애 시 넘김). 균등 분산이 필요하면 Cloudflare Load Balancing.
 
+### prod 자동 복구 (ASG)
+
+prod 는 `auto_recovery = true` 로 ASG(최소·최대 1)가 인스턴스를 관리한다.
+
+- 인스턴스의 systemd 타이머(`safori-health.timer`)가 30초마다 활성 색깔 앱의 `/actuator/health` 를 확인하고,
+  10번 연속(약 5분) 실패하면 자기 인스턴스를 ASG 에 Unhealthy 로 보고 → ASG 가 교체한다.
+  앱 컨테이너가 죽는 정도는 Docker `--restart` 가 먼저 살린다. ASG 교체는 그래도 안 될 때의 마지막 수단.
+- 판정하지 않는 경우: 부팅 후 15분, 배포 중(`/opt/safori/deploying`), 아직 배포된 적 없음(`/opt/safori/no-release`).
+- `deploy.yml` 은 배포에 성공할 때마다 이미지와 배포 스크립트를 SSM(`/safori/<env>/deploy/image`, `/deploy/script`)에 기록한다.
+  ASG 가 띄운 새 인스턴스는 부팅 때 이 값으로 마지막 성공 배포를 다시 띄운다.
+  배포 스크립트는 gzip+base64 로 Standard 파라미터(4KB) 에 넣는다 — 스크립트가 커져 4KB 를 넘으면 Advanced 로 바꿔야 한다.
+- **출시 전**: `auto_recovery_suspended = true` 로 ASG 헬스체크·교체를 멈춰 둔다. 이때는 인스턴스를 정지/시작해도 교체되지 않는다.
+  출시할 때 `false` 로 바꿔 apply. (멈춘 동안 Unhealthy 로 보고된 인스턴스는 재개 직후 교체될 수 있다.)
+- 로그: `journalctl -u safori-health --since -10min`
+
 ### alpha 켜고 끄기
 
 정지 중에는 EC2·public IP 과금이 없다(EBS 만). 켜면 `cloudflared` 가 다시 Tunnel 에 붙으므로 DNS 는 그대로 둔다.

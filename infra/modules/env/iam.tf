@@ -73,14 +73,27 @@ data "aws_iam_policy_document" "app" {
     resources = [aws_s3_bucket.voice.arn]
   }
 
-  # 부팅 시 env-repo deploy key, Tunnel 토큰 조회 (user-data)
+  # 부팅 시 env-repo deploy key, Tunnel 토큰, 마지막 성공 배포 조회 (user-data)
   statement {
     sid     = "BootstrapSecrets"
     actions = ["ssm:GetParameter"]
     resources = [
       "arn:aws:ssm:${var.region}:${local.account_id}:parameter${local.deploy_key_param}",
       "arn:aws:ssm:${var.region}:${local.account_id}:parameter${local.tunnel_token_param}",
+      "arn:aws:ssm:${var.region}:${local.account_id}:parameter${local.release_image_param}",
+      "arn:aws:ssm:${var.region}:${local.account_id}:parameter${local.release_script_param}",
     ]
+  }
+
+  # ASG 자동 복구: 자기 인스턴스를 Unhealthy 로 보고 (health-report.sh)
+  dynamic "statement" {
+    for_each = var.auto_recovery ? [1] : []
+
+    content {
+      sid       = "ReportOwnHealth"
+      actions   = ["autoscaling:SetInstanceHealth"]
+      resources = ["arn:aws:autoscaling:${var.region}:${local.account_id}:autoScalingGroup:*:autoScalingGroupName/${local.name}"]
+    }
   }
 }
 
@@ -169,6 +182,16 @@ data "aws_iam_policy_document" "deploy" {
     sid       = "SSMRead"
     actions   = ["ssm:ListCommands", "ssm:ListCommandInvocations", "ssm:GetCommandInvocation"]
     resources = ["*"]
+  }
+
+  # 배포 성공 시 이미지·배포 스크립트 기록 (ASG 자동 복구용)
+  statement {
+    sid     = "RecordRelease"
+    actions = ["ssm:PutParameter"]
+    resources = [
+      "arn:aws:ssm:${var.region}:${local.account_id}:parameter${local.release_image_param}",
+      "arn:aws:ssm:${var.region}:${local.account_id}:parameter${local.release_script_param}",
+    ]
   }
 
   statement {

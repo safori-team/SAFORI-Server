@@ -50,6 +50,10 @@ wait_http_ok() {
 # 실패해도 기존 컨테이너는 그대로 살아 있도록, 컨테이너를 건드리기 전에 끝낸다.
 mkdir -p "${APP_DIR}"
 
+# 배포 중 표시. ASG 헬스 보고(prod)가 이 동안은 판정하지 않는다.
+touch "${APP_DIR}/deploying"
+trap 'rm -f "${APP_DIR}/deploying"' EXIT
+
 if [ ! -d "${ENV_REPO}/.git" ]; then
   echo "env-repo not cloned at ${ENV_REPO} (deploy key 설정 필요)"
   exit 1

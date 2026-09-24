@@ -29,6 +29,11 @@ locals {
   analysis_function_name = "${local.name}-emotion-analysis"
   deploy_key_param       = "/safori/${var.env}/env-repo-deploy-key"
   tunnel_token_param     = "/safori/${var.env}/cloudflared-token"
+
+  # deploy.yml 이 배포 성공 시 기록 → ASG 가 띄운 인스턴스가 부팅 때 다시 띄운다
+  release_image_param  = "/safori/${var.env}/deploy/image"
+  release_script_param = "/safori/${var.env}/deploy/script"
+  container_name       = "safori-server"
 }
 
 data "aws_caller_identity" "current" {}

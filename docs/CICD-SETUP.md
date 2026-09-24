@@ -19,6 +19,7 @@
 인스턴스가 여러 대면 한 대씩 순차 배포하고(`--max-concurrency 1`), 한 대라도 실패하면 멈춘다.
 대상 인스턴스가 0대(예: alpha 정지 중)면 배포 실패로 끝난다.
 이미지 태그는 `<env>-<sha>` 이고 ECR 에는 환경별 최근 5개만 남는다.
+배포에 성공하면 이미지와 배포 스크립트를 SSM(`/safori/<env>/deploy/*`)에 기록한다. prod ASG 가 인스턴스를 교체하면 이 값으로 다시 띄운다(`infra/README.md` 의 "prod 자동 복구").
 
 ### 서버 구성
 
@@ -78,7 +79,7 @@ Settings → Environments 에서 **`prod`**, **`alpha`** 두 개 생성 후 각�
 ## IAM Role (OIDC) 권한
 
 - ECR: `GetAuthorizationToken`, push/pull
-- SSM: `SendCommand`, `ListCommands`, `ListCommandInvocations`, `GetCommandInvocation`
+- SSM: `SendCommand`, `ListCommands`, `ListCommandInvocations`, `GetCommandInvocation`, `PutParameter`(`/safori/<env>/deploy/*`)
 - 신뢰 정책: `token.actions.githubusercontent.com`, 레포 + 환경(`prod`/`alpha`) 조건
 
 ## 모니터링 (Sentry + OpenTelemetry)

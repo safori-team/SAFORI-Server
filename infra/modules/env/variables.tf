@@ -19,6 +19,21 @@ variable "instance_count" {
   type        = number
 }
 
+variable "auto_recovery" {
+  description = "true 면 ASG(최소·최대 = instance_count)로 띄우고 앱 헬스 실패 시 자동 교체. 정지/시작으로 쓰는 환경은 false"
+  type        = bool
+  default     = false
+}
+
+variable "auto_recovery_suspended" {
+  description = <<-EOT
+    true 면 ASG 의 헬스체크·교체를 멈춘다(출시 전). 인스턴스를 정지/시작해도 ASG 가 교체하지 않는다.
+    출시할 때 false 로 바꿔 apply. 멈춘 동안 Unhealthy 로 보고된 인스턴스는 재개 직후 교체될 수 있다.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "instance_type" {
   description = "앱 3g + otel 192m + cloudflared 128m 를 띄우므로 메모리 4GB 이상"
   type        = string
