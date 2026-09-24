@@ -4,8 +4,8 @@
 
 | 브랜치 | GitHub Environment | Spring 프로파일 | 서버 | DB |
 |---|---|---|---|---|
-| `main` | `prod` | `prod` | prod EC2 | prod RDS |
-| `develop` | `alpha` | `alpha` | alpha EC2 | alpha RDS |
+| `main` | `prod` | `prod` | prod EC2 | 공용 RDS 의 `safori_prod` 스키마 |
+| `develop` | `alpha` | `alpha` | alpha EC2 | 공용 RDS 의 `safori_alpha` 스키마 |
 
 ## 워크플로
 
@@ -13,6 +13,22 @@
 - `.github/workflows/test.yml` — 그 외 브랜치 push + PR 시 테스트만
 
 배포 잡은 `github.ref_name` 으로 `prod`/`alpha` Environment 를 선택하고, 컨테이너에 `SPRING_PROFILES_ACTIVE` 를 주입한다.
+
+실제 서버 작업은 `.github/scripts/remote-deploy.sh` 에 있다. 워크플로가 이 스크립트를 SSM 으로 대상 EC2(`tag:Name`)에 보내 실행한다.
+인스턴스가 여러 대면 한 대씩 순차 배포하고(`--max-concurrency 1`), 한 대라도 실패하면 멈춘다.
+대상 인스턴스가 0대(예: alpha 정지 중)면 배포 실패로 끝난다.
+
+### 서버 구성
+
+```
+사용자 → Cloudflare ═ Tunnel ═ cloudflared(host) → 127.0.0.1:APP_PORT → safori-server:8080
+                                                       127.0.0.1:MGMT_PORT → safori-server:9082 (배포 헬스체크)
+                                  safori-server → otel-collector:4318 (DOCKER_NETWORK)
+```
+
+- 앞단 리버스 프록시(nginx)는 없다. 앱 포트는 `127.0.0.1` 에만 열고, EC2 보안 그룹에 인바운드 규칙이 없다.
+- 경로 제한(`/v1/api/**` 만 통과, prod 에서 `/v1/api/dev/**` 차단 등)은 Cloudflare Tunnel 의 Public Hostname 경로 규칙으로 관리한다.
+- `cloudflared` 는 EC2 부팅 시 user-data 가 띄운다(배포와 무관). 인프라 구성은 `infra/README.md`.
 
 ## 환경 변수 관리 (Safori-Back-Env)
 
@@ -39,8 +55,8 @@ Settings → Environments 에서 **`prod`**, **`alpha`** 두 개 생성 후 각�
 | `SSM_TARGET_VALUE` | SSM 타겟 필터 값 (대상 EC2) | `safori-alpha` |
 | `APP_DIR` | 타겟 서버의 앱 디렉토리 (`.env` 위치) | `/opt/safori` |
 | `CONTAINER_NAME` | 컨테이너 이름 | `safori-server` |
-| `APP_PORT` | 호스트 앱 포트 → 컨테이너 8080 | `8080` |
-| `MGMT_PORT` | 호스트 actuator 포트 → 컨테이너 9082 | `9082` |
+| `APP_PORT` | 호스트 앱 포트(127.0.0.1) → 컨테이너 8080. Tunnel 서비스 URL 과 일치 | `8080` |
+| `MGMT_PORT` | 호스트 actuator 포트(127.0.0.1) → 컨테이너 9082 | `9082` |
 | `DOCKER_NETWORK` | docker 네트워크 이름 | `safori-net` |
 
 ### Secrets
@@ -51,15 +67,17 @@ Settings → Environments 에서 **`prod`**, **`alpha`** 두 개 생성 후 각�
 
 ## 타겟 EC2 사전 준비 (prod / alpha 각각)
 
-1. SSM Agent 설치 + IAM 인스턴스 프로파일 연결
-2. Docker 설치
-3. `Safori-Back-Env` 접근 수단(배포 키 등) 설정 → 해당 환경 `.env` 를 `${APP_DIR}/.env` 로 동기화
-4. ECR pull 권한 (인스턴스 IAM 또는 `aws ecr get-login-password`)
+`infra/` 테라폼 + EC2 user-data 가 처리한다. 수동으로 준비할 것은 SSM Parameter Store 두 값뿐이다.
+
+| 파라미터 | 용도 |
+|---|---|
+| `/safori/<env>/env-repo-deploy-key` | `Safori-Back-Env` clone 용 deploy key(비공개 키) |
+| `/safori/<env>/cloudflared-token` | Cloudflare Tunnel 토큰 |
 
 ## IAM Role (OIDC) 권한
 
 - ECR: `GetAuthorizationToken`, push/pull
-- SSM: `SendCommand`, `ListCommandInvocations`, `GetCommandInvocation`
+- SSM: `SendCommand`, `ListCommands`, `ListCommandInvocations`, `GetCommandInvocation`
 - 신뢰 정책: `token.actions.githubusercontent.com`, 레포 + 환경(`prod`/`alpha`) 조건
 
 ## 모니터링 (Sentry + OpenTelemetry)

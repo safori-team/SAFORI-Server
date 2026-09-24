@@ -5,6 +5,9 @@ name: test-and-deploy
 #   develop → environment: alpha, SPRING_PROFILES_ACTIVE=alpha
 # 환경별 ECR/SSM/포트/컨테이너 값은 GitHub Environments(prod/alpha)의
 # vars/secrets 로 분리해서 주입한다. (필요 키 목록: docs/CICD-SETUP.md)
+#
+# 배포는 SSM 으로 tag:Name 이 일치하는 EC2 에서 .github/scripts/remote-deploy.sh 를 실행한다.
+# 인스턴스가 여러 대면 한 대씩 순차로 배포하고, 한 대라도 실패하면 거기서 멈춘다.
 
 on:
   push:
@@ -114,8 +117,12 @@ jobs:
       MGMT_PORT: ${{ vars.MGMT_PORT }}
       DOCKER_NETWORK: ${{ vars.DOCKER_NETWORK }}
       SPRING_PROFILE: ${{ needs.setup.outputs.profile }}
+      IMAGE_URI: ${{ needs.push-image.outputs.image_uri }}
 
     steps:
+      - name: Checkout (배포 스크립트)
+        uses: actions/checkout@v4
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -123,11 +130,12 @@ jobs:
           role-session-name: github-actions-ssm-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Run deployment via SSM
-        env:
-          IMAGE_URI: ${{ needs.push-image.outputs.image_uri }}
+      - name: Send deploy command
+        id: send
         run: |
+          # 스크립트는 base64 로 싣고, 값은 셸 인용(@sh)해서 export 한다.
           jq -n \
+            --arg script "$(base64 -w0 .github/scripts/remote-deploy.sh)" \
             --arg imageUri "$IMAGE_URI" \
             --arg awsRegion "$AWS_REGION" \
             --arg appDir "$APP_DIR" \
@@ -139,44 +147,10 @@ jobs:
             '{
               commands: [
                 "set -euo pipefail",
-                "IMAGE_URI=\"\($imageUri)\"",
-                "AWS_REGION=\"\($awsRegion)\"",
-                "APP_DIR=\"\($appDir)\"",
-                "CONTAINER_NAME=\"\($containerName)\"",
-                "APP_PORT=\"\($appPort)\"",
-                "MGMT_PORT=\"\($mgmtPort)\"",
-                "DOCKER_NETWORK=\"\($network)\"",
-                "SPRING_PROFILE=\"\($profile)\"",
-                "ECR_REGISTRY=\"${IMAGE_URI%%/*}\"",
-                "mkdir -p \"${APP_DIR}\"",
-                "ENV_REPO=\"${APP_DIR}/env-repo\"",
-                "if [ ! -d \"${ENV_REPO}/.git\" ]; then echo \"env-repo not cloned at ${ENV_REPO} (deploy key 설정 필요)\"; exit 1; fi",
-                "git -C \"${ENV_REPO}\" pull --ff-only",
-                "if [ ! -f \"${ENV_REPO}/${SPRING_PROFILE}.env\" ]; then echo \"Missing ${ENV_REPO}/${SPRING_PROFILE}.env\"; exit 1; fi",
-                "cp \"${ENV_REPO}/${SPRING_PROFILE}.env\" \"${APP_DIR}/.env\"",
-                "if [ ! -f \"${ENV_REPO}/${SPRING_PROFILE}.nginx.conf\" ]; then echo \"Missing ${ENV_REPO}/${SPRING_PROFILE}.nginx.conf\"; exit 1; fi",
-                "if [ ! -f \"${ENV_REPO}/otel-collector-config.yaml\" ]; then echo \"Missing ${ENV_REPO}/otel-collector-config.yaml\"; exit 1; fi",
-                "aws ecr get-login-password --region \"${AWS_REGION}\" | docker login --username AWS --password-stdin \"${ECR_REGISTRY}\"",
-                "docker pull \"${IMAGE_URI}\"",
-                "if docker ps -a --format '\''{{.Names}}'\'' | grep -Fxq \"${CONTAINER_NAME}\"; then docker rm -f \"${CONTAINER_NAME}\"; fi",
-                "docker network create \"${DOCKER_NETWORK}\" 2>/dev/null || true",
-                "cp \"${ENV_REPO}/otel-collector-config.yaml\" \"${APP_DIR}/otel-collector-config.yaml\"",
-                "mkdir -p \"${APP_DIR}/otelcol-storage\"",
-                "chown -R 10001:10001 \"${APP_DIR}/otelcol-storage\"",
-                "if docker ps -a --format '\''{{.Names}}'\'' | grep -Fxq otel-collector; then docker rm -f otel-collector; fi",
-                "docker pull otel/opentelemetry-collector-contrib:0.155.0",
-                "docker run -d --name otel-collector --restart unless-stopped --network \"${DOCKER_NETWORK}\" --memory=192m --env-file \"${APP_DIR}/.env\" -v \"${APP_DIR}/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro\" -v \"${APP_DIR}/otelcol-storage:/var/lib/otelcol/storage\" otel/opentelemetry-collector-contrib:0.155.0 --config /etc/otelcol-contrib/config.yaml",
-                "mkdir -p \"${APP_DIR}/heapdumps\"",
-                "docker run -d --name \"${CONTAINER_NAME}\" --restart unless-stopped --memory=3g --network \"${DOCKER_NETWORK}\" --network-alias safori-app --env-file \"${APP_DIR}/.env\" -e SPRING_PROFILES_ACTIVE=\"${SPRING_PROFILE}\" -e JAVA_OPTS=\"-XX:MaxRAMPercentage=65 -XX:MaxMetaspaceSize=256m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heapdumps -XX:+ExitOnOutOfMemoryError\" -v \"${APP_DIR}/heapdumps:/heapdumps\" -p \"${MGMT_PORT}:9082\" \"${IMAGE_URI}\"",
-                "cp \"${ENV_REPO}/${SPRING_PROFILE}.nginx.conf\" \"${APP_DIR}/nginx.conf\"",
-                "if docker ps -a --format '\''{{.Names}}'\'' | grep -Fxq nginx; then docker rm -f nginx; fi",
-                "docker pull nginx:1.27-alpine",
-                "docker run -d --name nginx --restart unless-stopped --memory=128m --network \"${DOCKER_NETWORK}\" -v \"${APP_DIR}/nginx.conf:/etc/nginx/conf.d/default.conf:ro\" -p \"${APP_PORT}:80\" nginx:1.27-alpine",
-                "for attempt in $(seq 1 20); do if curl -fsS http://localhost:${MGMT_PORT}/actuator/health >/dev/null && curl -fsS http://localhost:${APP_PORT}/healthz >/dev/null; then exit 0; fi; sleep 5; done",
-                "echo \"Application health check failed\"",
-                "docker logs \"${CONTAINER_NAME}\" --tail 100",
-                "docker logs nginx --tail 50",
-                "exit 1"
+                "echo \($script) | base64 -d > /tmp/safori-remote-deploy.sh",
+                "export IMAGE_URI=\($imageUri | @sh) AWS_REGION=\($awsRegion | @sh) APP_DIR=\($appDir | @sh) CONTAINER_NAME=\($containerName | @sh)",
+                "export APP_PORT=\($appPort | @sh) MGMT_PORT=\($mgmtPort | @sh) DOCKER_NETWORK=\($network | @sh) SPRING_PROFILE=\($profile | @sh)",
+                "bash /tmp/safori-remote-deploy.sh"
               ]
             }' > /tmp/ssm-parameters.json
 
@@ -185,71 +159,48 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Deploy ${GITHUB_REPOSITORY}@${GITHUB_SHA} (${SPRING_PROFILE})" \
             --parameters file:///tmp/ssm-parameters.json \
+            --max-concurrency 1 \
+            --max-errors 0 \
+            --timeout-seconds 600 \
             --query 'Command.CommandId' \
             --output text)
 
           echo "SSM command id: ${COMMAND_ID}"
+          echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
 
-          TARGET_INSTANCE_ID=""
-          for attempt in $(seq 1 12); do
-            TARGET_INSTANCE_ID=$(aws ssm list-command-invocations \
-              --command-id "$COMMAND_ID" \
-              --details \
-              --query 'CommandInvocations[0].InstanceId' \
-              --output text 2>/dev/null || true)
-
-            if [ -n "$TARGET_INSTANCE_ID" ] && [ "$TARGET_INSTANCE_ID" != "None" ]; then
-              break
-            fi
-            sleep 5
-          done
-
-          if [ -z "$TARGET_INSTANCE_ID" ] || [ "$TARGET_INSTANCE_ID" = "None" ]; then
-            echo "Could not resolve SSM target instance for command: ${COMMAND_ID}"
-            exit 1
-          fi
-
-          echo "Resolved target instance: ${TARGET_INSTANCE_ID}"
-
-          for attempt in $(seq 1 60); do
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$TARGET_INSTANCE_ID" \
-              --query 'Status' \
-              --output text 2>/dev/null || true)
-
+      - name: Wait for deployment
+        env:
+          COMMAND_ID: ${{ steps.send.outputs.command_id }}
+        run: |
+          # 명령 전체 상태로 판정한다 (인스턴스가 여러 대면 순차로 진행된다).
+          STATUS=""
+          for _ in $(seq 1 180); do
+            STATUS=$(aws ssm list-commands --command-id "$COMMAND_ID" \
+              --query 'Commands[0].Status' --output text)
             case "$STATUS" in
-              Success)
-                aws ssm get-command-invocation \
-                  --command-id "$COMMAND_ID" \
-                  --instance-id "$TARGET_INSTANCE_ID" \
-                  --query 'StandardOutputContent' \
-                  --output text
-                exit 0
-                ;;
-              Failed|Cancelled|TimedOut|Cancelling)
-                echo "SSM deployment failed with status: $STATUS"
-                aws ssm get-command-invocation \
-                  --command-id "$COMMAND_ID" \
-                  --instance-id "$TARGET_INSTANCE_ID" \
-                  --query 'StandardOutputContent' \
-                  --output text || true
-                aws ssm get-command-invocation \
-                  --command-id "$COMMAND_ID" \
-                  --instance-id "$TARGET_INSTANCE_ID" \
-                  --query 'StandardErrorContent' \
-                  --output text || true
-                exit 1
-                ;;
-              Pending|InProgress|Delayed|"")
-                sleep 5
-                ;;
-              *)
-                echo "Unexpected SSM status: $STATUS"
-                sleep 5
-                ;;
+              Pending|InProgress|Cancelling) sleep 5 ;;
+              *) break ;;
             esac
           done
 
-          echo "Timed out waiting for SSM command completion"
-          exit 1
+          TARGETS=$(aws ssm list-commands --command-id "$COMMAND_ID" \
+            --query 'Commands[0].TargetCount' --output text)
+
+          # 인스턴스별 출력
+          for ID in $(aws ssm list-command-invocations --command-id "$COMMAND_ID" \
+                        --query 'CommandInvocations[].InstanceId' --output text); do
+            echo "::group::${ID}"
+            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$ID" \
+              --query '[Status, StandardOutputContent, StandardErrorContent]' --output text || true
+            echo "::endgroup::"
+          done
+
+          if [ "$TARGETS" = "0" ]; then
+            echo "배포 대상 인스턴스가 없다: ${SSM_TARGET_KEY}=${SSM_TARGET_VALUE} (인스턴스가 정지 상태인지, SSM 에 등록됐는지 확인)"
+            exit 1
+          fi
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "SSM deployment finished with status: ${STATUS}"
+            exit 1
+          fi
