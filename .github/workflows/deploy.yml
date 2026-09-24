@@ -7,6 +7,7 @@ name: test-and-deploy
 # vars/secrets 로 분리해서 주입한다. (필요 키 목록: docs/CICD-SETUP.md)
 #
 # 배포는 SSM 으로 tag:Name 이 일치하는 EC2 에서 .github/scripts/remote-deploy.sh 를 실행한다.
+# 인스턴스 안에서는 blue/green 으로 무중단 교체한다.
 # 인스턴스가 여러 대면 한 대씩 순차로 배포하고, 한 대라도 실패하면 거기서 멈춘다.
 
 on:
@@ -113,8 +114,6 @@ jobs:
       SSM_TARGET_VALUE: ${{ vars.SSM_TARGET_VALUE }}
       APP_DIR: ${{ vars.APP_DIR }}
       CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
-      APP_PORT: ${{ vars.APP_PORT }}
-      MGMT_PORT: ${{ vars.MGMT_PORT }}
       DOCKER_NETWORK: ${{ vars.DOCKER_NETWORK }}
       SPRING_PROFILE: ${{ needs.setup.outputs.profile }}
       IMAGE_URI: ${{ needs.push-image.outputs.image_uri }}
@@ -140,8 +139,6 @@ jobs:
             --arg awsRegion "$AWS_REGION" \
             --arg appDir "$APP_DIR" \
             --arg containerName "$CONTAINER_NAME" \
-            --arg appPort "$APP_PORT" \
-            --arg mgmtPort "$MGMT_PORT" \
             --arg network "$DOCKER_NETWORK" \
             --arg profile "$SPRING_PROFILE" \
             '{
@@ -149,7 +146,7 @@ jobs:
                 "set -euo pipefail",
                 "echo \($script) | base64 -d > /tmp/safori-remote-deploy.sh",
                 "export IMAGE_URI=\($imageUri | @sh) AWS_REGION=\($awsRegion | @sh) APP_DIR=\($appDir | @sh) CONTAINER_NAME=\($containerName | @sh)",
-                "export APP_PORT=\($appPort | @sh) MGMT_PORT=\($mgmtPort | @sh) DOCKER_NETWORK=\($network | @sh) SPRING_PROFILE=\($profile | @sh)",
+                "export DOCKER_NETWORK=\($network | @sh) SPRING_PROFILE=\($profile | @sh)",
                 "bash /tmp/safori-remote-deploy.sh"
               ]
             }' > /tmp/ssm-parameters.json

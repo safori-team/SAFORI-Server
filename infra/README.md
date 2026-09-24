@@ -10,7 +10,7 @@
 ```
 infra/
 ├── shared/        공용: VPC, RDS MySQL 1대, ECR, API 문서 버킷, GitHub OIDC
-├── modules/env/   환경 1개: EC2(+cloudflared), SQS, S3, Lambda 껍데기, 배포 role, RDS 접근 규칙
+├── modules/env/   환경 1개: EC2, SQS, S3, Lambda 껍데기, 배포 role, RDS 접근 규칙
 └── envs/
     ├── alpha/     EC2 1대 → 스키마 safori_alpha (평소 정지)
     └── prod/      EC2 1대 → 스키마 safori_prod
@@ -18,7 +18,7 @@ infra/
 
 | 흐름 | 경로 |
 |---|---|
-| 요청 | 사용자 → Cloudflare(HTTPS) ═ Tunnel ═ EC2 의 `cloudflared` → `127.0.0.1:8080`(앱) |
+| 요청 | 사용자 → Cloudflare(HTTPS) ═ Tunnel ═ EC2 의 `cloudflared` → `safori-app:8080`(앱, blue/green) |
 | 인바운드 | **없음.** `cloudflared` 가 Cloudflare 로 먼저 연결한다 |
 | DB | EC2 → 공용 RDS `3306` (private subnet). 환경은 스키마 + DB 사용자로 분리 |
 | 접속 | SSH 없음. SSM Session Manager |
@@ -104,7 +104,7 @@ aws ssm put-parameter --name "/safori/${E}/cloudflared-token" --type SecureStrin
 unset TOKEN
 ```
 
-Tunnel 의 **Public Hostname** 에 서비스 도메인 → `http://localhost:8080` 을 등록한다
+Tunnel 의 **Public Hostname** 에 서비스 도메인 → `http://safori-app:8080` 을 등록한다
 (`terraform output` 의 `tunnel_service_url`).
 
 ## 4. env-repo deploy key 등록 (환경별, EC2 만들기 전에)
@@ -191,8 +191,8 @@ git -C /opt/safori/env-repo config core.sshCommand "ssh -i /root/.ssh/env-repo-k
 
 ### Cloudflare Tunnel
 
-- Tunnel 구간은 암호화되어 오리진 인증서·SSL 모드 설정이 필요 없다. `cloudflared` 는 `127.0.0.1:8080`(앱)으로 평문 전달.
-  앞단 nginx 는 없다. 앱 포트는 `127.0.0.1` 에만 바인딩된다(`.github/scripts/remote-deploy.sh`).
+- Tunnel 구간은 암호화되어 오리진 인증서·SSL 모드 설정이 필요 없다. `cloudflared` 는 같은 색깔 네트워크의 `safori-app:8080`(앱)으로 평문 전달.
+  앞단 nginx 는 없고 앱 포트를 호스트에 열지 않는다. 배포는 blue/green (`.github/scripts/remote-deploy.sh`).
 - 원 클라이언트 IP 는 `CF-Connecting-IP` / `X-Forwarded-For` 헤더로 온다.
   배포 후 Swagger 의 서버 URL 이 `https` 로 나오는지 확인한다(앱은 `forward-headers-strategy: framework`).
 
@@ -203,14 +203,20 @@ Tunnel → Public Hostname 에 경로 규칙을 위에서부터 매칭 순서대
 | 순서 | 호스트 | 경로(정규식) | 서비스 |
 |---|---|---|---|
 | 1 | prod 도메인 | `^/v1/api/dev/.*` | `http_status:404` |
-| 2 | 환경 도메인 | `^/v1/api/.*` | `http://localhost:8080` |
-| 3 | alpha 도메인만 | `^/(swagger-ui.*\|v3/api-docs.*)` | `http://localhost:8080` |
+| 2 | 환경 도메인 | `^/v1/api/.*` | `http://safori-app:8080` |
+| 3 | alpha 도메인만 | `^/(swagger-ui.*\|v3/api-docs.*)` | `http://safori-app:8080` |
 | 4 | (catch-all) | — | `http_status:404` |
 
 액추에이터(9082)는 Tunnel 에 연결하지 않으므로 규칙과 무관하게 외부에서 닿지 않는다.
-- `cloudflared` 는 부팅 시 user-data 가 띄운다(`--restart unless-stopped`). 앱 배포와 독립적이다.
-  토큰을 나중에 등록했다면 Session Manager 로 접속해 user-data 의 cloudflared 블록을 수동 실행한다.
-- 인스턴스를 늘리면 같은 토큰으로 replica 가 붙는다(장애 시 넘김). 균등 분산이 필요하면 Cloudflare Load Balancing.
+
+#### blue/green 배포
+
+- 배포 스크립트가 색깔마다 [앱 `safori-server-<color>` + `cloudflared-<color>`] 한 쌍을 띄운다.
+  `cloudflared` 는 색깔 전용 네트워크 `safori-<color>` 에서 별칭 `safori-app` 으로 자기 앱만 찾는다.
+- 새 색깔 앱 헬스체크 통과 → 새 `cloudflared` 가 Tunnel 에 replica 로 합류 → 이전 `cloudflared` graceful 종료 → 이전 앱 종료.
+  새 앱이 실패하면 새 색깔만 지우고 이전 색깔이 계속 서비스한다.
+- 현재 색깔은 `/opt/safori/active-color`. 앱 메모리 상한 2GB(두 색깔이 잠깐 겹쳐도 4GB 안).
+- 인스턴스를 늘리면 같은 토큰으로 replica 가 더 붙는다(장애 시 넘김). 균등 분산이 필요하면 Cloudflare Load Balancing.
 
 ### alpha 켜고 끄기
 

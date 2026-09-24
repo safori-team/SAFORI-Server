@@ -35,21 +35,15 @@ else
   echo "deploy key parameter ${deploy_key_param} not found; clone env-repo manually"
 fi
 
-# Cloudflare Tunnel 커넥터. 토큰은 SSM ${tunnel_token_param} 에 수동 등록.
-# 퍼블릭 호스트네임 → 서비스 URL(http://localhost:<APP_PORT>)은 Cloudflare 대시보드에서 관리.
-# 토큰이 로그에 찍히지 않도록 xtrace 를 끄고 root 전용 env 파일로 넘긴다.
+# Cloudflare Tunnel 토큰(SSM ${tunnel_token_param})을 root 전용 env 파일로 둔다.
+# cloudflared 는 배포 스크립트(remote-deploy.sh)가 blue/green 색깔마다 띄운다.
+# 토큰이 로그에 찍히지 않도록 xtrace 를 끈다. 여기서 못 받으면 배포 스크립트가 다시 받는다.
 set +x
 if TOKEN=$(aws ssm get-parameter --region ${region} --name "${tunnel_token_param}" --with-decryption \
      --query Parameter.Value --output text 2>/dev/null); then
-  umask 077
-  printf 'TUNNEL_TOKEN=%s\n' "$TOKEN" > /root/cloudflared.env
+  (umask 077; printf 'TUNNEL_TOKEN=%s\n' "$TOKEN" > /root/cloudflared.env)
   unset TOKEN
-  if ! docker inspect cloudflared >/dev/null 2>&1; then
-    docker run -d --name cloudflared --restart unless-stopped --memory=128m \
-      --network host --env-file /root/cloudflared.env \
-      ${cloudflared_image} tunnel --no-autoupdate run
-  fi
 else
-  echo "tunnel token parameter ${tunnel_token_param} not found; start cloudflared manually"
+  echo "tunnel token parameter ${tunnel_token_param} not found"
 fi
 set -x

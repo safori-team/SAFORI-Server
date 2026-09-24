@@ -33,7 +33,6 @@ resource "aws_instance" "app" {
     deploy_key_param   = local.deploy_key_param
     env_repo_url       = var.env_repo_url
     tunnel_token_param = local.tunnel_token_param
-    cloudflared_image  = var.cloudflared_image
   })
 
   # deploy.yml 의 SSM 타겟이 tag:Name=safori-<env> 이므로 prod 2대 모두 같은 Name

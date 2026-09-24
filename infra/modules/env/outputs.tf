@@ -5,7 +5,7 @@ output "tunnel_token_parameter" {
 
 output "tunnel_service_url" {
   description = "Cloudflare 대시보드의 퍼블릭 호스트네임에 넣을 서비스 URL"
-  value       = "http://localhost:${var.app_port}"
+  value       = "http://safori-app:8080"
 }
 
 output "instance_ids" {
@@ -35,8 +35,6 @@ output "github_environment" {
       SSM_TARGET_VALUE = local.name
       APP_DIR          = var.app_dir
       CONTAINER_NAME   = "safori-server"
-      APP_PORT         = tostring(var.app_port)
-      MGMT_PORT        = tostring(var.mgmt_port)
       DOCKER_NETWORK   = var.docker_network
       DOCS_S3_BUCKET   = local.docs_bucket
     }

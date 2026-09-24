@@ -15,20 +15,23 @@
 배포 잡은 `github.ref_name` 으로 `prod`/`alpha` Environment 를 선택하고, 컨테이너에 `SPRING_PROFILES_ACTIVE` 를 주입한다.
 
 실제 서버 작업은 `.github/scripts/remote-deploy.sh` 에 있다. 워크플로가 이 스크립트를 SSM 으로 대상 EC2(`tag:Name`)에 보내 실행한다.
+인스턴스 안에서는 blue/green 으로 무중단 교체한다.
 인스턴스가 여러 대면 한 대씩 순차 배포하고(`--max-concurrency 1`), 한 대라도 실패하면 멈춘다.
 대상 인스턴스가 0대(예: alpha 정지 중)면 배포 실패로 끝난다.
+이미지 태그는 `<env>-<sha>` 이고 ECR 에는 환경별 최근 5개만 남는다.
 
 ### 서버 구성
 
 ```
-사용자 → Cloudflare ═ Tunnel ═ cloudflared(host) → 127.0.0.1:APP_PORT → safori-server:8080
-                                                       127.0.0.1:MGMT_PORT → safori-server:9082 (배포 헬스체크)
-                                  safori-server → otel-collector:4318 (DOCKER_NETWORK)
+사용자 → Cloudflare ═ Tunnel ═ cloudflared-<color> ─(safori-<color> 네트워크)→ safori-app:8080 = safori-server-<color>
+                                                    safori-server-<color> → otel-collector:4318 (DOCKER_NETWORK)
 ```
 
-- 앞단 리버스 프록시(nginx)는 없다. 앱 포트는 `127.0.0.1` 에만 열고, EC2 보안 그룹에 인바운드 규칙이 없다.
+- 색깔(blue/green)마다 앱 + 전용 `cloudflared` 한 쌍. 새 색깔이 헬스체크(컨테이너 IP:9082)를 통과하면
+  Tunnel 에 합류시키고, 이전 색깔을 graceful 종료한다. 현재 색깔은 `${APP_DIR}/active-color`.
+- 앞단 리버스 프록시(nginx)는 없다. 앱 포트는 호스트에 열지 않고, EC2 보안 그룹에 인바운드 규칙이 없다.
 - 경로 제한(`/v1/api/**` 만 통과, prod 에서 `/v1/api/dev/**` 차단 등)은 Cloudflare Tunnel 의 Public Hostname 경로 규칙으로 관리한다.
-- `cloudflared` 는 EC2 부팅 시 user-data 가 띄운다(배포와 무관). 인프라 구성은 `infra/README.md`.
+  서비스 URL 은 `http://safori-app:8080`. 인프라 구성은 `infra/README.md`.
 
 ## 환경 변수 관리 (Safori-Back-Env)
 
@@ -54,10 +57,8 @@ Settings → Environments 에서 **`prod`**, **`alpha`** 두 개 생성 후 각�
 | `SSM_TARGET_KEY` | SSM 타겟 필터 키 | `tag:Name` |
 | `SSM_TARGET_VALUE` | SSM 타겟 필터 값 (대상 EC2) | `safori-alpha` |
 | `APP_DIR` | 타겟 서버의 앱 디렉토리 (`.env` 위치) | `/opt/safori` |
-| `CONTAINER_NAME` | 컨테이너 이름 | `safori-server` |
-| `APP_PORT` | 호스트 앱 포트(127.0.0.1) → 컨테이너 8080. Tunnel 서비스 URL 과 일치 | `8080` |
-| `MGMT_PORT` | 호스트 actuator 포트(127.0.0.1) → 컨테이너 9082 | `9082` |
-| `DOCKER_NETWORK` | docker 네트워크 이름 | `safori-net` |
+| `CONTAINER_NAME` | 컨테이너 이름 접두어 (`<이름>-blue` / `<이름>-green`) | `safori-server` |
+| `DOCKER_NETWORK` | 앱·otel-collector 공용 docker 네트워크 이름 | `safori-net` |
 
 ### Secrets
 

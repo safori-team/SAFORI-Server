@@ -1,4 +1,4 @@
-# 사용자 → Cloudflare ═ Tunnel ═ EC2 의 cloudflared(아웃바운드 연결) → 앱(127.0.0.1) → 공용 RDS(3306)
+# 사용자 → Cloudflare ═ Tunnel ═ EC2 의 cloudflared(아웃바운드 연결) → 같은 색깔 네트워크의 앱(safori-app:8080) → 공용 RDS(3306)
 # Tunnel 은 EC2 가 먼저 바깥으로 연결하므로 인바운드는 하나도 열지 않는다.
 # SSH 도 없다. 접속은 SSM Session Manager 로.
 # (Terraform 은 SG 의 기본 egress-all 규칙을 지우므로 egress 를 명시한다)
