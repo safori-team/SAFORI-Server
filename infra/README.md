@@ -70,12 +70,17 @@ git clone -b feat/136-infra https://github.com/safori-team/SAFORI-Server.git ~/s
 # 갱신: git -C ~/safori pull
 ```
 
-이후 명령에서 공통으로 쓰는 값:
+이후 명령에서 공통으로 쓰는 값. **CloudShell 을 서울이 아닌 리전에서 열었으면 `aws` CLI 명령이 그 리전으로 간다**
+(Terraform 은 코드에 리전이 고정돼 있어 무관). 리전을 반드시 고정한다:
 
 ```bash
-export PATH="$HOME/bin:$PATH"
+grep -q 'AWS_DEFAULT_REGION=ap-northeast-2' ~/.bashrc || echo 'export AWS_REGION=ap-northeast-2 AWS_DEFAULT_REGION=ap-northeast-2' >> ~/.bashrc
+export AWS_REGION=ap-northeast-2 AWS_DEFAULT_REGION=ap-northeast-2
+export PATH="$HOME/bin:$PATH" TF_PLUGIN_CACHE_DIR=/tmp/tf-plugin-cache; mkdir -p /tmp/tf-plugin-cache
 TFSTATE="safori-tfstate-$(aws sts get-caller-identity --query Account --output text)"
 ```
+
+CloudShell 홈(1GB)에는 AWS provider 를 여러 벌 둘 공간이 없어서 provider 캐시를 `/tmp` 에 둔다.
 
 ## 2. shared
 
