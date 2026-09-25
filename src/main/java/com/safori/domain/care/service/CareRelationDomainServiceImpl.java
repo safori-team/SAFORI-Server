@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.safori.domain.care.exception.CareHandler.GUARDIAN_ALREADY_LINKED;
 import static com.safori.domain.care.exception.CareHandler.GUARDIAN_NOT_LINKABLE;
 import static com.safori.domain.care.exception.CareHandler.RECIPIENT_ALREADY_REGISTERED;
 import static com.safori.domain.care.exception.CareHandler.RECIPIENT_INACTIVE;
@@ -86,6 +87,13 @@ public class CareRelationDomainServiceImpl implements CareRelationDomainService 
         Organization.requireMembers(locked.getOrganization(), currentGuardian, linkedBy);
         if (!permissionResolver.resolve(currentGuardian).hasScope(DataScope.LINKED_RECIPIENT)) {
             throw GUARDIAN_NOT_LINKABLE;
+        }
+        // 보호자는 대상자 한 명에만 연결된다. 보호자의 현재 연결을 잠그고 확인한다.
+        // ponytail: 현재 연결이 하나도 없으면 잠글 행이 없어, 같은 보호자를 두 대상자에 동시에 연결하면 둘 다 들어갈 수 있다.
+        // 관리자 한 명이 하는 드문 작업이라 두고, 문제가 되면 보호자 구성원 행을 잠근다.
+        if (guardianLinkRepository.findCurrentByGuardianForUpdate(currentGuardian).stream()
+                .anyMatch(link -> !link.getRecipient().getId().equals(locked.getId()))) {
+            throw GUARDIAN_ALREADY_LINKED;
         }
 
         List<GuardianRecipientLink> current =

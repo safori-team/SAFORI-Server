@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface GuardianRecipientLinkRepository extends JpaRepository<GuardianRecipientLink, Long> {
 
@@ -31,6 +32,19 @@ public interface GuardianRecipientLinkRepository extends JpaRepository<GuardianR
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT l FROM GuardianRecipientLink l WHERE l.guardian = :guardian AND l.endedAt IS NULL")
     List<GuardianRecipientLink> findCurrentByGuardianForUpdate(@Param("guardian") OrganizationMember guardian);
+
+    /** 보호자의 현재 연결(보호자는 대상자 한 명에만 연결된다). */
+    Optional<GuardianRecipientLink> findFirstByGuardianAndEndedAtIsNull(OrganizationMember guardian);
+
+    /** 대상자의 현재 연결 보호자들(연결 순). */
+    @Query("""
+            SELECT l FROM GuardianRecipientLink l
+            JOIN FETCH l.guardian g
+            JOIN FETCH g.account
+            WHERE l.recipient = :recipient AND l.endedAt IS NULL
+            ORDER BY l.startedAt ASC, l.id ASC
+            """)
+    List<GuardianRecipientLink> findCurrentByRecipient(@Param("recipient") CareRecipient recipient);
 
     boolean existsByRecipientAndGuardianAndEndedAtIsNull(CareRecipient recipient, OrganizationMember guardian);
 }

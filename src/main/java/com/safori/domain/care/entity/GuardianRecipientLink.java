@@ -5,6 +5,8 @@ import com.safori.domain.organization.entity.OrganizationMember;
 import com.safori.domain.common.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
@@ -23,7 +25,8 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDateTime;
 
 /**
- * 보호자와 어르신의 연결 이력. {@code ended_at IS NULL}인 행이 현재 연결이다. 어르신 한 명에 보호자 여럿이 연결될 수 있다.
+ * 보호자와 어르신의 연결 이력. {@code ended_at IS NULL}인 행이 현재 연결이다. 어르신 한 명에 보호자 여럿이 연결될 수 있고,
+ * 보호자는 어르신 한 명에만 연결된다.
  */
 @Entity
 @Getter
@@ -64,6 +67,15 @@ public class GuardianRecipientLink extends BaseTimeEntity {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
+    /** 어르신과의 관계. 관계 없이 연결된 이전 행은 null. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "relation", columnDefinition = "VARCHAR(16)")
+    private GuardianRelation relation;
+
+    /** 관계가 기타일 때 직접 입력한 값. */
+    @Column(name = "relation_text", length = 50)
+    private String relationText;
+
     /** 연결한 구성원. null이면 SAFORI 운영(시스템)이 연결했다. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "linked_by", foreignKey = @ForeignKey(name = "fk_grl_linked_by"))
@@ -82,6 +94,15 @@ public class GuardianRecipientLink extends BaseTimeEntity {
                 .startedAt(now)
                 .linkedBy(linkedBy)
                 .build();
+    }
+
+    public void describeRelation(GuardianRelation relation, String relationText) {
+        this.relation = relation;
+        this.relationText = relation == GuardianRelation.OTHER ? relationText : null;
+    }
+
+    public String relationLabel() {
+        return GuardianRelation.labelOf(relation, relationText);
     }
 
     public void end(OrganizationMember endedBy, LocalDateTime now) {
