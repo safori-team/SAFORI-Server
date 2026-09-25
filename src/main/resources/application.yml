@@ -62,6 +62,9 @@ spring:
 # JWT 서명 시크릿 (Base64 인코딩된 HMAC-SHA256 키)
 token:
   secret-user: ${TOKEN_SECRET_USER}
+  # 백오피스(기관 관리자·담당자·보호자) 토큰 서명 키. secret-user와 다른 값이어야 한다(같으면 기동 실패).
+  # 비워두면 백오피스 인증 비활성 — /v1/api/backoffice/**, /v1/api/guardian/** 는 모두 401 (서버는 정상 기동)
+  secret-backoffice: ${TOKEN_SECRET_BACKOFFICE:}
 
 # Gemini (음성 분석 어댑터). api-key 비우면 분석 비활성화(서버는 정상 기동)
 gemini:

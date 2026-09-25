@@ -14,6 +14,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
@@ -63,6 +65,20 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> badRequest(DateTimeParseException e, WebRequest request) {
         return handleExceptionInternalFalse(e, ErrorStatus._BAD_REQUEST, HttpHeaders.EMPTY,
                 HttpStatus.BAD_REQUEST, request, "날짜 형식이 올바르지 않습니다.");
+    }
+
+    /** 메서드 보안(@PreAuthorize) 거부. 아래 Exception 핸들러로 떨어져 500이 되지 않게 403으로 돌려준다. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Object> accessDenied(AccessDeniedException e, WebRequest request) {
+        return handleExceptionInternalFalse(e, ErrorStatus._FORBIDDEN, HttpHeaders.EMPTY,
+                HttpStatus.FORBIDDEN, request, null);
+    }
+
+    /** 메서드 보안에서 인증 정보가 없을 때. */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Object> unauthenticated(AuthenticationException e, WebRequest request) {
+        return handleExceptionInternalFalse(e, ErrorStatus._UNAUTHORIZED, HttpHeaders.EMPTY,
+                HttpStatus.UNAUTHORIZED, request, null);
     }
 
     @ExceptionHandler
