@@ -7,6 +7,11 @@ import com.safori.domain.user.entity.User;
 import com.safori.domain.user.exception.UserHandler;
 import com.safori.security.dto.JwtToken;
 import com.safori.security.exception.AuthHandler;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +24,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Date;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,6 +78,20 @@ class UserTokenServiceImplTest {
         assertThat(authentication.getAuthorities())
                 .extracting(GrantedAuthority::getAuthority)
                 .containsExactly(Role.USER.getKey());
+    }
+
+    @Test
+    @DisplayName("만료된 access token은 인증되지 않는다 (서명이 맞아도 거부)")
+    void getAuthentication_expiredToken_throws() {
+        String expired = Jwts.builder()
+                .setSubject("user01")
+                .claim("auth", Role.USER.getKey())
+                .setExpiration(new Date(System.currentTimeMillis() - 1_000))
+                .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET)), SignatureAlgorithm.HS256)
+                .compact();
+
+        assertThatThrownBy(() -> userTokenService.getAuthentication(expired))
+                .isInstanceOf(ExpiredJwtException.class);
     }
 
     @Test
