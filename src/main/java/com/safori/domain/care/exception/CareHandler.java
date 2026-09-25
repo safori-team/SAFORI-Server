@@ -18,6 +18,11 @@ public class CareHandler extends GeneralException {
     public static final GeneralException RECIPIENT_NOT_FOUND =
             new CareHandler(ErrorStatus.CARE_RECIPIENT_NOT_FOUND);
 
+    public static final GeneralException RECORD_NOT_FOUND =
+            new CareHandler(ErrorStatus.CARE_RECORD_NOT_FOUND);
+    public static final GeneralException RECORD_NOT_PROCESSABLE =
+            new CareHandler(ErrorStatus.CARE_RECORD_NOT_PROCESSABLE);
+
     public CareHandler(BaseErrorCode code) {
         super(code);
     }

@@ -29,6 +29,9 @@ erDiagram
     ORGANIZATION ||--o{ CARE_RECIPIENT : manages
     USERS |o..o{ CARE_RECIPIENT : "user_id (no FK)"
     CARE_RECIPIENT ||--o{ CARE_ASSIGNMENT : "assigned to"
+    CARE_RECIPIENT ||--o{ CARE_RECORD : "기록 이력"
+    CARE_RECIPIENT |o--o| CARE_RECORD : "current_record_id"
+    ORGANIZATION_MEMBER |o--o{ CARE_RECORD : "processed_by"
     ORGANIZATION_MEMBER ||--o{ CARE_ASSIGNMENT : "worker_member"
     CARE_RECIPIENT ||--o{ GUARDIAN_RECIPIENT_LINK : "linked to"
     ORGANIZATION_MEMBER ||--o{ GUARDIAN_RECIPIENT_LINK : "guardian_member"
@@ -119,6 +122,19 @@ erDiagram
         bigint organization_id FK
         bigint user_id UK "users 참조, FK 없음, 앱 가입 전 NULL"
         varchar status "ACTIVE|INACTIVE"
+        bigint current_record_id FK "현재 기록, NULL=상태 코드 X"
+    }
+    CARE_RECORD {
+        bigint record_id PK
+        varchar public_id UK
+        bigint recipient_id FK
+        varchar status_code "INTEREST|CAUTION|URGENT"
+        varchar reason_type
+        varchar reason_message
+        datetime detected_at
+        varchar processing_status "UNCHECKED|IN_PROGRESS|DONE|ABSORBED"
+        bigint processed_by FK
+        datetime processed_at
     }
     CARE_ASSIGNMENT {
         bigint assignment_id PK

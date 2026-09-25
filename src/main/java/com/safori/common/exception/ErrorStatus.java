@@ -104,7 +104,10 @@ public enum ErrorStatus implements BaseErrorCode {
     @ExplainError("활성 상태가 아니거나 연결 범위(LINKED_RECIPIENT) 권한이 없는 구성원을 보호자로 연결하려 한 경우.")
     CARE_GUARDIAN_NOT_LINKABLE(BAD_REQUEST, 4453, "연결할 수 없는 보호자입니다."),
     @ExplainError("경로의 대상자 식별자(public_id)가 없거나 요청한 구성원의 기관 대상자가 아닌 경우.")
-    CARE_RECIPIENT_NOT_FOUND(BAD_REQUEST, 4454, "존재하지 않는 대상자입니다.");
+    CARE_RECIPIENT_NOT_FOUND(BAD_REQUEST, 4454, "존재하지 않는 대상자입니다."),
+    CARE_RECORD_NOT_FOUND(BAD_REQUEST, 4455, "존재하지 않는 기록입니다."),
+    @ExplainError("현재 기록이 아닌 기록(흡수·완료됨)의 처리 상태를 바꾸려 했거나, 흡수됨(ABSORBED)으로 바꾸려 한 경우.")
+    CARE_RECORD_NOT_PROCESSABLE(BAD_REQUEST, 4456, "처리 상태를 바꿀 수 없는 기록입니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

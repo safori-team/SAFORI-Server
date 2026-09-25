@@ -593,6 +593,41 @@ create table if not exists care_recipient
     );
 
 -- -----------------------------------------------------------------------------
+-- care_record : 대상자 기록. 시스템이 확인 사유를 감지할 때마다 쌓인다(지우지 않음).
+--   care_recipient.current_record_id 가 현재 기록이다. 같거나 높은 등급은 현재 기록을 덮어쓰고(기존 ABSORBED),
+--   낮은 등급은 ABSORBED 로 쌓인다. 현재 기록을 DONE 처리하면 current_record_id 가 NULL(상태 코드 X)이 된다.
+-- -----------------------------------------------------------------------------
+create table if not exists care_record
+(
+    record_id          bigint auto_increment
+    primary key,
+    created_date       datetime(6)  null,
+    last_modified_date datetime(6)  null,
+    public_id          varchar(36)  not null,
+    recipient_id       bigint       not null,
+    status_code        varchar(16)  not null,
+    reason_type        varchar(32)  null,
+    reason_message     varchar(255) not null,
+    detected_at        datetime(6)  not null,
+    processing_status  varchar(16)  not null,
+    processed_by       bigint       null,
+    processed_at       datetime(6)  null,
+    constraint uq_crd_public_id
+    unique (public_id),
+    constraint fk_crd_recipient
+    foreign key (recipient_id) references care_recipient (recipient_id),
+    constraint fk_crd_processed_by
+    foreign key (processed_by) references organization_member (organization_member_id)
+    );
+
+create index idx_crd_recipient_detected
+    on care_record (recipient_id, detected_at);
+
+alter table care_recipient
+    add column current_record_id bigint null,
+    add constraint fk_cr_current_record foreign key (current_record_id) references care_record (record_id);
+
+-- -----------------------------------------------------------------------------
 -- care_assignment : 담당자 배정 이력. ended_at IS NULL 이 현재 배정이다.
 --   재배정은 기존 행을 종료하고 새 행을 만든다. 어르신 1명당 현재 담당자 1명은 어르신 행 잠금 후 서비스가 보장한다.
 -- -----------------------------------------------------------------------------
