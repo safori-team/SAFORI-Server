@@ -1,5 +1,6 @@
 package com.safori.api.user.dto;
 
+import com.safori.common.consts.AccountStaticValues;
 import com.safori.common.util.PhoneNumber;
 import com.safori.domain.user.entity.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,13 +28,13 @@ public class UserRegisterRequest {
     @Schema(description = "로그인 아이디 (6~12자, 영문·숫자만 허용)", example = "user01")
     @NotBlank
     @Size(min = 6, max = 12, message = "아이디는 6~12자로 입력해 주세요")
-    @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "아이디는 영문, 숫자만 사용할 수 있습니다")
+    @Pattern(regexp = AccountStaticValues.LOGIN_ID_PATTERN, message = "아이디는 영문, 숫자만 사용할 수 있습니다")
     private final String username;
 
     @Schema(description = "비밀번호 (8~20자, 영문·숫자 혼합 필수)", example = "myPass1234")
     @NotBlank
     @Size(min = 8, max = 20, message = "비밀번호는 8~20자로 입력해 주세요")
-    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).+$", message = "비밀번호는 영문, 숫자를 혼합하여 입력해 주세요")
+    @Pattern(regexp = AccountStaticValues.PASSWORD_PATTERN, message = "비밀번호는 영문, 숫자를 혼합하여 입력해 주세요")
     private final String password;
 
     @Schema(description = "성별 (MALE / FEMALE)", example = "MALE")

@@ -390,6 +390,7 @@ create table if not exists organization_member
     approved_by            bigint      null,
     approved_at            datetime(6) null,
     revoked_at             datetime(6) null,
+    job_title              varchar(50) null,
     constraint uq_om_org_account
     unique (organization_id, account_id),
     constraint fk_om_organization

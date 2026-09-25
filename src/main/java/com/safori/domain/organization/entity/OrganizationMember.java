@@ -80,6 +80,10 @@ public class OrganizationMember extends BaseTimeEntity {
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
 
+    /** 직종(담당자). 사회복지사·생활복지사 또는 직접 입력한 값. 담당자가 아니면 null. */
+    @Column(name = "job_title", length = 50)
+    private String jobTitle;
+
     public static OrganizationMember invite(Organization organization, BackofficeAccount account,
                                             OrganizationMember invitedBy) {
         return OrganizationMember.builder()
@@ -88,6 +92,10 @@ public class OrganizationMember extends BaseTimeEntity {
                 .status(OrganizationMemberStatus.PENDING)
                 .invitedBy(invitedBy)
                 .build();
+    }
+
+    public void changeJobTitle(String jobTitle) {
+        this.jobTitle = jobTitle;
     }
 
     public void approve(OrganizationMember approver, LocalDateTime now) {

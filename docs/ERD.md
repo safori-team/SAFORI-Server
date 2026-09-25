@@ -58,6 +58,7 @@ erDiagram
         bigint approved_by FK
         datetime approved_at
         datetime revoked_at
+        varchar job_title "담당자 직종"
     }
     ACCESS_PERMISSION {
         bigint permission_id PK
