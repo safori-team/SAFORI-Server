@@ -29,6 +29,15 @@ erDiagram
     ORGANIZATION ||--o{ CARE_RECIPIENT : manages
     USERS |o..o{ CARE_RECIPIENT : "user_id (no FK)"
     CARE_RECIPIENT ||--o{ CARE_ASSIGNMENT : "assigned to"
+    CARE_RECIPIENT ||--o{ CARE_RECORD : "기록 이력"
+    CARE_RECIPIENT |o--o| CARE_RECORD : "current_record_id"
+    ORGANIZATION_MEMBER |o--o{ CARE_RECORD : "processed_by"
+    CARE_RECIPIENT ||--o{ CARE_JOURNAL : "일지"
+    ORGANIZATION_MEMBER ||--o{ CARE_JOURNAL : "writer"
+    CARE_JOURNAL ||--o{ CARE_JOURNAL_SELECTION : "고른 항목"
+    JOURNAL_OPTION ||--o{ CARE_JOURNAL_SELECTION : ""
+    JOURNAL_OPTION_GROUP ||--o{ JOURNAL_OPTION : "섹션"
+    JOURNAL_OPTION |o--o{ JOURNAL_OPTION : "parent_code"
     ORGANIZATION_MEMBER ||--o{ CARE_ASSIGNMENT : "worker_member"
     CARE_RECIPIENT ||--o{ GUARDIAN_RECIPIENT_LINK : "linked to"
     ORGANIZATION_MEMBER ||--o{ GUARDIAN_RECIPIENT_LINK : "guardian_member"
@@ -119,6 +128,53 @@ erDiagram
         bigint organization_id FK
         bigint user_id UK "users 참조, FK 없음, 앱 가입 전 NULL"
         varchar status "ACTIVE|INACTIVE"
+        bigint current_record_id FK "현재 기록, NULL=상태 코드 X"
+    }
+    CARE_RECORD {
+        bigint record_id PK
+        varchar public_id UK
+        bigint recipient_id FK
+        varchar status_code "INTEREST|CAUTION|URGENT"
+        varchar reason_type
+        varchar reason_message
+        datetime detected_at
+        varchar processing_status "UNCHECKED|IN_PROGRESS|DONE|ABSORBED"
+        bigint processed_by FK
+        datetime processed_at
+    }
+    CARE_JOURNAL {
+        bigint journal_id PK
+        varchar public_id UK
+        bigint recipient_id FK
+        bigint writer_member_id FK
+        datetime confirmed_at "확인 일시(입력), created_date=작성 일시"
+        bigint record_id FK "작성 당시 현재 기록"
+        varchar status_code_snapshot
+        varchar processing_status_snapshot
+        text memo
+        bit guardian_visible
+    }
+    CARE_JOURNAL_SELECTION {
+        bigint selection_id PK
+        bigint journal_id FK
+        varchar option_code FK
+        varchar label_snapshot "작성 당시 문구"
+        varchar text_value "기타 입력값"
+    }
+    JOURNAL_OPTION_GROUP {
+        varchar code PK "METHOD|RESULT|CONDITION|ACTION|FOLLOW_UP"
+        varchar label
+        varchar selection "SINGLE|MULTI"
+        bit required
+    }
+    JOURNAL_OPTION {
+        varchar code PK
+        varchar group_code FK
+        varchar parent_code FK "하위 항목"
+        varchar label
+        bit exclusive_choice "특이사항 없음"
+        bit text_input "기타"
+        bit active
     }
     CARE_ASSIGNMENT {
         bigint assignment_id PK

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +37,8 @@ public class WeeklyReportPushScheduler {
     private final VoiceCompositeAdaptor voiceCompositeAdaptor;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
 
+    // 두 곳에서 돌면 푸시가 두 번 간다. 끝난 뒤에도 5분은 잠가 다른 컨테이너가 같은 분에 다시 돌지 않게 한다.
+    @SchedulerLock(name = "weeklyReportPush", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
     @Scheduled(
             cron = "${safori.notification.weekly-report-cron:0 0 9 * * MON}",
             zone = "${safori.notification.timezone:Asia/Seoul}")

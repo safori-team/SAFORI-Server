@@ -593,6 +593,41 @@ create table if not exists care_recipient
     );
 
 -- -----------------------------------------------------------------------------
+-- care_record : 대상자 기록. 시스템이 확인 사유를 감지할 때마다 쌓인다(지우지 않음).
+--   care_recipient.current_record_id 가 현재 기록이다. 같거나 높은 등급은 현재 기록을 덮어쓰고(기존 ABSORBED),
+--   낮은 등급은 ABSORBED 로 쌓인다. 현재 기록을 DONE 처리하면 current_record_id 가 NULL(상태 코드 X)이 된다.
+-- -----------------------------------------------------------------------------
+create table if not exists care_record
+(
+    record_id          bigint auto_increment
+    primary key,
+    created_date       datetime(6)  null,
+    last_modified_date datetime(6)  null,
+    public_id          varchar(36)  not null,
+    recipient_id       bigint       not null,
+    status_code        varchar(16)  not null,
+    reason_type        varchar(32)  null,
+    reason_message     varchar(255) not null,
+    detected_at        datetime(6)  not null,
+    processing_status  varchar(16)  not null,
+    processed_by       bigint       null,
+    processed_at       datetime(6)  null,
+    constraint uq_crd_public_id
+    unique (public_id),
+    constraint fk_crd_recipient
+    foreign key (recipient_id) references care_recipient (recipient_id),
+    constraint fk_crd_processed_by
+    foreign key (processed_by) references organization_member (organization_member_id)
+    );
+
+create index idx_crd_recipient_detected
+    on care_record (recipient_id, detected_at);
+
+alter table care_recipient
+    add column current_record_id bigint null,
+    add constraint fk_cr_current_record foreign key (current_record_id) references care_record (record_id);
+
+-- -----------------------------------------------------------------------------
 -- care_assignment : 담당자 배정 이력. ended_at IS NULL 이 현재 배정이다.
 --   재배정은 기존 행을 종료하고 새 행을 만든다. 어르신 1명당 현재 담당자 1명은 어르신 행 잠금 후 서비스가 보장한다.
 -- -----------------------------------------------------------------------------
@@ -661,3 +696,89 @@ create index idx_grl_guardian_active
 
 create index idx_grl_recipient_active
     on guardian_recipient_link (recipient_id, ended_at);
+
+-- -----------------------------------------------------------------------------
+-- 일지 폼: journal_option_group(섹션) / journal_option(항목, parent_code 로 하위 항목 여러 단계).
+--   기본 항목은 앱 기동 시 JournalFormSeeder 가 없는 코드만 넣는다. 항목은 지우지 않고 active=false.
+-- 일지: care_journal(확인 일시·작성 당시 상태 스냅샷·보호자 공개) / care_journal_selection(고른 항목, 당시 문구).
+-- -----------------------------------------------------------------------------
+create table if not exists journal_option_group
+(
+    code       varchar(32) not null
+    primary key,
+    label      varchar(50) not null,
+    selection  varchar(8)  not null,
+    required   bit         not null,
+    sort_order int         not null
+    );
+
+create table if not exists journal_option
+(
+    code             varchar(40) not null
+    primary key,
+    group_code       varchar(32) not null,
+    parent_code      varchar(40) null,
+    label            varchar(50) not null,
+    exclusive_choice bit         not null,
+    text_input       bit         not null,
+    sort_order       int         not null,
+    active           bit         not null,
+    constraint fk_jo_group
+    foreign key (group_code) references journal_option_group (code),
+    constraint fk_jo_parent
+    foreign key (parent_code) references journal_option (code)
+    );
+
+create table if not exists care_journal
+(
+    journal_id                 bigint auto_increment
+    primary key,
+    created_date               datetime(6) null,
+    last_modified_date         datetime(6) null,
+    public_id                  varchar(36) not null,
+    recipient_id               bigint      not null,
+    writer_member_id           bigint      not null,
+    confirmed_at               datetime(6) not null,
+    record_id                  bigint      null,
+    status_code_snapshot       varchar(16) null,
+    processing_status_snapshot varchar(16) null,
+    memo                       text        null,
+    guardian_visible           bit         not null,
+    constraint uq_cj_public_id
+    unique (public_id),
+    constraint fk_cj_recipient
+    foreign key (recipient_id) references care_recipient (recipient_id),
+    constraint fk_cj_writer
+    foreign key (writer_member_id) references organization_member (organization_member_id),
+    constraint fk_cj_record
+    foreign key (record_id) references care_record (record_id)
+    );
+
+create index idx_cj_recipient_confirmed
+    on care_journal (recipient_id, confirmed_at);
+
+create table if not exists care_journal_selection
+(
+    selection_id   bigint auto_increment
+    primary key,
+    journal_id     bigint       not null,
+    option_code    varchar(40)  not null,
+    label_snapshot varchar(50)  not null,
+    text_value     varchar(200) null,
+    constraint fk_cjs_journal
+    foreign key (journal_id) references care_journal (journal_id),
+    constraint fk_cjs_option
+    foreign key (option_code) references journal_option (code)
+    );
+
+-- -----------------------------------------------------------------------------
+-- shedlock : 스케줄러 중복 실행 방지 잠금(ShedLock). 앱에서는 JPA 엔티티(SchedulerLock)로 ddl-auto 가 만든다.
+-- -----------------------------------------------------------------------------
+create table if not exists shedlock
+(
+    name       varchar(64)  not null
+    primary key,
+    lock_until datetime(6)  not null,
+    locked_at  datetime(6)  not null,
+    locked_by  varchar(255) not null
+    );
