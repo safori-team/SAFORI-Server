@@ -11,6 +11,7 @@ import com.safori.domain.access.repository.AccessGroupRepository;
 import com.safori.domain.access.repository.AccessGroupRoleRepository;
 import com.safori.domain.organization.entity.Organization;
 import com.safori.domain.organization.entity.OrganizationMember;
+import com.safori.domain.organization.entity.OrganizationMemberStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +48,12 @@ public class AccessGroupDomainServiceImpl implements AccessGroupDomainService {
     public void removeMember(AccessGroup group, OrganizationMember member) {
         groupMemberRepository.findByGroupAndMember(group, member)
                 .ifPresent(groupMemberRepository::delete);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasCurrentMember(AccessGroup group) {
+        return groupMemberRepository.existsByGroupAndMember_StatusNot(group, OrganizationMemberStatus.REVOKED);
     }
 
     @Override

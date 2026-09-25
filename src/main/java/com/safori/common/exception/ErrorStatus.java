@@ -78,6 +78,8 @@ public enum ErrorStatus implements BaseErrorCode {
     @ExplainError("승인 대기(PENDING)가 아닌 구성원을 승인하거나, 소속 종료(REVOKED)된 구성원을 정지·재활성화하는 등 상태 전이가 맞지 않는 경우.")
     ORGANIZATION_MEMBER_INVALID_STATUS(BAD_REQUEST, 4303, "현재 구성원 상태에서는 처리할 수 없는 요청입니다."),
     ORGANIZATION_MEMBER_SELF_APPROVAL(BAD_REQUEST, 4304, "본인의 가입은 직접 승인할 수 없습니다."),
+    @ExplainError("기관 관리자는 기관당 1명이다. 소속 종료(REVOKED)되지 않은 관리자가 있는데 관리자를 또 초대한 경우.")
+    ORGANIZATION_ADMIN_ALREADY_EXISTS(BAD_REQUEST, 4305, "이미 기관 관리자가 있는 기관입니다."),
 
     // 백오피스 계정 오류 (4350번대)
     ACCOUNT_LOGIN_ID_ALREADY_EXISTS(BAD_REQUEST, 4350, "이미 사용 중인 로그인 아이디입니다."),
@@ -90,6 +92,7 @@ public enum ErrorStatus implements BaseErrorCode {
     ACCESS_INVALID_ROLE_EXPIRY(BAD_REQUEST, 4402, "역할 만료 시각은 현재 이후여야 합니다."),
 
     // 돌봄 대상·배정 오류 (4450번대)
+    @ExplainError("어르신은 한 기관에만 등록된다. 같은 앱 계정(user_id)이 이미 어느 기관에든 등록된 경우.")
     CARE_RECIPIENT_ALREADY_REGISTERED(BAD_REQUEST, 4450, "이미 기관에 등록된 어르신입니다."),
     CARE_RECIPIENT_INACTIVE(BAD_REQUEST, 4451, "비활성화된 어르신입니다."),
     @ExplainError("활성 상태가 아니거나 배정 범위(ASSIGNED_RECIPIENT) 권한이 없는 구성원을 담당자로 배정하려 한 경우.")

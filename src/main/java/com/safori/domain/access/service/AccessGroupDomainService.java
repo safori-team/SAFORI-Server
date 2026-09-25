@@ -22,6 +22,9 @@ public interface AccessGroupDomainService {
 
     void removeMember(AccessGroup group, OrganizationMember member);
 
+    /** 소속 종료(REVOKED)되지 않은 구성원이 그룹에 있는지. 대기·정지 구성원도 포함한다. */
+    boolean hasCurrentMember(AccessGroup group);
+
     /** 그룹에 역할을 연결한다. 이미 있으면 그대로 둔다. 그룹과 역할은 같은 기관이어야 한다. */
     void assignRole(AccessGroup group, AccessRole role);
 

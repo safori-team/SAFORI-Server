@@ -44,7 +44,7 @@ public class CareRelationDomainServiceImpl implements CareRelationDomainService 
         if (!current.isActive()) {
             throw OrganizationHandler.INACTIVE;
         }
-        if (userId != null && recipientRepository.existsByOrganizationAndUserId(current, userId)) {
+        if (userId != null && recipientRepository.existsByUserId(userId)) {
             throw RECIPIENT_ALREADY_REGISTERED;
         }
         return recipientRepository.save(CareRecipient.register(current, userId));

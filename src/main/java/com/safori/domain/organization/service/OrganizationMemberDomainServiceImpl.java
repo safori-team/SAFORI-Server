@@ -1,6 +1,7 @@
 package com.safori.domain.organization.service;
 
 import com.safori.common.annotation.DomainService;
+import com.safori.domain.access.entity.AccessGroup;
 import com.safori.domain.access.entity.RoleTemplateCode;
 import com.safori.domain.access.service.AccessGroupDomainService;
 import com.safori.domain.account.entity.BackofficeAccount;
@@ -31,7 +32,10 @@ public class OrganizationMemberDomainServiceImpl implements OrganizationMemberDo
     @Override
     public OrganizationMember invite(Organization organization, BackofficeAccount account,
                                      RoleTemplateCode initialRole, OrganizationMember invitedBy) {
-        Organization currentOrganization = organizationRepository.findById(organization.getId())
+        boolean admin = initialRole == RoleTemplateCode.ORG_ADMIN;
+        Organization currentOrganization = (admin
+                ? organizationRepository.findByIdForUpdate(organization.getId())
+                : organizationRepository.findById(organization.getId()))
                 .orElseThrow(() -> new IllegalStateException("존재하지 않는 기관입니다: " + organization.getId()));
         BackofficeAccount currentAccount = accountRepository.findById(account.getId())
                 .orElseThrow(() -> new IllegalStateException("존재하지 않는 백오피스 계정입니다: " + account.getId()));
@@ -46,10 +50,15 @@ public class OrganizationMemberDomainServiceImpl implements OrganizationMemberDo
             throw OrganizationHandler.MEMBER_ALREADY_EXISTS;
         }
 
+        AccessGroup group = accessGroupDomainService.getSystemGroup(currentOrganization, initialRole);
+        // 기관 관리자는 1명. 동시 초대는 위의 기관 행 잠금으로 직렬화된다.
+        if (admin && accessGroupDomainService.hasCurrentMember(group)) {
+            throw OrganizationHandler.ADMIN_ALREADY_EXISTS;
+        }
+
         OrganizationMember member = memberRepository.save(
                 OrganizationMember.invite(currentOrganization, currentAccount, invitedBy));
-        accessGroupDomainService.addMember(
-                accessGroupDomainService.getSystemGroup(currentOrganization, initialRole), member);
+        accessGroupDomainService.addMember(group, member);
         return member;
     }
 

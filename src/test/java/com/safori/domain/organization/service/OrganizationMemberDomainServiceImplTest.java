@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static com.safori.domain.access.entity.RoleTemplateCode.CARE_WORKER;
+import static com.safori.domain.access.entity.RoleTemplateCode.ORG_ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,6 +64,20 @@ class OrganizationMemberDomainServiceImplTest {
         assertThat(invited.getStatus()).isEqualTo(OrganizationMemberStatus.PENDING);
         assertThat(invited.getInvitedBy()).isEqualTo(admin);
         verify(accessGroupDomainService).addMember(workerGroup, invited);
+    }
+
+    @Test
+    @DisplayName("기관 관리자는 1명이다. 소속 종료되지 않은 관리자가 있으면 관리자를 더 초대할 수 없다")
+    void secondAdminIsRejected() {
+        AccessGroup adminGroup = AccessGroup.system(organization, ORG_ADMIN);
+        given(organizationRepository.findByIdForUpdate(1L)).willReturn(Optional.of(organization));
+        givenStored(account);
+        given(accessGroupDomainService.getSystemGroup(organization, ORG_ADMIN)).willReturn(adminGroup);
+        given(accessGroupDomainService.hasCurrentMember(adminGroup)).willReturn(true);
+
+        assertThatThrownBy(() -> memberService.invite(organization, account, ORG_ADMIN, null))
+                .isEqualTo(OrganizationHandler.ADMIN_ALREADY_EXISTS);
+        verify(memberRepository, never()).save(any());
     }
 
     @Test

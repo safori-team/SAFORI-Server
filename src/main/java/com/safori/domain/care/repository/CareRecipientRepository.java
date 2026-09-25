@@ -1,7 +1,6 @@
 package com.safori.domain.care.repository;
 
 import com.safori.domain.care.entity.CareRecipient;
-import com.safori.domain.organization.entity.Organization;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,7 +38,7 @@ public interface CareRecipientRepository extends JpaRepository<CareRecipient, Lo
 
     Optional<CareRecipient> findByPublicId(String publicId);
 
-    boolean existsByOrganizationAndUserId(Organization organization, Long userId);
+    boolean existsByUserId(Long userId);
 
     /** 배정·연결 변경을 직렬화하기 위한 어르신 행 잠금. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -24,3 +24,7 @@ spring:
 token:
   secret-user: ZHVtbXktc2VjcmV0LWZvci10ZXN0LW9ubHktc2Fmb3JpLTIwMjYtand0LWtleQ==
   secret-backoffice: dGVzdC1vbmx5LWJhY2tvZmZpY2Utc2VjcmV0LWZvci1zYWZvcmktMjAyNi1qd3Q=
+
+# SAFORI 운영자 API(/v1/api/operator/**) 인증 키. X-Operator-Key 헤더와 비교한다. 비워두면 운영자 API는 모두 401.
+operator:
+  api-key: test-only-operator-key
