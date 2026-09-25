@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 @Transactional
 class WorkerRegistrationTest {
 
-    private static final String REGISTER = "/v1/api/backoffice/workers";
+    private static final String REGISTER = "/v1/api/admin/managers";
 
     @Autowired WebApplicationContext context;
     @Autowired FilterChainProxy springSecurityFilterChain;
@@ -58,7 +58,7 @@ class WorkerRegistrationTest {
     void registeredWorkerCanSignIn() throws Exception {
         register(body("worker01", true))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.workerId").isNotEmpty())
+                .andExpect(jsonPath("$.result.managerId").isNotEmpty())
                 .andExpect(jsonPath("$.result.loginId").value("worker01"));
 
         var account = accountRepository.findByLoginId("worker01").orElseThrow();

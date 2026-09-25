@@ -20,11 +20,11 @@ public class PendingAuthorizationRules {
     BackofficeAuthorizationRules pendingAuthorization(BackofficeRequestAuthorization authz) {
         return registry -> registry
                 // 대상자 조회·등록 (권한 담당자: RECIPIENT_CREATE 로 옮길 것)
-                .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/backoffice/recipients/lookup"),
-                        antMatcher(HttpMethod.POST, "/v1/api/backoffice/recipients"))
+                .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients/lookup"),
+                        antMatcher(HttpMethod.POST, "/v1/api/admin/care-recipients"))
                 .access(authz.member())
                 // 담당자 등록 (권한 담당자: MEMBER_MANAGE 로 옮길 것)
-                .requestMatchers(antMatcher(HttpMethod.POST, "/v1/api/backoffice/workers"))
+                .requestMatchers(antMatcher(HttpMethod.POST, "/v1/api/admin/managers"))
                 .access(authz.member());
     }
 }

@@ -34,6 +34,8 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
 public class BackofficeSecurityConfig {
 
     public static final String BACKOFFICE_API_PATTERN = "/v1/api/backoffice/**";
+    /** 관리자·담당자 화면 API. 팀 API 명세의 경로 prefix다(담당자도 호출한다). */
+    public static final String ADMIN_API_PATTERN = "/v1/api/admin/**";
     public static final String GUARDIAN_API_PATTERN = "/v1/api/guardian/**";
 
     private final BackofficeTokenService backofficeTokenService;
@@ -48,6 +50,7 @@ public class BackofficeSecurityConfig {
         http
                 .securityMatcher(new OrRequestMatcher(
                         new AntPathRequestMatcher(BACKOFFICE_API_PATTERN),
+                        new AntPathRequestMatcher(ADMIN_API_PATTERN),
                         new AntPathRequestMatcher(GUARDIAN_API_PATTERN)))
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)

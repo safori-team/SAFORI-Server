@@ -19,17 +19,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "worker",
+@Tag(name = "manager",
      extensions = @Extension(properties = @ExtensionProperty(name = "x-displayName", value = "[담당자]")),
      description = "담당자 관리 API. 백오피스 토큰이 필요하다.")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/v1/api/backoffice/workers")
+@RequestMapping("/v1/api/admin/managers")
 public class WorkerApiController {
 
     private final RegisterWorkerUseCase registerWorkerUseCase;
 
-    @Operation(operationId = "registerWorker", summary = "담당자 등록",
+    @Operation(operationId = "registerManager", summary = "담당자 등록",
             description = """
                     담당자 계정을 만들어 로그인한 관리자의 기관에 바로 소속시킵니다(승인 절차 없음).
                     `active=false`면 계정을 비활성화 상태로 만들어 로그인할 수 없습니다.

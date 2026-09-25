@@ -25,13 +25,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "recipient",
+@Tag(name = "care-recipient",
      extensions = @Extension(properties = @ExtensionProperty(name = "x-displayName", value = "[대상자]")),
      description = "기관 대상자(어르신) API. 백오피스 토큰이 필요하다.")
 @Validated
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/v1/api/backoffice/recipients")
+@RequestMapping("/v1/api/admin/care-recipients")
 public class RecipientApiController {
 
     private final LookupRecipientUseCase lookupRecipientUseCase;

@@ -32,8 +32,8 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 @Transactional
 class RecipientRegistrationTest {
 
-    private static final String LOOKUP = "/v1/api/backoffice/recipients/lookup";
-    private static final String REGISTER = "/v1/api/backoffice/recipients";
+    private static final String LOOKUP = "/v1/api/admin/care-recipients/lookup";
+    private static final String REGISTER = "/v1/api/admin/care-recipients";
 
     @Autowired WebApplicationContext context;
     @Autowired FilterChainProxy springSecurityFilterChain;
