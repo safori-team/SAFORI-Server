@@ -63,6 +63,10 @@ token:
   # 비워두면 백오피스 인증 비활성 — /v1/api/backoffice/**, /v1/api/guardian/** 는 모두 401 (서버는 정상 기동)
   secret-backoffice: ${TOKEN_SECRET_BACKOFFICE:}
 
+# SAFORI 운영자 API(/v1/api/operator/**) 인증 키. X-Operator-Key 헤더와 비교한다. 비워두면 운영자 API는 모두 401.
+operator:
+  api-key: ${OPERATOR_API_KEY:}
+
 # Gemini (음성 분석 어댑터). api-key 비우면 분석 비활성화(서버는 정상 기동)
 gemini:
   api-key: ${GEMINI_API_KEY:}

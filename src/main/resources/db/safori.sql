@@ -580,8 +580,8 @@ create table if not exists care_recipient
     status             varchar(16) not null,
     constraint uq_cr_public_id
     unique (public_id),
-    constraint uq_cr_org_user
-    unique (organization_id, user_id),
+    constraint uq_cr_user
+    unique (user_id),
     constraint fk_cr_organization
     foreign key (organization_id) references organization (organization_id),
     constraint fk_cr_user

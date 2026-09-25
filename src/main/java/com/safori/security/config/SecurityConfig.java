@@ -1,10 +1,15 @@
 package com.safori.security.config;
 
+import com.safori.domain.access.policy.BackofficeActorResolver;
+import com.safori.security.filter.BackofficeAuthenticationFilter;
 import com.safori.security.filter.JwtAuthenticationFilter;
+import com.safori.security.service.BackofficeTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -21,6 +26,8 @@ import java.util.List;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    public static final String USER_INFO_PATH = "/v1/api/users";
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -39,6 +46,30 @@ public class SecurityConfig {
                         .requestMatchers(swaggerRequests()).permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    /**
+     * 내 정보 조회({@code GET /v1/api/users})만 어르신 앱 토큰과 백오피스 토큰을 모두 받는다.
+     * 두 토큰은 서명 키가 달라 하나만 인증된다. 다른 어르신 API에는 백오피스 토큰이 통하지 않도록 이 경로 하나로 좁힌다.
+     */
+    @Bean
+    @Order(2)
+    public SecurityFilterChain userInfoFilterChain(HttpSecurity http,
+                                                   BackofficeTokenService backofficeTokenService,
+                                                   BackofficeActorResolver backofficeActorResolver) throws Exception {
+        http
+                .securityMatcher(new AntPathRequestMatcher(USER_INFO_PATH, HttpMethod.GET.name()))
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .cors(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .addFilterBefore(new BackofficeAuthenticationFilter(backofficeTokenService, backofficeActorResolver),
+                        UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

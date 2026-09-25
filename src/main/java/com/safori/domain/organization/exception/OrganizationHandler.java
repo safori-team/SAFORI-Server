@@ -17,6 +17,12 @@ public class OrganizationHandler extends GeneralException {
     public static final GeneralException MEMBER_SELF_APPROVAL =
             new OrganizationHandler(ErrorStatus.ORGANIZATION_MEMBER_SELF_APPROVAL);
 
+    public static final GeneralException ADMIN_ALREADY_EXISTS =
+            new OrganizationHandler(ErrorStatus.ORGANIZATION_ADMIN_ALREADY_EXISTS);
+
+    public static final GeneralException MEMBER_OF_OTHER_ORGANIZATION =
+            new OrganizationHandler(ErrorStatus.ORGANIZATION_MEMBER_OF_OTHER_ORGANIZATION);
+
     public OrganizationHandler(BaseErrorCode code) {
         super(code);
     }

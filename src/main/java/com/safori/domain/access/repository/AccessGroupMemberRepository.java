@@ -4,6 +4,7 @@ import com.safori.domain.access.entity.AccessGroup;
 import com.safori.domain.access.entity.AccessGroupMember;
 import com.safori.domain.access.policy.PermissionGrant;
 import com.safori.domain.organization.entity.OrganizationMember;
+import com.safori.domain.organization.entity.OrganizationMemberStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +15,8 @@ import java.util.Optional;
 public interface AccessGroupMemberRepository extends JpaRepository<AccessGroupMember, AccessGroupMember.Key> {
 
     boolean existsByGroupAndMember(AccessGroup group, OrganizationMember member);
+
+    boolean existsByGroupAndMember_StatusNot(AccessGroup group, OrganizationMemberStatus status);
 
     Optional<AccessGroupMember> findByGroupAndMember(AccessGroup group, OrganizationMember member);
 

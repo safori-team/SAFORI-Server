@@ -8,6 +8,7 @@ import com.safori.domain.organization.entity.OrganizationMember;
 import com.safori.domain.organization.service.OrganizationDomainService;
 import com.safori.domain.organization.service.OrganizationMemberDomainService;
 import com.safori.security.BackofficeFixture.Scenario;
+import com.safori.security.dto.AccountRole;
 import com.safori.security.service.BackofficeTokenService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -174,7 +175,7 @@ class BackofficeSecurityFilterChainTest {
         String token = "Bearer " + tokenService.issueAccessToken(
                 worker.getAccount().getAccountUuid(),
                 s.foreignOrganization().getPublicId(),
-                worker.getAccount().getAuthVersion());
+                worker.getAccount().getAuthVersion(), AccountRole.CARE_WORKER);
 
         mockMvc.perform(get(RECIPIENT, s.foreignRecipient().getPublicId()).header(HttpHeaders.AUTHORIZATION, token))
                 .andExpect(status().isUnauthorized());
@@ -192,7 +193,8 @@ class BackofficeSecurityFilterChainTest {
 
         mockMvc.perform(get(RECIPIENT, s.recipient().getPublicId()).header(HttpHeaders.AUTHORIZATION, appUserToken))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/v1/api/users").header(HttpHeaders.AUTHORIZATION, bearer(s.admin())))
+        // 내 정보 조회(GET /v1/api/users)만 두 토큰을 모두 받는다. 그 밖의 어르신 앱 API는 막힌다.
+        mockMvc.perform(get("/v1/api/users/voices/recent").header(HttpHeaders.AUTHORIZATION, bearer(s.admin())))
                 .andExpect(status().is4xxClientError());
     }
 
@@ -221,6 +223,6 @@ class BackofficeSecurityFilterChainTest {
         return "Bearer " + tokenService.issueAccessToken(
                 member.getAccount().getAccountUuid(),
                 member.getOrganization().getPublicId(),
-                member.getAccount().getAuthVersion());
+                member.getAccount().getAuthVersion(), AccountRole.CARE_WORKER);
     }
 }

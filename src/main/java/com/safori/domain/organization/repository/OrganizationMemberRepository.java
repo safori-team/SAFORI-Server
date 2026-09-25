@@ -3,6 +3,7 @@ package com.safori.domain.organization.repository;
 import com.safori.domain.account.entity.BackofficeAccount;
 import com.safori.domain.organization.entity.Organization;
 import com.safori.domain.organization.entity.OrganizationMember;
+import com.safori.domain.organization.entity.OrganizationMemberStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +15,18 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
     boolean existsByOrganizationAndAccount(Organization organization, BackofficeAccount account);
 
     Optional<OrganizationMember> findByOrganizationAndAccount(Organization organization, BackofficeAccount account);
+
+    boolean existsByAccountAndStatusNot(BackofficeAccount account, OrganizationMemberStatus status);
+
+    /** 계정의 현재 멤버십(소속 종료 제외). 계정은 한 기관에만 소속되므로 최대 1건이다. 기관을 함께 읽는다. */
+    @Query("""
+            SELECT m
+            FROM OrganizationMember m
+            JOIN FETCH m.organization
+            WHERE m.account = :account
+              AND m.status <> com.safori.domain.organization.entity.OrganizationMemberStatus.REVOKED
+            """)
+    Optional<OrganizationMember> findCurrentByAccount(@Param("account") BackofficeAccount account);
 
     /**
      * 토큰이 가리키는 기관 멤버. 계정·기관을 함께 읽어 활성 상태 판정에서 추가 쿼리가 나가지 않게 한다.

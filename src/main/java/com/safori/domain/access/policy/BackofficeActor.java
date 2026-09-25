@@ -12,17 +12,24 @@ import java.util.Optional;
  */
 public record BackofficeActor(Long accountId,
                               String accountUuid,
+                              String loginId,
+                              String name,
                               Long organizationMemberId,
                               Long organizationId,
-                              String organizationPublicId) {
+                              String organizationPublicId,
+                              String organizationName) {
 
+    /** 인증 조회가 계정·기관을 함께 읽으므로 표시용 값(아이디·이름·기관명)도 추가 조회 없이 담는다. */
     public static BackofficeActor from(OrganizationMember member) {
         return new BackofficeActor(
                 member.getAccount().getId(),
                 member.getAccount().getAccountUuid(),
+                member.getAccount().getLoginId(),
+                member.getAccount().getName(),
                 member.getId(),
                 member.getOrganization().getId(),
-                member.getOrganization().getPublicId());
+                member.getOrganization().getPublicId(),
+                member.getOrganization().getName());
     }
 
     /** 백오피스 인증이 아니면(익명·어르신 앱 사용자 등) 빈 값. */

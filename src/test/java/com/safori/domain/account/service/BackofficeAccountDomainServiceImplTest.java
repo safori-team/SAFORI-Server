@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 class BackofficeAccountDomainServiceImplTest {
 
     @Mock BackofficeAccountRepository accountRepository;
+    @Mock com.safori.domain.user.repository.UserRepository userRepository;
     @Mock PasswordEncoder passwordEncoder;
     @InjectMocks BackofficeAccountDomainServiceImpl accountService;
 

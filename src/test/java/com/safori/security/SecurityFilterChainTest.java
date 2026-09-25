@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.security.web.FilterChainProxy;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +60,7 @@ class SecurityFilterChainTest {
                 new User("user01", "", List.of(new SimpleGrantedAuthority("ROLE_USER"))),
                 "", List.of(new SimpleGrantedAuthority("ROLE_USER")));
         given(userTokenService.getAuthentication(anyString())).willReturn(authentication);
-        given(getUserInfoUseCase.execute("user01"))
+        given(getUserInfoUseCase.execute(any(Authentication.class)))
                 .willReturn(UserInfoResponse.builder().username("user01").name("홍길동").build());
 
         mockMvc.perform(get("/v1/api/users").header("Authorization", "Bearer valid-token"))

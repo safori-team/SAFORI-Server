@@ -5,6 +5,7 @@ import com.safori.domain.organization.entity.OrganizationMember;
 import com.safori.security.BackofficeFixture.Scenario;
 import com.safori.security.BackofficeSecurityTestConfig.SampleRecipientUseCase;
 import com.safori.security.filter.BackofficeAuthenticationFilter;
+import com.safori.security.dto.AccountRole;
 import com.safori.security.service.BackofficeTokenService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -113,7 +114,7 @@ class BackofficeMethodSecurityTest {
         String workerToken = "Bearer " + tokenService.issueAccessToken(
                 s.worker().getAccount().getAccountUuid(),
                 s.organization().getPublicId(),
-                s.worker().getAccount().getAuthVersion());
+                s.worker().getAccount().getAuthVersion(), AccountRole.CARE_WORKER);
 
         mockMvc.perform(get(METHOD_SECURED, s.recipient().getPublicId()).header(HttpHeaders.AUTHORIZATION, workerToken))
                 .andExpect(status().isOk());

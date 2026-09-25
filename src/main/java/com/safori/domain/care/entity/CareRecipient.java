@@ -34,7 +34,8 @@ import java.util.UUID;
 @Table(name = "care_recipient",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uq_cr_public_id", columnNames = "public_id"),
-                @UniqueConstraint(name = "uq_cr_org_user", columnNames = {"organization_id", "user_id"})
+                // 어르신은 한 기관에만 등록한다. 앱 가입 전(user_id NULL)은 여러 행이어도 된다.
+                @UniqueConstraint(name = "uq_cr_user", columnNames = "user_id")
         })
 public class CareRecipient extends BaseTimeEntity {
 

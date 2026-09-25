@@ -1,4 +1,4 @@
-name: test-and-deploy
+name: deploy
 
 # 브랜치 → 환경/프로파일 매핑
 #   main    → environment: prod,  SPRING_PROFILES_ACTIVE=prod
@@ -9,6 +9,8 @@ name: test-and-deploy
 # 배포는 SSM 으로 tag:Name 이 일치하는 EC2 에서 .github/scripts/remote-deploy.sh 를 실행한다.
 # 인스턴스 안에서는 blue/green 으로 무중단 교체한다.
 # 인스턴스가 여러 대면 한 대씩 순차로 배포하고, 한 대라도 실패하면 거기서 멈춘다.
+#
+# 테스트는 PR 에서 test.yml 이 돌린다. 머지(push) 시에는 다시 돌리지 않고 바로 배포한다.
 
 on:
   push:
@@ -43,27 +45,8 @@ jobs:
             echo "profile=alpha"     >> "$GITHUB_OUTPUT"
           fi
 
-  test:
-    needs: setup
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run tests
-        run: ./gradlew test
-
   push-image:
-    needs: [setup, test]
+    needs: setup
     runs-on: ubuntu-22.04
     environment: ${{ needs.setup.outputs.environment }}
     outputs:

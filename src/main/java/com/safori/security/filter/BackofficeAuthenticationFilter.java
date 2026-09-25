@@ -2,6 +2,7 @@ package com.safori.security.filter;
 
 import com.safori.domain.access.policy.AuthenticatedActor;
 import com.safori.domain.access.policy.BackofficeActorResolver;
+import com.safori.security.dto.AccountRole;
 import com.safori.security.service.BackofficeTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -32,6 +34,7 @@ import java.util.List;
 public class BackofficeAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    public static final String ROLE_PREFIX = "ROLE_";
 
     private final BackofficeTokenService backofficeTokenService;
     private final BackofficeActorResolver backofficeActorResolver;
@@ -44,8 +47,8 @@ public class BackofficeAuthenticationFilter extends OncePerRequestFilter {
         if (token != null) {
             backofficeTokenService.parse(token)
                     .flatMap(claims -> backofficeActorResolver.resolveActive(
-                            claims.accountUuid(), claims.organizationPublicId(), claims.authVersion()))
-                    .map(BackofficeAuthenticationFilter::toAuthentication)
+                                    claims.accountUuid(), claims.organizationPublicId(), claims.authVersion())
+                            .map(authenticated -> toAuthentication(authenticated, claims.role())))
                     .ifPresent(authentication -> {
                         SecurityContext context = SecurityContextHolder.createEmptyContext();
                         context.setAuthentication(authentication);
@@ -61,9 +64,17 @@ public class BackofficeAuthenticationFilter extends OncePerRequestFilter {
      * authority에 담지 않고 {@code BackofficeAccessPolicy}가 따로 판정한다.
      */
     public static Authentication toAuthentication(AuthenticatedActor authenticated) {
-        List<SimpleGrantedAuthority> authorities = authenticated.permissions().permissions().stream()
+        return toAuthentication(authenticated, null);
+    }
+
+    /** 토큰의 역할은 {@code ROLE_} authority로 붙인다. 내 정보 조회에서 역할을 DB 조회 없이 꺼내기 위해서다. */
+    public static Authentication toAuthentication(AuthenticatedActor authenticated, AccountRole role) {
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>(authenticated.permissions().permissions().stream()
                 .map(permission -> new SimpleGrantedAuthority(permission.name()))
-                .toList();
+                .toList());
+        if (role != null) {
+            authorities.add(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()));
+        }
         return new UsernamePasswordAuthenticationToken(authenticated.actor(), "", authorities);
     }
 

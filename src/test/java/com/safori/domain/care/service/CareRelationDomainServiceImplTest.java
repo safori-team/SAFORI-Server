@@ -181,7 +181,7 @@ class CareRelationDomainServiceImplTest {
     }
 
     @Test
-    @DisplayName("비활성 기관(다시 읽은 상태 기준)에는 등록할 수 없고, 같은 기관에 같은 앱 사용자를 두 번 등록할 수 없다")
+    @DisplayName("비활성 기관(다시 읽은 상태 기준)에는 등록할 수 없고, 이미 어느 기관에든 등록된 앱 사용자는 다시 등록할 수 없다")
     void invalidRegistrationsAreRejected() {
         Organization deactivatedMeanwhile = organization(2L);
         deactivatedMeanwhile.deactivate();
@@ -190,7 +190,7 @@ class CareRelationDomainServiceImplTest {
                 .isEqualTo(OrganizationHandler.INACTIVE);
 
         given(organizationRepository.findById(1L)).willReturn(Optional.of(organization));
-        given(recipientRepository.existsByOrganizationAndUserId(organization, 42L)).willReturn(true);
+        given(recipientRepository.existsByUserId(42L)).willReturn(true);
         assertThatThrownBy(() -> careRelationService.registerRecipient(organization, 42L))
                 .isEqualTo(CareHandler.RECIPIENT_ALREADY_REGISTERED);
         verify(recipientRepository, never()).save(any());
