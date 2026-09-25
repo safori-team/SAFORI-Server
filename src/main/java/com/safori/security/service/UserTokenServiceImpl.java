@@ -1,6 +1,7 @@
 package com.safori.security.service;
 
 import com.safori.common.service.RefreshTokenService;
+import com.safori.security.dto.AccountRole;
 import com.safori.security.dto.JwtToken;
 import com.safori.security.exception.AuthHandler;
 import com.safori.domain.user.adaptor.UserAdaptor;
@@ -98,6 +99,7 @@ public class UserTokenServiceImpl implements UserTokenService {
         String accessToken = Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
+                .claim("role", AccountRole.ELDER.name())
                 .setIssuedAt(new Date(now))
                 .setExpiration(accessTokenExpiresIn)
                 .setId(UUID.randomUUID().toString())
@@ -120,6 +122,7 @@ public class UserTokenServiceImpl implements UserTokenService {
                 .grantType("Bearer")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .role(AccountRole.ELDER)
                 .build();
     }
 

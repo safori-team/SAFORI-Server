@@ -1,5 +1,6 @@
 package com.safori.security.service;
 
+import com.safori.security.dto.AccountRole;
 import com.safori.security.dto.BackofficeTokenClaims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -27,16 +28,16 @@ class BackofficeTokenServiceImplTest {
     @Test
     @DisplayName("발급한 토큰에서 계정·기관 컨텍스트·auth_version을 그대로 꺼낸다")
     void issuedTokenRoundTrips() {
-        String token = service.issueAccessToken("account-uuid", "organization-public-id", 3L);
+        String token = service.issueAccessToken("account-uuid", "organization-public-id", 3L, AccountRole.ORG_ADMIN);
 
         assertThat(service.parse(token))
-                .contains(new BackofficeTokenClaims("account-uuid", "organization-public-id", 3L));
+                .contains(new BackofficeTokenClaims("account-uuid", "organization-public-id", 3L, AccountRole.ORG_ADMIN));
     }
 
     @Test
     @DisplayName("만료된 토큰은 클레임을 꺼내지 않고 거부한다")
     void expiredTokenIsRejected() {
-        String token = service.issueAccessToken("account-uuid", "organization-public-id", 0L);
+        String token = service.issueAccessToken("account-uuid", "organization-public-id", 0L, AccountRole.ORG_ADMIN);
 
         BackofficeTokenServiceImpl later = serviceAt(NOW.plus(BackofficeTokenServiceImpl.ACCESS_TOKEN_VALIDITY).plusSeconds(1));
 
@@ -76,11 +77,11 @@ class BackofficeTokenServiceImplTest {
     @DisplayName("시크릿이 없으면 비활성 — 검증은 모두 실패하고 발급은 예외")
     void disabledWithoutSecret() {
         BackofficeTokenServiceImpl disabled = new BackofficeTokenServiceImpl("", USER_SECRET, Clock.fixed(NOW, ZoneOffset.UTC));
-        String token = service.issueAccessToken("account-uuid", "organization-public-id", 0L);
+        String token = service.issueAccessToken("account-uuid", "organization-public-id", 0L, AccountRole.ORG_ADMIN);
 
         assertThat(disabled.isEnabled()).isFalse();
         assertThat(disabled.parse(token)).isEmpty();
-        assertThatThrownBy(() -> disabled.issueAccessToken("account-uuid", "organization-public-id", 0L))
+        assertThatThrownBy(() -> disabled.issueAccessToken("account-uuid", "organization-public-id", 0L, AccountRole.ORG_ADMIN))
                 .isInstanceOf(IllegalStateException.class);
     }
 

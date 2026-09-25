@@ -6,6 +6,8 @@ package com.safori.security.dto;
  * @param accountUuid          {@code backoffice_account.account_uuid} (subject)
  * @param organizationPublicId 로그인 시 선택한 기관 컨텍스트 {@code organization.public_id}
  * @param authVersion          발급 시점의 {@code backoffice_account.auth_version}
+ * @param role                 발급 시점의 역할. 화면 선택용이며 인가에는 쓰지 않는다
  */
-public record BackofficeTokenClaims(String accountUuid, String organizationPublicId, long authVersion) {
+public record BackofficeTokenClaims(String accountUuid, String organizationPublicId, long authVersion,
+                                    AccountRole role) {
 }

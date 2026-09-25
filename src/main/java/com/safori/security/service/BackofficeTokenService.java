@@ -1,5 +1,6 @@
 package com.safori.security.service;
 
+import com.safori.security.dto.AccountRole;
 import com.safori.security.dto.BackofficeTokenClaims;
 
 import java.util.Optional;
@@ -15,7 +16,7 @@ public interface BackofficeTokenService {
     /**
      * @throws IllegalStateException {@code token.secret-backoffice}가 설정되지 않아 비활성 상태일 때
      */
-    String issueAccessToken(String accountUuid, String organizationPublicId, long authVersion);
+    String issueAccessToken(String accountUuid, String organizationPublicId, long authVersion, AccountRole role);
 
     /** 서명·만료·issuer·audience·토큰 종류를 검증한다. 하나라도 어긋나거나 비활성 상태면 빈 값. */
     Optional<BackofficeTokenClaims> parse(String token);

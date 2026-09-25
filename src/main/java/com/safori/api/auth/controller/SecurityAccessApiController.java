@@ -39,12 +39,15 @@ public class SecurityAccessApiController {
     @Operation(summary = "로그인",
             description = """
                     username + password로 인증하여 JWT 액세스 토큰을 발급합니다.
+                    어르신·기관 관리자·담당자·보호자 모두 이 엔드포인트로 로그인합니다(아이디는 전체에서 유일).
+                    응답의 `role`(ELDER / ORG_ADMIN / CARE_WORKER / GUARDIAN)로 화면을 고르세요.
                     반환된 `accessToken`을 `Authorization: Bearer {accessToken}` 형태로 사용하세요.
                     """)
     @ApiResponse(responseCode = "200", description = "로그인 성공 — accessToken 반환")
     @ApiResponse(responseCode = "400", description = """
             - `4052`: 존재하지 않는 유저입니다
             - `4053`: 비밀번호가 일치하지 않습니다
+            - `4351`: 사용할 수 없는 백오피스 계정입니다 (정지, 승인 대기, 소속 종료, 비활성 기관)
             """)
     @PostMapping("/sign-in")
     public ApiResponseDto<JwtToken> signIn(@Valid @RequestBody SignInRequest signInRequest) {

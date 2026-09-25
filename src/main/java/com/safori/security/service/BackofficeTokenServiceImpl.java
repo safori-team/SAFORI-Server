@@ -1,5 +1,6 @@
 package com.safori.security.service;
 
+import com.safori.security.dto.AccountRole;
 import com.safori.security.dto.BackofficeTokenClaims;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -31,6 +32,7 @@ public class BackofficeTokenServiceImpl implements BackofficeTokenService {
     static final String TOKEN_KIND = "backoffice-access";
     static final String ORGANIZATION_CLAIM = "org";
     static final String AUTH_VERSION_CLAIM = "ver";
+    static final String ROLE_CLAIM = "role";
     static final Duration ACCESS_TOKEN_VALIDITY = Duration.ofMinutes(30);
 
     /** 시크릿 미설정이면 null — 발급·검증 모두 비활성. */
@@ -57,7 +59,8 @@ public class BackofficeTokenServiceImpl implements BackofficeTokenService {
     }
 
     @Override
-    public String issueAccessToken(String accountUuid, String organizationPublicId, long authVersion) {
+    public String issueAccessToken(String accountUuid, String organizationPublicId, long authVersion,
+                                   AccountRole role) {
         if (key == null) {
             throw new IllegalStateException("token.secret-backoffice가 설정되지 않아 백오피스 토큰을 발급할 수 없습니다.");
         }
@@ -69,6 +72,7 @@ public class BackofficeTokenServiceImpl implements BackofficeTokenService {
                 .claim(TOKEN_KIND_CLAIM, TOKEN_KIND)
                 .claim(ORGANIZATION_CLAIM, organizationPublicId)
                 .claim(AUTH_VERSION_CLAIM, authVersion)
+                .claim(ROLE_CLAIM, role.name())
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plus(ACCESS_TOKEN_VALIDITY)))
                 .setId(UUID.randomUUID().toString())
@@ -95,11 +99,13 @@ public class BackofficeTokenServiceImpl implements BackofficeTokenService {
 
             String organizationPublicId = claims.get(ORGANIZATION_CLAIM, String.class);
             Long authVersion = claims.get(AUTH_VERSION_CLAIM, Long.class);
+            String role = claims.get(ROLE_CLAIM, String.class);
             if (!StringUtils.hasText(claims.getSubject()) || !StringUtils.hasText(organizationPublicId)
-                    || authVersion == null) {
+                    || authVersion == null || !StringUtils.hasText(role)) {
                 return Optional.empty();
             }
-            return Optional.of(new BackofficeTokenClaims(claims.getSubject(), organizationPublicId, authVersion));
+            return Optional.of(new BackofficeTokenClaims(claims.getSubject(), organizationPublicId, authVersion,
+                    AccountRole.valueOf(role)));
         } catch (JwtException | IllegalArgumentException e) {
             log.debug("백오피스 토큰 거부: {}", e.getMessage());
             return Optional.empty();

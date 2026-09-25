@@ -80,6 +80,8 @@ public enum ErrorStatus implements BaseErrorCode {
     ORGANIZATION_MEMBER_SELF_APPROVAL(BAD_REQUEST, 4304, "본인의 가입은 직접 승인할 수 없습니다."),
     @ExplainError("기관 관리자는 기관당 1명이다. 소속 종료(REVOKED)되지 않은 관리자가 있는데 관리자를 또 초대한 경우.")
     ORGANIZATION_ADMIN_ALREADY_EXISTS(BAD_REQUEST, 4305, "이미 기관 관리자가 있는 기관입니다."),
+    @ExplainError("백오피스 계정(관리자·담당자·보호자)은 한 기관에만 소속된다. 소속 종료되지 않은 다른 기관 멤버십이 있는 경우.")
+    ORGANIZATION_MEMBER_OF_OTHER_ORGANIZATION(BAD_REQUEST, 4306, "이미 다른 기관에 소속된 계정입니다."),
 
     // 백오피스 계정 오류 (4350번대)
     ACCOUNT_LOGIN_ID_ALREADY_EXISTS(BAD_REQUEST, 4350, "이미 사용 중인 로그인 아이디입니다."),

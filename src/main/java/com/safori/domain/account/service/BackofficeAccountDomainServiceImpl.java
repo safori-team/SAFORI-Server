@@ -3,6 +3,7 @@ package com.safori.domain.account.service;
 import com.safori.common.annotation.DomainService;
 import com.safori.domain.account.entity.BackofficeAccount;
 import com.safori.domain.account.repository.BackofficeAccountRepository;
+import com.safori.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,11 +16,13 @@ import static com.safori.domain.account.exception.AccountHandler.LOGIN_ID_ALREAD
 public class BackofficeAccountDomainServiceImpl implements BackofficeAccountDomainService {
 
     private final BackofficeAccountRepository accountRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
     public BackofficeAccount register(String loginId, String rawPassword, String name) {
-        if (accountRepository.existsByLoginId(loginId)) {
+        // 로그인 엔드포인트가 하나라 아이디는 어르신 앱 계정과도 겹치면 안 된다.
+        if (accountRepository.existsByLoginId(loginId) || userRepository.existsByUsername(loginId)) {
             throw LOGIN_ID_ALREADY_EXISTS;
         }
         return accountRepository.save(

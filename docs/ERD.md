@@ -334,3 +334,5 @@ erDiagram
 
 - 첫 관리자는 SAFORI 운영자가 운영자 API(인가 키 헤더 대조)로 기관과 함께 생성하며, 바로 ACTIVE 상태로 둔다.
 - 기관 이관은 고려하지 않는다. 필요해지면 이전 기관 행을 INACTIVE로 바꾸고 `user_id`를 NULL로 비운 뒤 새 기관에 등록한다.
+- 로그인은 어르신·관리자·담당자·보호자 모두 `POST /v1/api/auth/sign-in` 하나다. 그래서 아이디는 `users.username` 과 `backoffice_account.login_id` 를 통틀어 유일해야 하며, 백오피스 계정은 한 기관에만 소속된다.
+- 백오피스 refresh token도 `refresh_token` 테이블을 같이 쓴다(`username` = 로그인 아이디).
