@@ -15,4 +15,9 @@ public interface CareJournalSelectionRepository extends JpaRepository<CareJourna
     @Query("SELECT s FROM CareJournalSelection s JOIN FETCH s.option o JOIN FETCH o.group LEFT JOIN FETCH o.parent "
             + "WHERE s.journal IN :journals ORDER BY o.sortOrder ASC")
     List<CareJournalSelection> findByJournals(@Param("journals") Collection<CareJournal> journals);
+
+    /** {@link #findByJournals}와 같고 일지 id로 받는다(목록은 일지 엔티티 대신 id만 읽는다). */
+    @Query("SELECT s FROM CareJournalSelection s JOIN FETCH s.option o JOIN FETCH o.group LEFT JOIN FETCH o.parent "
+            + "WHERE s.journal.id IN :journalIds ORDER BY o.sortOrder ASC")
+    List<CareJournalSelection> findByJournalIds(@Param("journalIds") Collection<Long> journalIds);
 }

@@ -1,18 +1,24 @@
 package com.safori.api.journal.service;
 
+import com.safori.api.common.dto.PagedResponse;
 import com.safori.api.journal.dto.JournalDetailResponse;
 import com.safori.api.journal.dto.JournalFormResponse;
+import com.safori.api.journal.dto.JournalListResponse;
 import com.safori.api.journal.dto.JournalSummary;
 import com.safori.api.journal.dto.WriteJournalRequest;
 import com.safori.api.recipient.service.OrganizationRecipients;
 import com.safori.api.worker.service.OrganizationWorkers;
 import com.safori.common.annotation.UseCase;
+import com.safori.domain.access.entity.PermissionCode;
+import com.safori.domain.access.policy.BackofficeAccessPolicy;
 import com.safori.domain.access.policy.BackofficeActor;
+import com.safori.domain.access.policy.RecipientAccessScope;
 import com.safori.domain.care.entity.CareJournal;
 import com.safori.domain.care.entity.CareJournalSelection;
 import com.safori.domain.care.entity.CareRecipient;
 import com.safori.domain.care.entity.JournalOption;
 import com.safori.domain.care.exception.CareHandler;
+import com.safori.domain.care.model.JournalListRow;
 import com.safori.domain.care.model.JournalSelectionInput;
 import com.safori.domain.care.repository.CareJournalRepository;
 import com.safori.domain.care.repository.CareJournalSelectionRepository;
@@ -21,9 +27,12 @@ import com.safori.domain.care.repository.JournalOptionRepository;
 import com.safori.domain.care.service.CareJournalDomainService;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,6 +53,9 @@ public class CareJournalUseCase {
     /** 대상자 상세에 보이는 최근 조치 기록 수. */
     static final int RECENT_LIMIT = 20;
 
+    /** 일지 목록 기본 조회 기간(일). */
+    static final int DEFAULT_PERIOD_DAYS = 30;
+
     private final OrganizationRecipients organizationRecipients;
     private final OrganizationWorkers organizationWorkers;
     private final CareJournalDomainService journalDomainService;
@@ -52,6 +64,7 @@ public class CareJournalUseCase {
     private final JournalOptionGroupRepository groupRepository;
     private final JournalOptionRepository optionRepository;
     private final UserAdaptor userAdaptor;
+    private final BackofficeAccessPolicy accessPolicy;
 
     @Transactional(readOnly = true)
     public JournalFormResponse form() {
@@ -97,6 +110,40 @@ public class CareJournalUseCase {
                     journal.getWriter().getAccount().getName(), first(chosen, METHOD), first(chosen, RESULT),
                     labels(chosen, ACTION), labels(chosen, FOLLOW_UP));
         }).toList();
+    }
+
+    /**
+     * 일지 목록. 범위는 요청한 구성원의 권한 범위(관리자 기관 전체, 담당자 본인 배정)다.
+     * 기간을 비우면 최근 30일(오늘 포함)이다.
+     */
+    @Transactional(readOnly = true)
+    public JournalListResponse list(BackofficeActor actor, String keyword, String managerId, LocalDate from,
+                                    LocalDate to, int page, int size) {
+        LocalDate end = to != null ? to : LocalDate.now();
+        LocalDate start = from != null ? from : end.minusDays(DEFAULT_PERIOD_DAYS - 1);
+        if (start.isAfter(end)) {
+            throw CareHandler.JOURNAL_INVALID_PERIOD;
+        }
+        PageRequest pageable = PageRequest.of(page - 1, size);
+        RecipientAccessScope scope = accessPolicy.recipientScope(actor.organizationMemberId(), PermissionCode.RECIPIENT_READ);
+        if (scope.isEmpty()) {
+            return new JournalListResponse(start, end, PagedResponse.from(Page.empty(pageable)));
+        }
+
+        Page<JournalListRow> rows = journalRepository.findJournals(scope.organizationId(),
+                scope.organizationMemberId(), scope.organizationWide(), scope.includesAssigned(),
+                scope.includesLinked(), StringUtils.hasText(keyword) ? keyword.trim() : null,
+                StringUtils.hasText(managerId) ? managerId : null,
+                start.atStartOfDay(), end.plusDays(1).atStartOfDay(), pageable);
+        Map<Long, List<CareJournalSelection>> selections = rows.isEmpty() ? Map.of()
+                : selectionRepository.findByJournalIds(rows.map(JournalListRow::id).toList()).stream()
+                        .collect(Collectors.groupingBy(s -> s.getJournal().getId()));
+        return new JournalListResponse(start, end, PagedResponse.from(rows.map(row -> {
+            List<CareJournalSelection> chosen = selections.getOrDefault(row.id(), List.of());
+            return new JournalListResponse.Item(row.journalPublicId(), row.recipientPublicId(), row.recipientName(),
+                    row.confirmedAt(), row.statusCode(), first(chosen, METHOD), first(chosen, RESULT),
+                    row.writerName());
+        })));
     }
 
     private JournalDetailResponse detail(CareRecipient recipient, CareJournal journal,

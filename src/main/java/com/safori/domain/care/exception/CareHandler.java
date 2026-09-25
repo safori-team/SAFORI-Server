@@ -29,6 +29,8 @@ public class CareHandler extends GeneralException {
             new CareHandler(ErrorStatus.CARE_JOURNAL_INVALID_SELECTION);
     public static final GeneralException JOURNAL_NOT_FOUND =
             new CareHandler(ErrorStatus.CARE_JOURNAL_NOT_FOUND);
+    public static final GeneralException JOURNAL_INVALID_PERIOD =
+            new CareHandler(ErrorStatus.CARE_JOURNAL_INVALID_PERIOD);
 
     public CareHandler(BaseErrorCode code) {
         super(code);
