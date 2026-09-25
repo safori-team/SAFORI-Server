@@ -15,6 +15,9 @@ public class CareHandler extends GeneralException {
     public static final GeneralException GUARDIAN_NOT_LINKABLE =
             new CareHandler(ErrorStatus.CARE_GUARDIAN_NOT_LINKABLE);
 
+    public static final GeneralException RECIPIENT_NOT_FOUND =
+            new CareHandler(ErrorStatus.CARE_RECIPIENT_NOT_FOUND);
+
     public CareHandler(BaseErrorCode code) {
         super(code);
     }

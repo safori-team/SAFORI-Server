@@ -102,7 +102,9 @@ public enum ErrorStatus implements BaseErrorCode {
     @ExplainError("활성 상태가 아니거나 배정 범위(ASSIGNED_RECIPIENT) 권한이 없는 구성원을 담당자로 배정하려 한 경우.")
     CARE_WORKER_NOT_ASSIGNABLE(BAD_REQUEST, 4452, "배정할 수 없는 담당자입니다."),
     @ExplainError("활성 상태가 아니거나 연결 범위(LINKED_RECIPIENT) 권한이 없는 구성원을 보호자로 연결하려 한 경우.")
-    CARE_GUARDIAN_NOT_LINKABLE(BAD_REQUEST, 4453, "연결할 수 없는 보호자입니다.");
+    CARE_GUARDIAN_NOT_LINKABLE(BAD_REQUEST, 4453, "연결할 수 없는 보호자입니다."),
+    @ExplainError("경로의 대상자 식별자(public_id)가 없거나 요청한 구성원의 기관 대상자가 아닌 경우.")
+    CARE_RECIPIENT_NOT_FOUND(BAD_REQUEST, 4454, "존재하지 않는 대상자입니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

@@ -26,6 +26,14 @@ public class PendingAuthorizationRules {
                 // 담당자 등록·정보 수정 (권한 담당자: MEMBER_MANAGE 로 옮길 것)
                 .requestMatchers(antMatcher(HttpMethod.POST, "/v1/api/admin/managers"),
                         antMatcher(HttpMethod.PUT, "/v1/api/admin/managers/{managerId}"))
+                .access(authz.member())
+                // 담당자 목록·상세 (권한 담당자: ASSIGNMENT_READ 로 옮길 것)
+                .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/managers"),
+                        antMatcher(HttpMethod.GET, "/v1/api/admin/managers/{managerId}"))
+                .access(authz.member())
+                // 담당자 배정·변경·해제·일괄 변경 (권한 담당자: ASSIGNMENT_MANAGE 로 옮길 것)
+                .requestMatchers(antMatcher(HttpMethod.PUT, "/v1/api/admin/managers/{managerId}/care-recipients"),
+                        antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/manager"))
                 .access(authz.member());
     }
 }

@@ -28,5 +28,9 @@ public interface CareAssignmentRepository extends JpaRepository<CareAssignment, 
     @Query("SELECT a FROM CareAssignment a WHERE a.worker = :worker AND a.endedAt IS NULL")
     List<CareAssignment> findCurrentByWorkerForUpdate(@Param("worker") OrganizationMember worker);
 
+    /** 담당자의 현재 배정(조회용, 잠금 없음). 대상자를 함께 읽는다. */
+    @Query("SELECT a FROM CareAssignment a JOIN FETCH a.recipient WHERE a.worker = :worker AND a.endedAt IS NULL")
+    List<CareAssignment> findCurrentByWorker(@Param("worker") OrganizationMember worker);
+
     boolean existsByRecipientAndWorkerAndEndedAtIsNull(CareRecipient recipient, OrganizationMember worker);
 }
