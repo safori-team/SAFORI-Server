@@ -7,6 +7,8 @@ import com.safori.common.annotation.UserCode;
 import com.safori.domain.emotion.entity.EmotionType;
 import com.safori.domain.question.entity.QuestionCategory;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.extensions.Extension;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +30,8 @@ import java.time.LocalDate;
  * <p>{@code @Profile("!prod")} — 운영 프로파일에서는 빈 자체가 만들어지지 않아 노출되지 않는다.
  */
 @Slf4j
-@Tag(name = "[개발용 - 마음일기 시딩]",
+@Tag(name = "dev-mind-diary",
+     extensions = @Extension(properties = @ExtensionProperty(name = "x-displayName", value = "[개발용 - 마음일기 시딩]")),
      description = """
              스케줄러의 '3일 연속 부정 감정' 조건을 결정적으로 재현하기 위한 개발 도구.
              서버가 오디오를 S3에 올리고(프론트 없이) 실제 분석까지 돌린 뒤, 원하는 날짜로
@@ -43,7 +46,7 @@ public class DevMindDiaryController {
 
     private final SeedMindDiaryUseCase seedMindDiaryUseCase;
 
-    @Operation(summary = "[개발용] 마음일기 시딩 (오디오 업로드 + 날짜/감정 지정)",
+    @Operation(operationId = "seed", summary = "[개발용] 마음일기 시딩 (오디오 업로드 + 날짜/감정 지정)",
             description = """
                     multipart/form-data로 오디오를 올리면 서버가 S3 PUT → 등록 → 실제 분석까지 수행한다.
 
