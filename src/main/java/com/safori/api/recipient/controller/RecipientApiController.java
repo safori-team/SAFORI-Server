@@ -9,11 +9,13 @@ import com.safori.api.recipient.dto.RecipientListResponse;
 import com.safori.api.recipient.dto.RecipientLookupResponse;
 import com.safori.api.recipient.dto.RegisterRecipientRequest;
 import com.safori.api.recipient.dto.RegisterRecipientResponse;
+import com.safori.api.recipient.dto.UpdateRecipientRequest;
 import com.safori.api.recipient.service.CareRecordUseCase;
 import com.safori.api.recipient.service.GetRecipientUseCase;
 import com.safori.api.recipient.service.ListRecipientsUseCase;
 import com.safori.api.recipient.service.LookupRecipientUseCase;
 import com.safori.api.recipient.service.RegisterRecipientUseCase;
+import com.safori.api.recipient.service.UpdateRecipientUseCase;
 import com.safori.api.worker.dto.AssignManagerRequest;
 import com.safori.api.worker.dto.AssignmentResponse;
 import com.safori.api.worker.service.WorkerAssignmentUseCase;
@@ -58,6 +60,7 @@ public class RecipientApiController {
     private final ListRecipientsUseCase listRecipientsUseCase;
     private final CareRecordUseCase careRecordUseCase;
     private final GetRecipientUseCase getRecipientUseCase;
+    private final UpdateRecipientUseCase updateRecipientUseCase;
 
     @Operation(operationId = "lookupRecipient", summary = "대상자 추가 전 어르신 조회",
             description = """
@@ -152,7 +155,8 @@ public class RecipientApiController {
 
     @Operation(operationId = "getCareRecipient", summary = "대상자 상세 조회",
             description = """
-                    현황 카드를 눌렀을 때의 상세 화면입니다. 이름·담당자·확인 필요도·처리 상태와 확인 사유를 줍니다.
+                    현황 카드를 눌렀을 때의 기록 상세 화면과 대상자 정보 상세 화면이 같이 씁니다.
+                    기본 정보(생년월일·연락처·이용 상태·가입일), 담당자(직종·연락처), 연결된 보호자, 확인 필요도·처리 상태와 확인 사유를 줍니다.
                     - 확인 사유(`reason`)는 상태 코드가 있을 때만 있고, 없으면 null입니다(표시 없음 X).
                     - 담당자가 처리 상태를 바꿀 때는 `reason.recordId`로 처리 상태 변경 API를 부르세요.
                     - 최근 조치 기록(`recentActions`)은 일지 요약(확인 일시 최신순)이고, 카드를 누르면 일지 상세 API를 부르세요.
@@ -164,6 +168,27 @@ public class RecipientApiController {
             @Parameter(hidden = true) @AuthenticationPrincipal BackofficeActor actor,
             @Parameter(description = "대상자 식별자 (public_id)") @PathVariable String careRecipientId) {
         return ApiResponseDto.onSuccess(getRecipientUseCase.execute(actor, careRecipientId));
+    }
+
+    @Operation(operationId = "updateCareRecipient", summary = "대상자 정보 수정",
+            description = """
+                    대상자 수정 화면의 값을 모두 보냅니다. 비밀번호는 바꿀 때만 보내세요(null이면 그대로).
+                    - 아이디를 바꾸면 어르신 앱은 로그인이 유지됩니다(다음 토큰 재발급부터 새 아이디).
+                    - `active=false`면 기관 이용 종료로 현황·목록·확인 사유 판정에서 빠집니다. 어르신 앱 로그인은 그대로입니다.
+                    응답은 대상자 상세와 같습니다.
+                    """)
+    @ApiResponse(responseCode = "200", description = "수정 성공 — 대상자 상세 반환")
+    @ApiResponse(responseCode = "400", description = """
+            - `4000`: 입력값 형식 오류
+            - `4454`: 존재하지 않는 대상자입니다
+            - `4050`: 이미 존재하는 username입니다 (아이디 중복)
+            """)
+    @PutMapping("/{careRecipientId}")
+    public ApiResponseDto<RecipientDetailResponse> update(
+            @Parameter(hidden = true) @AuthenticationPrincipal BackofficeActor actor,
+            @Parameter(description = "대상자 식별자 (public_id)") @PathVariable String careRecipientId,
+            @Valid @RequestBody UpdateRecipientRequest request) {
+        return ApiResponseDto.onSuccess(updateRecipientUseCase.execute(actor, careRecipientId, request));
     }
 
     @Operation(operationId = "getCareRecord", summary = "기록 상세 조회",
