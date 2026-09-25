@@ -23,6 +23,8 @@ public class OrganizationHandler extends GeneralException {
     public static final GeneralException MEMBER_OF_OTHER_ORGANIZATION =
             new OrganizationHandler(ErrorStatus.ORGANIZATION_MEMBER_OF_OTHER_ORGANIZATION);
 
+    public static final GeneralException NOT_FOUND =
+            new OrganizationHandler(ErrorStatus.ORGANIZATION_NOT_FOUND);
     public static final GeneralException MEMBER_NOT_FOUND =
             new OrganizationHandler(ErrorStatus.ORGANIZATION_MEMBER_NOT_FOUND);
 

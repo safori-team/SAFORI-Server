@@ -5,6 +5,7 @@ import com.safori.domain.care.entity.CareRecipientStatus;
 import com.safori.domain.care.entity.CareStatusCode;
 import com.safori.domain.care.model.RecipientStatusCounts;
 import com.safori.domain.care.model.RecipientStatusRow;
+import com.safori.domain.organization.model.OrganizationCount;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +44,16 @@ public interface CareRecipientRepository extends JpaRepository<CareRecipient, Lo
             """;
 
     Optional<CareRecipient> findByPublicId(String publicId);
+
+    /** 기관별 활성 대상자 수(운영자 기관 목록·상세). 대상자가 없는 기관은 행이 없다. */
+    @Query("""
+            SELECT new com.safori.domain.organization.model.OrganizationCount(r.organization.id, COUNT(r))
+            FROM CareRecipient r
+            WHERE r.organization.id IN :organizationIds
+              AND r.status = com.safori.domain.care.entity.CareRecipientStatus.ACTIVE
+            GROUP BY r.organization.id
+            """)
+    List<OrganizationCount> countActiveByOrganizations(@Param("organizationIds") Collection<Long> organizationIds);
 
     boolean existsByUserId(Long userId);
 

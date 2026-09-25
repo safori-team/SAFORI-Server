@@ -56,6 +56,10 @@ public class Organization extends BaseTimeEntity {
                 .build();
     }
 
+    public void rename(String name) {
+        this.name = name;
+    }
+
     public boolean isActive() {
         return this.status == OrganizationStatus.ACTIVE;
     }

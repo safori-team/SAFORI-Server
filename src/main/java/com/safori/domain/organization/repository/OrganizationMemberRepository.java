@@ -7,6 +7,7 @@ import com.safori.domain.organization.entity.OrganizationMember;
 import com.safori.domain.organization.entity.OrganizationMemberStatus;
 import com.safori.domain.organization.model.GuardianCounts;
 import com.safori.domain.organization.model.GuardianSummary;
+import com.safori.domain.organization.model.OrganizationCount;
 import com.safori.domain.organization.model.StatusCount;
 import com.safori.domain.organization.model.WorkerSummary;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -100,6 +102,34 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
             + "SUM(CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END)) " + GUARDIANS)
     GuardianCounts countGuardians(@Param("organizationId") Long organizationId,
                                   @Param("keyword") String keyword);
+
+    /**
+     * 기관들의 현재 구성원(소속 종료 제외) 중 기본 그룹이 {@code templateCode}인 구성원. 계정을 함께 읽는다.
+     * 운영자 기관 목록·상세의 관리자 표시용이다(관리자는 기관당 1명).
+     */
+    @Query("""
+            SELECT m FROM OrganizationMember m
+            JOIN FETCH m.account
+            WHERE m.organization.id IN :organizationIds
+              AND m.status <> com.safori.domain.organization.entity.OrganizationMemberStatus.REVOKED
+              AND EXISTS (SELECT 1 FROM AccessGroupMember gm
+                          WHERE gm.member = m AND gm.group.systemCode = :templateCode)
+            """)
+    List<OrganizationMember> findCurrentByTemplate(@Param("organizationIds") Collection<Long> organizationIds,
+                                                   @Param("templateCode") String templateCode);
+
+    /** 기관별 현재 구성원 수(기본 그룹 {@code templateCode}, 소속 종료 제외). 구성원이 없는 기관은 행이 없다. */
+    @Query("""
+            SELECT new com.safori.domain.organization.model.OrganizationCount(m.organization.id, COUNT(m))
+            FROM OrganizationMember m
+            WHERE m.organization.id IN :organizationIds
+              AND m.status <> com.safori.domain.organization.entity.OrganizationMemberStatus.REVOKED
+              AND EXISTS (SELECT 1 FROM AccessGroupMember gm
+                          WHERE gm.member = m AND gm.group.systemCode = :templateCode)
+            GROUP BY m.organization.id
+            """)
+    List<OrganizationCount> countCurrentByTemplate(@Param("organizationIds") Collection<Long> organizationIds,
+                                                   @Param("templateCode") String templateCode);
 
     String GUARDIANS = """
             FROM OrganizationMember m
