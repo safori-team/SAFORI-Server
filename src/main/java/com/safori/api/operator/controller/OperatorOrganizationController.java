@@ -5,6 +5,8 @@ import com.safori.api.operator.dto.CreateOrganizationRequest;
 import com.safori.api.operator.dto.CreateOrganizationResponse;
 import com.safori.api.operator.service.CreateOrganizationUseCase;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.extensions.Extension;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,7 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static com.safori.security.filter.OperatorKeyFilter.HEADER;
 
-@Tag(name = "[운영자]", description = "SAFORI 운영자 전용. `X-Operator-Key` 헤더로 인증한다.")
+@Tag(name = "operator",
+     extensions = @Extension(properties = @ExtensionProperty(name = "x-displayName", value = "[운영자]")),
+     description = "SAFORI 운영자 전용. `X-Operator-Key` 헤더로 인증한다.")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/v1/api/operator/organizations")
@@ -26,7 +30,7 @@ public class OperatorOrganizationController {
 
     private final CreateOrganizationUseCase createOrganizationUseCase;
 
-    @Operation(summary = "기관 + 최초 기관 관리자 생성",
+    @Operation(operationId = "create", summary = "기관 + 최초 기관 관리자 생성",
             description = """
                     기관을 만들고(기본 역할·그룹 포함) 관리자 계정을 ACTIVE 상태의 기관 관리자(ORG_ADMIN)로 등록한다.
                     기관 관리자는 기관당 1명이다.

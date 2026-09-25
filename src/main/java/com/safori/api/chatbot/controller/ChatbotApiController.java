@@ -27,6 +27,8 @@ import com.safori.api.chatbot.service.UpdateMessageFeedbackUseCase;
 import com.safori.api.common.dto.ApiResponseDto;
 import com.safori.common.annotation.UserCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.extensions.Extension;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -43,7 +45,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "[챗봇 - 도란이]",
+@Tag(name = "chatbot",
+     extensions = @Extension(properties = @ExtensionProperty(name = "x-displayName", value = "[챗봇 - 도란이]")),
      description = """
              CBT 리프레이밍 챗봇 '도란이' API.
 
@@ -87,7 +90,7 @@ public class ChatbotApiController {
     private final DeclineMindDiaryOfferUseCase declineMindDiaryOfferUseCase;
 
     @PostMapping("/sessions")
-    @Operation(
+    @Operation(operationId = "createSession", 
             summary = "채팅 세션 생성",
             description = """
                     새 채팅방을 시작할 때 호출.
@@ -99,7 +102,7 @@ public class ChatbotApiController {
     }
 
     @GetMapping("/mind-diary-offer")
-    @Operation(
+    @Operation(operationId = "getMindDiaryOffer", 
             summary = "마음일기 상담 제안 조회 (모달용)",
             description = """
                     조건(예: 3일 연속 부정 감정)을 충족해 대기 중인 상담 제안이 있는지 조회한다.
@@ -118,7 +121,7 @@ public class ChatbotApiController {
     }
 
     @PostMapping("/mind-diary-offer/{offerId}/accept")
-    @Operation(
+    @Operation(operationId = "acceptMindDiaryOffer", 
             summary = "마음일기 상담 제안 수락 → 세션 생성",
             description = """
                     모달에서 사용자가 상담을 수락하면 호출. 서버가 이때 비로소 세션을 만들고
@@ -141,7 +144,7 @@ public class ChatbotApiController {
     }
 
     @PostMapping("/mind-diary-offer/{offerId}/decline")
-    @Operation(
+    @Operation(operationId = "declineMindDiaryOffer", 
             summary = "마음일기 상담 제안 거절",
             description = """
                     모달에서 사용자가 상담을 원치 않으면 호출. 제안이 DECLINED로 바뀌고
@@ -161,7 +164,7 @@ public class ChatbotApiController {
     }
 
     @DeleteMapping("/sessions/{sessionId}")
-    @Operation(
+    @Operation(operationId = "deleteSession", 
             summary = "채팅 세션 삭제 (hard delete, cascade)",
             description = """
                     채팅방 삭제. 해당 세션에 속한 모든 메시지가 즉시 영구 삭제된다(복구 불가).
@@ -180,7 +183,7 @@ public class ChatbotApiController {
     }
 
     @PostMapping("/sessions/{sessionId}/extend")
-    @Operation(
+    @Operation(operationId = "extendSession", 
             summary = "대화 연장 (턴 제한 해제)",
             description = """
                     턴을 모두 써서 sessionClosed=true가 된 세션에서 "더 이야기하시겠어요?" → 예를 누르면 호출.
@@ -207,7 +210,7 @@ public class ChatbotApiController {
     }
 
     @GetMapping("/sessions")
-    @Operation(
+    @Operation(operationId = "getSessions", 
             summary = "내 채팅방 목록 조회 (최신 활동순, 페이징)",
             description = """
                     홈/채팅 목록 화면에서 사용. 사용자의 세션을 마지막 메시지 시각 기준 내림차순으로 반환.
@@ -234,7 +237,7 @@ public class ChatbotApiController {
     }
 
     @GetMapping("/history/{sessionId}")
-    @Operation(
+    @Operation(operationId = "getHistory", 
             summary = "채팅 상세 (메시지 페이징)",
             description = """
                     특정 세션의 대화 내용을 페이지 단위로 시간순 반환.
@@ -271,7 +274,7 @@ public class ChatbotApiController {
     }
 
     @PostMapping("/reframing")
-    @Operation(
+    @Operation(operationId = "reframing", 
             summary = "텍스트 채팅 (도란이 동기 응답)",
             description = """
                     텍스트로 도란이와 대화. 서버가 LLM(Gemini 2.5 Pro)을 동기로 호출하므로
@@ -320,7 +323,7 @@ public class ChatbotApiController {
     }
 
     @PostMapping("/voice-reframing")
-    @Operation(
+    @Operation(operationId = "voiceReframing", 
             summary = "음성 채팅 (STT + 감정분석 + 상담을 한 번에)",
             description = """
                     음성 입력으로 도란이와 대화. 한 번의 호출로 서버가 전체 파이프라인을 처리한다:
@@ -367,7 +370,7 @@ public class ChatbotApiController {
     }
 
     @GetMapping("/voices/playback-url")
-    @Operation(
+    @Operation(operationId = "getVoicePlaybackUrl", 
             summary = "음성 발화 재생용 URL 발급",
             description = """
                     채팅 히스토리의 사용자 음성 발화(USER_VOICE)를 다시 듣기 위한 presigned GET URL을 발급한다.
@@ -387,7 +390,7 @@ public class ChatbotApiController {
     }
 
     @PutMapping("/messages/{messageId}/feedback")
-    @Operation(
+    @Operation(operationId = "updateFeedback", 
             summary = "메시지에 '진짜 마음' 피드백 기록",
             description = """
                     봇이 분석한 emotion이 본인 마음과 다를 때 사용자가 직접 입력하는 피드백.
