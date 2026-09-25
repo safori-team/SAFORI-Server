@@ -3,7 +3,10 @@ package com.safori.api.worker.controller;
 import com.safori.api.common.dto.ApiResponseDto;
 import com.safori.api.worker.dto.RegisterWorkerRequest;
 import com.safori.api.worker.dto.RegisterWorkerResponse;
+import com.safori.api.worker.dto.UpdateWorkerRequest;
+import com.safori.api.worker.dto.WorkerProfileResponse;
 import com.safori.api.worker.service.RegisterWorkerUseCase;
+import com.safori.api.worker.service.UpdateWorkerUseCase;
 import com.safori.domain.access.policy.BackofficeActor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,7 +17,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkerApiController {
 
     private final RegisterWorkerUseCase registerWorkerUseCase;
+    private final UpdateWorkerUseCase updateWorkerUseCase;
 
     @Operation(operationId = "registerManager", summary = "담당자 등록",
             description = """
@@ -46,5 +52,23 @@ public class WorkerApiController {
             @Parameter(hidden = true) @AuthenticationPrincipal BackofficeActor actor,
             @Valid @RequestBody RegisterWorkerRequest request) {
         return ApiResponseDto.onSuccess(registerWorkerUseCase.execute(actor, request));
+    }
+
+    @Operation(operationId = "updateManager", summary = "담당자 정보 수정",
+            description = """
+                    등록 폼의 기본 정보(이름·연락처·직종·계정 상태)를 수정합니다. 아이디·비밀번호는 바꾸지 않습니다.
+                    `active=false`로 바꾸면 담당자가 로그인 중이어도 다음 요청부터 끊깁니다.
+                    """)
+    @ApiResponse(responseCode = "200", description = "수정 성공 — 수정된 기본 정보 반환")
+    @ApiResponse(responseCode = "400", description = """
+            - `4000`: 입력값 형식 오류
+            - `4307`: 존재하지 않는 구성원입니다 (다른 기관 소속이거나 담당자가 아님)
+            """)
+    @PutMapping("/{managerId}")
+    public ApiResponseDto<WorkerProfileResponse> update(
+            @Parameter(hidden = true) @AuthenticationPrincipal BackofficeActor actor,
+            @Parameter(description = "담당자 식별자 (계정 UUID)") @PathVariable String managerId,
+            @Valid @RequestBody UpdateWorkerRequest request) {
+        return ApiResponseDto.onSuccess(updateWorkerUseCase.execute(actor, managerId, request));
     }
 }

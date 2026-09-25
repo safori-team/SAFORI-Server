@@ -81,6 +81,11 @@ public class BackofficeAccount extends BaseTimeEntity {
                 .build();
     }
 
+    public void changeProfile(String name, String phone) {
+        this.name = name;
+        this.phone = phone;
+    }
+
     public boolean isActive() {
         return this.status == BackofficeAccountStatus.ACTIVE;
     }

@@ -20,6 +20,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -80,6 +81,35 @@ class WorkerRegistrationTest {
 
         register(body("worker03", true).replace("workPass1234", "onlyletters"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("정보 수정: 이름·연락처·직종이 바뀌고, 비활성화하면 로그인 불가. 없는 담당자·관리자 본인은 4307")
+    void updateWorker() throws Exception {
+        String managerId = objectMapper.readTree(register(body("worker04", true))
+                .andReturn().getResponse().getContentAsString()).at("/result/managerId").asText();
+
+        update(managerId, """
+                {"name":"박수정","phone":"01099998888","jobTitle":"생활복지사","active":false}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.name").value("박수정"))
+                .andExpect(jsonPath("$.result.phone").value("01099998888"))
+                .andExpect(jsonPath("$.result.jobTitle").value("생활복지사"))
+                .andExpect(jsonPath("$.result.active").value(false));
+        signIn("worker04", "workPass1234").andExpect(jsonPath("$.code").value(4351));
+
+        String validBody = """
+                {"name":"박수정","phone":"01099998888","jobTitle":"생활복지사","active":true}
+                """;
+        update("no-such-manager", validBody).andExpect(jsonPath("$.code").value(4307));
+        String adminId = accountRepository.findByLoginId("orgadmin01").orElseThrow().getAccountUuid();
+        update(adminId, validBody).andExpect(jsonPath("$.code").value(4307));
+    }
+
+    private ResultActions update(String managerId, String body) throws Exception {
+        return mockMvc.perform(put(REGISTER + "/" + managerId).header(HttpHeaders.AUTHORIZATION, adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     private static String body(String loginId, boolean active) {

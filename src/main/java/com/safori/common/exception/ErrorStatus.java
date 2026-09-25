@@ -82,6 +82,8 @@ public enum ErrorStatus implements BaseErrorCode {
     ORGANIZATION_ADMIN_ALREADY_EXISTS(BAD_REQUEST, 4305, "이미 기관 관리자가 있는 기관입니다."),
     @ExplainError("백오피스 계정(관리자·담당자·보호자)은 한 기관에만 소속된다. 소속 종료되지 않은 다른 기관 멤버십이 있는 경우.")
     ORGANIZATION_MEMBER_OF_OTHER_ORGANIZATION(BAD_REQUEST, 4306, "이미 다른 기관에 소속된 계정입니다."),
+    @ExplainError("경로의 구성원 식별자가 없거나, 요청한 구성원의 기관 소속이 아니거나, 기대한 역할(예: 담당자)이 아닌 경우.")
+    ORGANIZATION_MEMBER_NOT_FOUND(BAD_REQUEST, 4307, "존재하지 않는 구성원입니다."),
 
     // 백오피스 계정 오류 (4350번대)
     ACCOUNT_LOGIN_ID_ALREADY_EXISTS(BAD_REQUEST, 4350, "이미 사용 중인 로그인 아이디입니다."),

@@ -32,6 +32,13 @@ public class BackofficeAccountDomainServiceImpl implements BackofficeAccountDoma
     }
 
     @Override
+    public BackofficeAccount changeProfile(BackofficeAccount account, String name, String phone) {
+        BackofficeAccount current = reload(account);
+        current.changeProfile(name, PhoneNumber.normalize(phone));
+        return current;
+    }
+
+    @Override
     public BackofficeAccount suspend(BackofficeAccount account) {
         BackofficeAccount current = reload(account);
         current.suspend();
