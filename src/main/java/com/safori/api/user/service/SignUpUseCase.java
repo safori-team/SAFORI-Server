@@ -24,6 +24,7 @@ public class SignUpUseCase {
                 userRegisterRequest.getName(),
                 userRegisterRequest.getGender(),
                 userRegisterRequest.getBirthDate(),
+                userRegisterRequest.getPhone(),
                 userRegisterRequest.getNickname());
         return user.getId();
     }

@@ -39,7 +39,7 @@ class SignUpUseCaseTest {
                 .birthDate(BIRTH)
                 .nickname("길동이")
                 .build();
-        given(userDomainService.registerUser("user01", "myPass1234", "홍길동", Gender.MALE, BIRTH, "길동이")).willReturn(user);
+        given(userDomainService.registerUser("user01", "myPass1234", "홍길동", Gender.MALE, BIRTH, null, "길동이")).willReturn(user);
         given(user.getId()).willReturn(7L);
 
         Long userId = signUpUseCase.execute(request);
@@ -48,7 +48,7 @@ class SignUpUseCaseTest {
         verify(userValidator).validateUsername("user01");
         verify(userValidator).validatePassword("myPass1234");
         verify(userValidator).validateName("홍길동");
-        verify(userDomainService).registerUser("user01", "myPass1234", "홍길동", Gender.MALE, BIRTH, "길동이");
+        verify(userDomainService).registerUser("user01", "myPass1234", "홍길동", Gender.MALE, BIRTH, null, "길동이");
     }
 
     @Test
@@ -61,12 +61,12 @@ class SignUpUseCaseTest {
                 .gender(Gender.FEMALE)
                 .birthDate(BIRTH)
                 .build();
-        given(userDomainService.registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, BIRTH, null)).willReturn(user);
+        given(userDomainService.registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, BIRTH, null, null)).willReturn(user);
         given(user.getId()).willReturn(8L);
 
         Long userId = signUpUseCase.execute(request);
 
         assertThat(userId).isEqualTo(8L);
-        verify(userDomainService).registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, BIRTH, null);
+        verify(userDomainService).registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, BIRTH, null, null);
     }
 }

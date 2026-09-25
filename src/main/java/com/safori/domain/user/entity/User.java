@@ -59,6 +59,10 @@ public class User extends BaseTimeEntity implements UserDetails {
     /** 생년월일. 기관 대상자 목록·상세에 표시한다. 컬럼 추가 전 가입자는 null. */
     private LocalDate birthDate;
 
+    /** 휴대폰 번호(숫자만). 기관 대상자 조회·연락에 쓴다. 컬럼 추가 전 가입자는 null. */
+    @Column(length = 11)
+    private String phone;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singleton(new SimpleGrantedAuthority(this.role.getKey()));

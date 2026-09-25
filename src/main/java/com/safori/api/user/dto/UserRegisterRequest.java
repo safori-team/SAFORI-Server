@@ -1,5 +1,6 @@
 package com.safori.api.user.dto;
 
+import com.safori.common.util.PhoneNumber;
 import com.safori.domain.user.entity.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -42,6 +43,10 @@ public class UserRegisterRequest {
     @Schema(description = "생년월일 (yyyy-MM-dd, 선택). 앱 회원가입 화면에 추가되면 필수로 바꾼다.", example = "1960-03-12")
     @Past(message = "생년월일은 오늘 이전 날짜여야 합니다")
     private final LocalDate birthDate;
+
+    @Schema(description = "휴대폰 번호 (선택, 하이픈 있어도 됨). 앱 회원가입 화면에 추가되면 필수로 바꾼다.", example = "010-1234-5678")
+    @Pattern(regexp = PhoneNumber.PATTERN, message = "휴대폰 번호 형식이 올바르지 않습니다")
+    private final String phone;
 
     @Schema(description = "별명 (선택)", example = "길동이")
     private final String nickname;

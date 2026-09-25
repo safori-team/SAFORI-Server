@@ -121,7 +121,7 @@ class CareRecipientRepositoryTest {
     }
 
     private OrganizationMember persistMember(Organization organization, String loginId) {
-        BackofficeAccount account = persist(BackofficeAccount.create(loginId, "hash", loginId));
+        BackofficeAccount account = persist(BackofficeAccount.create(loginId, "hash", loginId, null));
         return persist(OrganizationMember.invite(organization, account, null));
     }
 

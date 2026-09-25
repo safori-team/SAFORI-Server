@@ -1,6 +1,7 @@
 package com.safori.domain.user.service;
 
 import com.safori.common.annotation.DomainService;
+import com.safori.common.util.PhoneNumber;
 import com.safori.domain.account.repository.BackofficeAccountRepository;
 import com.safori.domain.user.entity.Gender;
 import com.safori.domain.user.entity.Role;
@@ -26,7 +27,7 @@ public class UserDomainServiceImpl implements UserDomainService {
 
     @Override
     public User registerUser(String username, String password, String name, Gender gender, LocalDate birthDate,
-                      String nickname) {
+                      String phone, String nickname) {
         // 로그인 엔드포인트가 하나라 아이디는 백오피스 계정과도 겹치면 안 된다.
         if (userRepository.existsByUsername(username) || backofficeAccountRepository.existsByLoginId(username)) {
             throw USERNAME_ALREADY_EXISTS;
@@ -37,6 +38,7 @@ public class UserDomainServiceImpl implements UserDomainService {
                 .name(name)
                 .gender(gender)
                 .birthDate(birthDate)
+                .phone(PhoneNumber.normalize(phone))
                 .nickname(nickname)
                 .role(Role.USER)
                 .userUuid(UUID.randomUUID().toString())

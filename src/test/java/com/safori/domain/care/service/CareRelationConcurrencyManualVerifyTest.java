@@ -130,7 +130,7 @@ class CareRelationConcurrencyManualVerifyTest {
 
     private OrganizationMember activeMember(Organization organization, RoleTemplateCode role, String name) {
         OrganizationMember member = memberService.invite(organization,
-                accountService.register(name + "-" + runId, "password1234!", name), role, null);
+                accountService.register(name + "-" + runId, "password1234!", name, null), role, null);
         return memberService.approve(member, null);
     }
 

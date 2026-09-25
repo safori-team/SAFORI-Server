@@ -49,8 +49,8 @@ class UnifiedSignInTest {
         mockMvc = webAppContextSetup(context).addFilters(springSecurityFilterChain).build();
         createOrganizationUseCase.execute(CreateOrganizationRequest.builder()
                 .organizationName("사포리 복지관").adminLoginId("orgadmin01")
-                .adminPassword("tempPass1234").adminName("이관리").build());
-        userDomainService.registerUser("elder01", "elderPass1", "김순자", null, null, null);
+                .adminPassword("tempPass1234").adminName("이관리").adminPhone("01012345678").build());
+        userDomainService.registerUser("elder01", "elderPass1", "김순자", null, null, null, null);
     }
 
     @Test
@@ -103,9 +103,9 @@ class UnifiedSignInTest {
     @Test
     @DisplayName("아이디는 어르신·백오피스 계정을 통틀어 유일하다")
     void loginIdIsGloballyUnique() {
-        assertThatThrownBy(() -> userDomainService.registerUser("orgadmin01", "elderPass1", "중복", null, null, null))
+        assertThatThrownBy(() -> userDomainService.registerUser("orgadmin01", "elderPass1", "중복", null, null, null, null))
                 .isEqualTo(UserHandler.USERNAME_ALREADY_EXISTS);
-        assertThatThrownBy(() -> accountService.register("elder01", "tempPass1234", "중복"))
+        assertThatThrownBy(() -> accountService.register("elder01", "tempPass1234", "중복", null))
                 .isEqualTo(AccountHandler.LOGIN_ID_ALREADY_EXISTS);
     }
 

@@ -39,7 +39,7 @@ public class BackofficeFixture {
     }
 
     public BackofficeAccount account() {
-        return accountService.register("login-" + sequence.incrementAndGet(), PASSWORD, "구성원");
+        return accountService.register("login-" + sequence.incrementAndGet(), PASSWORD, "구성원", null);
     }
 
     /** 기본 역할 그룹에 초대만 된(승인 전) 구성원. */

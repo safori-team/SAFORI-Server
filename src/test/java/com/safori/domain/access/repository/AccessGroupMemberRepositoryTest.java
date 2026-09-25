@@ -100,7 +100,7 @@ class AccessGroupMemberRepositoryTest {
     }
 
     private OrganizationMember persistMember(Organization organization) {
-        BackofficeAccount account = persist(BackofficeAccount.create("worker", "hash", "담당자"));
+        BackofficeAccount account = persist(BackofficeAccount.create("worker", "hash", "담당자", null));
         return persist(OrganizationMember.invite(organization, account, null));
     }
 

@@ -73,7 +73,7 @@ class BackofficeServiceTransactionTest {
     @Test
     @DisplayName("계정 정지·강제 로그아웃: 다른 트랜잭션에서 읽은 계정을 넘겨도 저장된다")
     void accountChangesPersist() {
-        BackofficeAccount account = accountService.register(uniqueLoginId(), "password1234!", "관리자");
+        BackofficeAccount account = accountService.register(uniqueLoginId(), "password1234!", "관리자", null);
 
         accountService.revokeIssuedTokens(account);
         accountService.suspend(account);
@@ -98,7 +98,7 @@ class BackofficeServiceTransactionTest {
     void membershipChangesPersist() {
         Organization organization = organizationService.create("사포리 복지관");
         OrganizationMember member = memberService.invite(organization,
-                accountService.register(uniqueLoginId(), "password1234!", "담당자"), CARE_WORKER, null);
+                accountService.register(uniqueLoginId(), "password1234!", "담당자", null), CARE_WORKER, null);
 
         memberService.approve(member, null);
         assertThat(statusOf(member)).isEqualTo(OrganizationMemberStatus.ACTIVE);
@@ -138,7 +138,7 @@ class BackofficeServiceTransactionTest {
 
     private OrganizationMember activeMember(Organization organization, RoleTemplateCode role) {
         OrganizationMember invited = memberService.invite(organization,
-                accountService.register(uniqueLoginId(), "password1234!", "구성원"), role, null);
+                accountService.register(uniqueLoginId(), "password1234!", "구성원", null), role, null);
         return memberService.approve(invited, null);
     }
 

@@ -1,7 +1,9 @@
 package com.safori.api.operator.dto;
 
+import com.safori.common.util.PhoneNumber;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
@@ -31,4 +33,9 @@ public class CreateOrganizationRequest {
     @NotBlank
     @Size(max = 50)
     private final String adminName;
+
+    @Schema(description = "관리자 휴대폰 번호 (하이픈 있어도 됨)", example = "010-1234-5678")
+    @NotBlank
+    @Pattern(regexp = PhoneNumber.PATTERN, message = "휴대폰 번호 형식이 올바르지 않습니다")
+    private final String adminPhone;
 }

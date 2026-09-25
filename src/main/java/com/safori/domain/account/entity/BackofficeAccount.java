@@ -54,6 +54,10 @@ public class BackofficeAccount extends BaseTimeEntity {
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
+    /** 휴대폰 번호(숫자만). 계정 정보 공유(문자)·연락에 쓴다. */
+    @Column(name = "phone", length = 11)
+    private String phone;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(16)")
     private BackofficeAccountStatus status;
@@ -65,12 +69,13 @@ public class BackofficeAccount extends BaseTimeEntity {
     @Column(name = "auth_version", nullable = false)
     private long authVersion;
 
-    public static BackofficeAccount create(String loginId, String passwordHash, String name) {
+    public static BackofficeAccount create(String loginId, String passwordHash, String name, String phone) {
         return BackofficeAccount.builder()
                 .accountUuid(UUID.randomUUID().toString())
                 .loginId(loginId)
                 .passwordHash(passwordHash)
                 .name(name)
+                .phone(phone)
                 .status(BackofficeAccountStatus.ACTIVE)
                 .authVersion(0L)
                 .build();

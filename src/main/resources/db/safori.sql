@@ -12,6 +12,7 @@ create table if not exists users
     gender             enum ('FEMALE', 'MALE')      null,
     nickname           varchar(255)                 null,
     birth_date         date                         null,
+    phone              varchar(11)                  null,
     constraint UK4mcg6l0va97nbd8o9tqpeg104
     unique (user_uuid),
     constraint UKr43af9ap4edm43mmtq01oddj6
@@ -347,6 +348,7 @@ create table if not exists backoffice_account
     login_id           varchar(64)  not null,
     password_hash      varchar(255) not null,
     name               varchar(50)  not null,
+    phone              varchar(11)  null,
     status             varchar(16)  not null,
     auth_version       bigint       not null,
     constraint uq_boa_account_uuid

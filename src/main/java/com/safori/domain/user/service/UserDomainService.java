@@ -8,6 +8,6 @@ import java.time.LocalDate;
 public interface UserDomainService {
 
     User registerUser(String username, String password, String name, Gender gender, LocalDate birthDate,
-                      String nickname);
+                      String phone, String nickname);
 
 }

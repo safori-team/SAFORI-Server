@@ -8,7 +8,8 @@ import com.safori.domain.account.entity.BackofficeAccount;
  */
 public interface BackofficeAccountDomainService {
 
-    BackofficeAccount register(String loginId, String rawPassword, String name);
+    /** @param phone 휴대폰 번호(하이픈 있어도 됨, 선택). 숫자만 저장한다. */
+    BackofficeAccount register(String loginId, String rawPassword, String name, String phone);
 
     /** 정지. 이미 발급된 백오피스 토큰도 다음 요청부터 거부된다. */
     BackofficeAccount suspend(BackofficeAccount account);
