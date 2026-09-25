@@ -24,6 +24,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +42,12 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("ConstraintViolationException 추출 도중 에러 발생"));
 
-        return handleExceptionInternalConstraint(e, ErrorStatus.valueOf(errorMessage), HttpHeaders.EMPTY, request);
+        // message에 ErrorStatus 이름을 쓴 제약만 그 코드로, 기본 메시지(@NotBlank, @Min 등)는 400 _BAD_REQUEST로 응답한다.
+        ErrorStatus status = Arrays.stream(ErrorStatus.values())
+                .filter(errorStatus -> errorStatus.name().equals(errorMessage))
+                .findFirst()
+                .orElse(ErrorStatus._BAD_REQUEST);
+        return handleExceptionInternalConstraint(e, status, HttpHeaders.EMPTY, request);
     }
 
     @Override

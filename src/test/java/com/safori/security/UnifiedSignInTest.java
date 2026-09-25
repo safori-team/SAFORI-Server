@@ -109,6 +109,20 @@ class UnifiedSignInTest {
                 .isEqualTo(AccountHandler.LOGIN_ID_ALREADY_EXISTS);
     }
 
+    @Test
+    @DisplayName("아이디 중복 확인: 로그인 없이 호출, 어르신·백오피스 아이디 모두 사용 중으로 본다")
+    void checkLoginIdCoversBothAccountTypes() throws Exception {
+        mockMvc.perform(get("/v1/api/auth/check-login-id").param("loginId", "orgadmin01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.available").value(false));
+        mockMvc.perform(get("/v1/api/auth/check-login-id").param("loginId", "elder01"))
+                .andExpect(jsonPath("$.result.available").value(false));
+        mockMvc.perform(get("/v1/api/auth/check-login-id").param("loginId", "newworker01"))
+                .andExpect(jsonPath("$.result.available").value(true));
+        mockMvc.perform(get("/v1/api/auth/check-login-id").param("loginId", " "))
+                .andExpect(status().isBadRequest());
+    }
+
     private JsonNode signIn(String username, String password) throws Exception {
         String body = mockMvc.perform(post("/v1/api/auth/sign-in").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
