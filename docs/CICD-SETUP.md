@@ -9,7 +9,7 @@
 
 ## 워크플로
 
-- `.github/workflows/deploy.yml` — `main`/`develop` push 시 test → ECR 이미지 push → SSM 배포
+- `.github/workflows/deploy.yml` — `main`/`develop` push 시 ECR 이미지 push → SSM 배포 (테스트는 PR 에서 test.yml 이 이미 돌렸으므로 생략)
 - `.github/workflows/test.yml` — 그 외 브랜치 push + PR 시 테스트만
 
 배포 잡은 `github.ref_name` 으로 `prod`/`alpha` Environment 를 선택하고, 컨테이너에 `SPRING_PROFILES_ACTIVE` 를 주입한다.
