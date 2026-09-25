@@ -68,7 +68,34 @@ public enum ErrorStatus implements BaseErrorCode {
     TTS_TEXT_EMPTY(BAD_REQUEST, 4250, "읽을 문장이 비어 있습니다."),
     TTS_TEXT_TOO_LONG(BAD_REQUEST, 4251, "읽을 문장이 너무 깁니다."),
     @ExplainError("GCP Cloud TTS 호출 실패·타임아웃 또는 TTS/S3 미구성. 클라이언트는 기기 내장 TTS로 폴백한다.")
-    TTS_SYNTHESIS_FAILED(BAD_REQUEST, 4252, "음성 합성에 실패했습니다.");
+    TTS_SYNTHESIS_FAILED(BAD_REQUEST, 4252, "음성 합성에 실패했습니다."),
+
+    // 기관·구성원 오류 (4300번대)
+    ORGANIZATION_INACTIVE(BAD_REQUEST, 4300, "비활성화된 기관입니다."),
+    @ExplainError("기관 A의 구성원·역할·그룹·어르신을 기관 B의 것과 엮으려 한 경우. 기관 관리자도 소속 기관 밖은 다룰 수 없다.")
+    ORGANIZATION_MISMATCH(BAD_REQUEST, 4301, "다른 기관의 대상은 처리할 수 없습니다."),
+    ORGANIZATION_MEMBER_ALREADY_EXISTS(BAD_REQUEST, 4302, "이미 기관에 소속되었거나 초대된 계정입니다."),
+    @ExplainError("승인 대기(PENDING)가 아닌 구성원을 승인하거나, 소속 종료(REVOKED)된 구성원을 정지·재활성화하는 등 상태 전이가 맞지 않는 경우.")
+    ORGANIZATION_MEMBER_INVALID_STATUS(BAD_REQUEST, 4303, "현재 구성원 상태에서는 처리할 수 없는 요청입니다."),
+    ORGANIZATION_MEMBER_SELF_APPROVAL(BAD_REQUEST, 4304, "본인의 가입은 직접 승인할 수 없습니다."),
+
+    // 백오피스 계정 오류 (4350번대)
+    ACCOUNT_LOGIN_ID_ALREADY_EXISTS(BAD_REQUEST, 4350, "이미 사용 중인 로그인 아이디입니다."),
+    ACCOUNT_INACTIVE(BAD_REQUEST, 4351, "사용할 수 없는 백오피스 계정입니다."),
+
+    // 권한·역할 오류 (4400번대)
+    ACCESS_ROLE_CODE_ALREADY_EXISTS(BAD_REQUEST, 4400, "기관에 이미 존재하는 역할 코드입니다."),
+    @ExplainError("organization_assignable=false 권한(예: RAW_CONTENT_READ 원문 열람)을 기관 역할에 넣으려 한 경우.")
+    ACCESS_PERMISSION_NOT_ASSIGNABLE(BAD_REQUEST, 4401, "기관에서 부여할 수 없는 권한입니다."),
+    ACCESS_INVALID_ROLE_EXPIRY(BAD_REQUEST, 4402, "역할 만료 시각은 현재 이후여야 합니다."),
+
+    // 돌봄 대상·배정 오류 (4450번대)
+    CARE_RECIPIENT_ALREADY_REGISTERED(BAD_REQUEST, 4450, "이미 기관에 등록된 어르신입니다."),
+    CARE_RECIPIENT_INACTIVE(BAD_REQUEST, 4451, "비활성화된 어르신입니다."),
+    @ExplainError("활성 상태가 아니거나 배정 범위(ASSIGNED_RECIPIENT) 권한이 없는 구성원을 담당자로 배정하려 한 경우.")
+    CARE_WORKER_NOT_ASSIGNABLE(BAD_REQUEST, 4452, "배정할 수 없는 담당자입니다."),
+    @ExplainError("활성 상태가 아니거나 연결 범위(LINKED_RECIPIENT) 권한이 없는 구성원을 보호자로 연결하려 한 경우.")
+    CARE_GUARDIAN_NOT_LINKABLE(BAD_REQUEST, 4453, "연결할 수 없는 보호자입니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

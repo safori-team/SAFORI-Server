@@ -23,3 +23,4 @@ spring:
 # 테스트용 JWT 시크릿 (Base64, 운영 키 아님)
 token:
   secret-user: ZHVtbXktc2VjcmV0LWZvci10ZXN0LW9ubHktc2Fmb3JpLTIwMjYtand0LWtleQ==
+  secret-backoffice: dGVzdC1vbmx5LWJhY2tvZmZpY2Utc2VjcmV0LWZvci1zYWZvcmktMjAyNi1qd3Q=

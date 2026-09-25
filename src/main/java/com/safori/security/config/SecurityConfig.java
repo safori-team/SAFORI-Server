@@ -2,6 +2,7 @@ package com.safori.security.config;
 
 import com.safori.security.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -41,6 +42,18 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * JwtAuthenticationFilter는 @Component라 Spring Boot가 모든 요청의 서블릿 필터로도 자동 등록한다.
+     * 이 체인 안에서만 돌도록 서블릿 등록은 끈다 — 백오피스 체인 경로에서 어르신 앱 토큰을 파싱하지 않게 한다.
+     */
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration(
+            JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     private RequestMatcher[] permitAllRequests() {
