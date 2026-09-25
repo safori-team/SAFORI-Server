@@ -11,6 +11,7 @@ create table if not exists users
     username           varchar(255)                 null,
     gender             enum ('FEMALE', 'MALE')      null,
     nickname           varchar(255)                 null,
+    birth_date         date                         null,
     constraint UK4mcg6l0va97nbd8o9tqpeg104
     unique (user_uuid),
     constraint UKr43af9ap4edm43mmtq01oddj6

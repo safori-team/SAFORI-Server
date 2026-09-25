@@ -23,6 +23,7 @@ public class SignUpUseCase {
                 userRegisterRequest.getPassword(),
                 userRegisterRequest.getName(),
                 userRegisterRequest.getGender(),
+                userRegisterRequest.getBirthDate(),
                 userRegisterRequest.getNickname());
         return user.getId();
     }

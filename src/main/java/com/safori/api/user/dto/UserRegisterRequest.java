@@ -4,11 +4,14 @@ import com.safori.domain.user.entity.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+
+import java.time.LocalDate;
 
 @Schema(description = "회원가입 요청")
 @Builder
@@ -35,6 +38,10 @@ public class UserRegisterRequest {
     @Schema(description = "성별 (MALE / FEMALE)", example = "MALE")
     @NotNull(message = "성별은 필수입니다")
     private final Gender gender;
+
+    @Schema(description = "생년월일 (yyyy-MM-dd, 선택). 앱 회원가입 화면에 추가되면 필수로 바꾼다.", example = "1960-03-12")
+    @Past(message = "생년월일은 오늘 이전 날짜여야 합니다")
+    private final LocalDate birthDate;
 
     @Schema(description = "별명 (선택)", example = "길동이")
     private final String nickname;

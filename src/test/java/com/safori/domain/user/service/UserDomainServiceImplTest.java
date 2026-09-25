@@ -15,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,7 +44,7 @@ class UserDomainServiceImplTest {
         given(passwordEncoder.encode(rawPassword)).willReturn("ENCODED");
         given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        userDomainService.registerUser(username, rawPassword, name, Gender.MALE, "길동이");
+        userDomainService.registerUser(username, rawPassword, name, Gender.MALE, LocalDate.of(1960, 3, 12), "길동이");
 
         verify(userRepository).save(userCaptor.capture());
         User saved = userCaptor.getValue();
@@ -51,6 +53,7 @@ class UserDomainServiceImplTest {
         assertThat(saved.getName()).isEqualTo(name);
         assertThat(saved.getGender()).isEqualTo(Gender.MALE);
         assertThat(saved.getNickname()).isEqualTo("길동이");
+        assertThat(saved.getBirthDate()).isEqualTo(LocalDate.of(1960, 3, 12));
         assertThat(saved.getRole()).isEqualTo(Role.USER);
         assertThat(saved.getUserUuid()).isNotBlank();
     }
@@ -63,7 +66,7 @@ class UserDomainServiceImplTest {
         given(passwordEncoder.encode("myPass1234")).willReturn("ENCODED");
         given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        userDomainService.registerUser(username, "myPass1234", "김영희", Gender.FEMALE, null);
+        userDomainService.registerUser(username, "myPass1234", "김영희", Gender.FEMALE, null, null);
 
         verify(userRepository).save(userCaptor.capture());
         User saved = userCaptor.getValue();
@@ -78,7 +81,7 @@ class UserDomainServiceImplTest {
         String username = "user01";
         given(userRepository.existsByUsername(username)).willReturn(true);
 
-        assertThatThrownBy(() -> userDomainService.registerUser(username, "myPass1234", "홍길동", Gender.MALE, "길동이"))
+        assertThatThrownBy(() -> userDomainService.registerUser(username, "myPass1234", "홍길동", Gender.MALE, null, "길동이"))
                 .isEqualTo(UserHandler.USERNAME_ALREADY_EXISTS);
 
         verify(userRepository, never()).save(any(User.class));

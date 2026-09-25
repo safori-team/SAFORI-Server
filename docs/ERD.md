@@ -187,6 +187,7 @@ erDiagram
         varchar name
         varchar gender
         varchar nickname
+        date birth_date "대상자 목록·상세 표시"
     }
     DEVICE_TOKEN {
         bigint device_token_id PK

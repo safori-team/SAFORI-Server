@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static com.safori.domain.user.exception.UserHandler.USERNAME_ALREADY_EXISTS;
@@ -24,7 +25,8 @@ public class UserDomainServiceImpl implements UserDomainService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public User registerUser(String username, String password, String name, Gender gender, String nickname) {
+    public User registerUser(String username, String password, String name, Gender gender, LocalDate birthDate,
+                      String nickname) {
         // 로그인 엔드포인트가 하나라 아이디는 백오피스 계정과도 겹치면 안 된다.
         if (userRepository.existsByUsername(username) || backofficeAccountRepository.existsByLoginId(username)) {
             throw USERNAME_ALREADY_EXISTS;
@@ -34,6 +36,7 @@ public class UserDomainServiceImpl implements UserDomainService {
                 .password(passwordEncoder.encode(password))
                 .name(name)
                 .gender(gender)
+                .birthDate(birthDate)
                 .nickname(nickname)
                 .role(Role.USER)
                 .userUuid(UUID.randomUUID().toString())
