@@ -5,6 +5,8 @@ import com.safori.domain.account.entity.BackofficeAccountStatus;
 import com.safori.domain.organization.entity.Organization;
 import com.safori.domain.organization.entity.OrganizationMember;
 import com.safori.domain.organization.entity.OrganizationMemberStatus;
+import com.safori.domain.organization.model.GuardianCounts;
+import com.safori.domain.organization.model.GuardianSummary;
 import com.safori.domain.organization.model.StatusCount;
 import com.safori.domain.organization.model.WorkerSummary;
 import org.springframework.data.domain.Page;
@@ -77,6 +79,44 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
             + WORKERS + "GROUP BY a.status")
     List<StatusCount> countWorkersByStatus(@Param("organizationId") Long organizationId,
                                            @Param("keyword") String keyword);
+
+    /**
+     * 기관의 보호자(기본 그룹 GUARDIAN 소속, 소속 종료 제외)와 현재 연결 대상자. 보호자는 대상자 한 명에만 연결된다.
+     * 검색어는 보호자 이름 또는 연결 대상자 이름. 정렬은 이름 → 구성원 id.
+     *
+     * @param linked null이면 연결 여부로 거르지 않는다
+     */
+    @Query(value = "SELECT new com.safori.domain.organization.model.GuardianSummary("
+            + "a.accountUuid, a.name, a.status, r.publicId, u.name, l.relation, l.relationText) "
+            + GUARDIANS + LINKED_FILTER + "ORDER BY a.name ASC, m.id ASC",
+            countQuery = "SELECT COUNT(m) " + GUARDIANS + LINKED_FILTER)
+    Page<GuardianSummary> findGuardians(@Param("organizationId") Long organizationId,
+                                        @Param("keyword") String keyword,
+                                        @Param("linked") Boolean linked,
+                                        Pageable pageable);
+
+    /** 보호자 목록 탭 개수(전체·연결). 검색어는 목록과 같이 적용한다. */
+    @Query("SELECT new com.safori.domain.organization.model.GuardianCounts(COUNT(m), "
+            + "SUM(CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END)) " + GUARDIANS)
+    GuardianCounts countGuardians(@Param("organizationId") Long organizationId,
+                                  @Param("keyword") String keyword);
+
+    String GUARDIANS = """
+            FROM OrganizationMember m
+            JOIN m.account a
+            LEFT JOIN GuardianRecipientLink l ON l.guardian = m AND l.endedAt IS NULL
+            LEFT JOIN l.recipient r
+            LEFT JOIN User u ON u.id = r.userId
+            WHERE m.organization.id = :organizationId
+              AND m.status <> com.safori.domain.organization.entity.OrganizationMemberStatus.REVOKED
+              AND EXISTS (SELECT 1 FROM AccessGroupMember gm
+                          WHERE gm.member = m AND gm.group.systemCode = 'GUARDIAN')
+              AND (:keyword IS NULL OR a.name LIKE CONCAT('%', :keyword, '%') OR u.name LIKE CONCAT('%', :keyword, '%'))
+            """;
+
+    String LINKED_FILTER = """
+              AND (:linked IS NULL OR (:linked = TRUE AND l.id IS NOT NULL) OR (:linked = FALSE AND l.id IS NULL))
+            """;
 
     String WORKERS = """
             FROM OrganizationMember m

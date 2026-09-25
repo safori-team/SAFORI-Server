@@ -39,6 +39,26 @@ public class BackofficeAccountDomainServiceImpl implements BackofficeAccountDoma
     }
 
     @Override
+    public BackofficeAccount changeLoginId(BackofficeAccount account, String loginId) {
+        BackofficeAccount current = reload(account);
+        if (current.getLoginId().equals(loginId)) {
+            return current;
+        }
+        if (accountRepository.existsByLoginId(loginId) || userRepository.existsByUsername(loginId)) {
+            throw LOGIN_ID_ALREADY_EXISTS;
+        }
+        current.changeLoginId(loginId);
+        return current;
+    }
+
+    @Override
+    public BackofficeAccount changePassword(BackofficeAccount account, String rawPassword) {
+        BackofficeAccount current = reload(account);
+        current.changePassword(passwordEncoder.encode(rawPassword));
+        return current;
+    }
+
+    @Override
     public BackofficeAccount suspend(BackofficeAccount account) {
         BackofficeAccount current = reload(account);
         current.suspend();

@@ -88,6 +88,8 @@ public enum ErrorStatus implements BaseErrorCode {
     // 백오피스 계정 오류 (4350번대)
     ACCOUNT_LOGIN_ID_ALREADY_EXISTS(BAD_REQUEST, 4350, "이미 사용 중인 로그인 아이디입니다."),
     ACCOUNT_INACTIVE(BAD_REQUEST, 4351, "사용할 수 없는 백오피스 계정입니다."),
+    @ExplainError("담당자·보호자가 내 정보 수정에서 이름·연락처·아이디를 바꾸려 한 경우. 비밀번호만 바꿀 수 있다.")
+    ACCOUNT_PROFILE_NOT_EDITABLE(BAD_REQUEST, 4352, "기관 관리자만 수정할 수 있는 항목입니다."),
 
     // 권한·역할 오류 (4400번대)
     ACCESS_ROLE_CODE_ALREADY_EXISTS(BAD_REQUEST, 4400, "기관에 이미 존재하는 역할 코드입니다."),
@@ -111,7 +113,10 @@ public enum ErrorStatus implements BaseErrorCode {
     @ExplainError("일지 항목 선택이 폼 규칙에 맞지 않는 경우: 없는·비활성 항목, 중복, 단일 선택 섹션에 2개 이상, 필수 섹션 미선택, "
             + "'특이사항 없음'과 다른 항목 동시 선택, 부모 없이 하위 항목 선택, 기타 입력값 누락(또는 입력 항목이 아닌데 입력값).")
     CARE_JOURNAL_INVALID_SELECTION(BAD_REQUEST, 4457, "일지 항목 선택이 올바르지 않습니다."),
-    CARE_JOURNAL_NOT_FOUND(BAD_REQUEST, 4458, "존재하지 않는 일지입니다.");
+    CARE_JOURNAL_NOT_FOUND(BAD_REQUEST, 4458, "존재하지 않는 일지입니다."),
+    @ExplainError("보호자는 대상자 한 명에만 연결된다. 다른 대상자와 연결된 보호자는 먼저 연결을 해제해야 한다.")
+    CARE_GUARDIAN_ALREADY_LINKED(BAD_REQUEST, 4459, "이미 다른 대상자와 연결된 보호자입니다."),
+    CARE_JOURNAL_INVALID_PERIOD(BAD_REQUEST, 4460, "조회 기간이 올바르지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

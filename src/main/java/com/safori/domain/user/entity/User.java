@@ -80,4 +80,14 @@ public class User extends BaseTimeEntity implements UserDetails {
     public void changePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
+
+    public void changeUsername(String username) {
+        this.username = username;
+    }
+
+    public void changeProfile(String name, String phone, LocalDate birthDate) {
+        this.name = name;
+        this.phone = phone;
+        this.birthDate = birthDate;
+    }
 }

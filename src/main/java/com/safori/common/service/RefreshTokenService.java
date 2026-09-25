@@ -29,6 +29,14 @@ public class RefreshTokenService {
                 .orElse(null);
     }
 
+    /**
+     * 아이디가 바뀌면 발급된 리프레시 토큰의 주인도 새 아이디로 옮겨 로그인을 유지한다.
+     * 옛 아이디로 남겨 두면 그 아이디를 새로 가입한 사람에게 재발급될 수 있다.
+     */
+    public void renameOwner(String from, String to) {
+        refreshTokenRepository.renameOwner(from, to);
+    }
+
     public void deleteValue(String token) {
         if (token != null && token.startsWith("Bearer ")) {
             // "Bearer " 접두사 제거

@@ -14,6 +14,8 @@ public class CareHandler extends GeneralException {
             new CareHandler(ErrorStatus.CARE_WORKER_NOT_ASSIGNABLE);
     public static final GeneralException GUARDIAN_NOT_LINKABLE =
             new CareHandler(ErrorStatus.CARE_GUARDIAN_NOT_LINKABLE);
+    public static final GeneralException GUARDIAN_ALREADY_LINKED =
+            new CareHandler(ErrorStatus.CARE_GUARDIAN_ALREADY_LINKED);
 
     public static final GeneralException RECIPIENT_NOT_FOUND =
             new CareHandler(ErrorStatus.CARE_RECIPIENT_NOT_FOUND);
@@ -27,6 +29,8 @@ public class CareHandler extends GeneralException {
             new CareHandler(ErrorStatus.CARE_JOURNAL_INVALID_SELECTION);
     public static final GeneralException JOURNAL_NOT_FOUND =
             new CareHandler(ErrorStatus.CARE_JOURNAL_NOT_FOUND);
+    public static final GeneralException JOURNAL_INVALID_PERIOD =
+            new CareHandler(ErrorStatus.CARE_JOURNAL_INVALID_PERIOD);
 
     public CareHandler(BaseErrorCode code) {
         super(code);

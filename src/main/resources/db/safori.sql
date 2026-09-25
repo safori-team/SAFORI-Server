@@ -664,7 +664,8 @@ create index idx_ca_recipient_active
     on care_assignment (recipient_id, ended_at);
 
 -- -----------------------------------------------------------------------------
--- guardian_recipient_link : 보호자 연결 이력. ended_at IS NULL 이 현재 연결이며, 어르신 한 명에 보호자 여럿이 연결될 수 있다.
+-- guardian_recipient_link : 보호자 연결 이력. ended_at IS NULL 이 현재 연결이며, 어르신 한 명에 보호자 여럿이 연결될 수 있고
+--   보호자는 어르신 한 명에만 연결된다(서비스가 검사). relation 은 어르신과의 관계, 기타면 relation_text.
 -- -----------------------------------------------------------------------------
 create table if not exists guardian_recipient_link
 (
@@ -677,6 +678,8 @@ create table if not exists guardian_recipient_link
     guardian_member_id bigint      not null,
     started_at         datetime(6) not null,
     ended_at           datetime(6) null,
+    relation           varchar(16) null,
+    relation_text      varchar(50) null,
     linked_by          bigint      null,
     ended_by           bigint      null,
     constraint fk_grl_organization

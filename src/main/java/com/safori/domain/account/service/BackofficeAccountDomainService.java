@@ -15,6 +15,11 @@ public interface BackofficeAccountDomainService {
     BackofficeAccount changeProfile(BackofficeAccount account, String name, String phone);
 
     /** 정지. 이미 발급된 백오피스 토큰도 다음 요청부터 거부된다. */
+    /** 아이디 변경. 어르신·백오피스 계정을 통틀어 유일해야 한다. 같은 아이디면 그대로 둔다. */
+    BackofficeAccount changeLoginId(BackofficeAccount account, String loginId);
+
+    BackofficeAccount changePassword(BackofficeAccount account, String rawPassword);
+
     BackofficeAccount suspend(BackofficeAccount account);
 
     BackofficeAccount activate(BackofficeAccount account);

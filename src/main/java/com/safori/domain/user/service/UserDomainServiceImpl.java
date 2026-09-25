@@ -45,4 +45,36 @@ public class UserDomainServiceImpl implements UserDomainService {
                 .build();
         return userRepository.save(user);
     }
+
+    @Override
+    public User changeProfile(User user, String name, String phone, LocalDate birthDate) {
+        User current = reload(user);
+        current.changeProfile(name, PhoneNumber.normalize(phone), birthDate);
+        return current;
+    }
+
+    @Override
+    public User changeUsername(User user, String username) {
+        User current = reload(user);
+        if (current.getUsername().equals(username)) {
+            return current;
+        }
+        if (userRepository.existsByUsername(username) || backofficeAccountRepository.existsByLoginId(username)) {
+            throw USERNAME_ALREADY_EXISTS;
+        }
+        current.changeUsername(username);
+        return current;
+    }
+
+    @Override
+    public User changePassword(User user, String rawPassword) {
+        User current = reload(user);
+        current.changePassword(passwordEncoder.encode(rawPassword));
+        return current;
+    }
+
+    private User reload(User user) {
+        return userRepository.findById(user.getId())
+                .orElseThrow(() -> new IllegalStateException("존재하지 않는 유저입니다: " + user.getId()));
+    }
 }

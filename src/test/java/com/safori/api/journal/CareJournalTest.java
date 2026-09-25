@@ -107,6 +107,35 @@ class CareJournalTest {
     }
 
     @Test
+    @DisplayName("목록: 기간 안 일지를 확인 일시 최신순으로, 확인 방식·결과·작성 당시 상태와 함께. 이름 검색, 기간 역전은 4460")
+    void list() throws Exception {
+        perform(post(RECIPIENTS + "/" + recipient + "/journals"), journal("""
+                {"optionCode":"PHONE"},{"optionCode":"CONTACTED"},{"optionCode":"NO_ISSUE"}
+                """).replace("2026-09-13T14:00:00", "2026-09-10T09:00:00"));
+        perform(post(RECIPIENTS + "/" + recipient + "/journals"), journal("""
+                {"optionCode":"VISIT"},{"optionCode":"CONTACTED"},{"optionCode":"NO_ISSUE"}
+                """));
+
+        perform(get("/v1/api/admin/journals").param("from", "2026-09-01").param("to", "2026-09-30"), null)
+                .andExpect(jsonPath("$.result.journals.totalElements").value(2))
+                .andExpect(jsonPath("$.result.journals.items[0].method").value("방문"))
+                .andExpect(jsonPath("$.result.journals.items[0].result").value("연락됨"))
+                .andExpect(jsonPath("$.result.journals.items[0].statusCode").value("CAUTION"))
+                .andExpect(jsonPath("$.result.journals.items[0].recipientName").value("김영희"))
+                .andExpect(jsonPath("$.result.journals.items[0].writerName").value("이관리"))
+                .andExpect(jsonPath("$.result.journals.items[1].method").value("전화"));
+        perform(get("/v1/api/admin/journals").param("from", "2026-09-11").param("to", "2026-09-13"), null)
+                .andExpect(jsonPath("$.result.journals.totalElements").value(1));
+        perform(get("/v1/api/admin/journals").param("from", "2026-09-01").param("to", "2026-09-30")
+                .param("keyword", "없는이름"), null)
+                .andExpect(jsonPath("$.result.journals.totalElements").value(0));
+        perform(get("/v1/api/admin/journals").param("from", "2026-09-30").param("to", "2026-09-01"), null)
+                .andExpect(jsonPath("$.code").value(4460));
+        perform(get("/v1/api/admin/journals"), null)
+                .andExpect(jsonPath("$.result.to").value(LocalDate.now().toString()));
+    }
+
+    @Test
     @DisplayName("폼 규칙 위반은 4457: 단일 섹션 2개, 특이사항 없음+다른 상태, 부모 없는 하위 항목, 기타 입력 누락, 필수 섹션 누락")
     void invalidSelections() throws Exception {
         for (String selections : new String[]{

@@ -34,6 +34,9 @@ public class UserInfoResponse {
     @Schema(description = "휴대폰 번호(숫자만). 없으면 null", example = "01012345678")
     private final String phone;
 
+    @Schema(description = "직종. 담당자만 있고 나머지는 null", example = "사회복지사")
+    private final String jobTitle;
+
     public record Organization(
             @Schema(description = "기관 외부 식별자") String publicId,
             @Schema(description = "기관 이름", example = "사포리 복지관") String name) {

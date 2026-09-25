@@ -10,6 +10,8 @@ public class AccountHandler extends GeneralException {
             new AccountHandler(ErrorStatus.ACCOUNT_LOGIN_ID_ALREADY_EXISTS);
     public static final GeneralException INACTIVE =
             new AccountHandler(ErrorStatus.ACCOUNT_INACTIVE);
+    public static final GeneralException PROFILE_NOT_EDITABLE =
+            new AccountHandler(ErrorStatus.ACCOUNT_PROFILE_NOT_EDITABLE);
 
     public AccountHandler(BaseErrorCode code) {
         super(code);
