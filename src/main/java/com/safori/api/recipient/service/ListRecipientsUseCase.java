@@ -60,6 +60,7 @@ public class ListRecipientsUseCase {
         RecipientListResponse.Manager manager = row.managerAccountUuid() == null ? null
                 : new RecipientListResponse.Manager(row.managerAccountUuid(), row.managerName());
         return new RecipientListResponse.Item(row.recipientPublicId(), row.name(), row.birthDate(), row.statusCode(),
-                row.reasonMessage(), row.processingStatus(), row.detectedAt(), row.recordPublicId(), manager);
+                row.reasonMessage(), row.processingStatus(), row.detectedAt(), row.recordPublicId(), manager,
+                row.lastCheckedAt());
     }
 }

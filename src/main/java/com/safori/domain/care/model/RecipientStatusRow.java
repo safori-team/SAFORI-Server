@@ -18,5 +18,6 @@ public record RecipientStatusRow(String recipientPublicId,
                                  CareProcessingStatus processingStatus,
                                  LocalDateTime detectedAt,
                                  String managerAccountUuid,
-                                 String managerName) {
+                                 String managerName,
+                                 LocalDateTime lastCheckedAt) {
 }

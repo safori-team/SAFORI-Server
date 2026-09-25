@@ -107,7 +107,11 @@ public enum ErrorStatus implements BaseErrorCode {
     CARE_RECIPIENT_NOT_FOUND(BAD_REQUEST, 4454, "존재하지 않는 대상자입니다."),
     CARE_RECORD_NOT_FOUND(BAD_REQUEST, 4455, "존재하지 않는 기록입니다."),
     @ExplainError("현재 기록이 아닌 기록(흡수·완료됨)의 처리 상태를 바꾸려 했거나, 흡수됨(ABSORBED)으로 바꾸려 한 경우.")
-    CARE_RECORD_NOT_PROCESSABLE(BAD_REQUEST, 4456, "처리 상태를 바꿀 수 없는 기록입니다.");
+    CARE_RECORD_NOT_PROCESSABLE(BAD_REQUEST, 4456, "처리 상태를 바꿀 수 없는 기록입니다."),
+    @ExplainError("일지 항목 선택이 폼 규칙에 맞지 않는 경우: 없는·비활성 항목, 중복, 단일 선택 섹션에 2개 이상, 필수 섹션 미선택, "
+            + "'특이사항 없음'과 다른 항목 동시 선택, 부모 없이 하위 항목 선택, 기타 입력값 누락(또는 입력 항목이 아닌데 입력값).")
+    CARE_JOURNAL_INVALID_SELECTION(BAD_REQUEST, 4457, "일지 항목 선택이 올바르지 않습니다."),
+    CARE_JOURNAL_NOT_FOUND(BAD_REQUEST, 4458, "존재하지 않는 일지입니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

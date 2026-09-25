@@ -160,6 +160,24 @@ class RecipientStatusBoardTest {
                 .andExpect(jsonPath("$.result.guidanceLabel").value("확인 권장"));
     }
 
+    @Test
+    @DisplayName("대상자 상세: 상태 코드가 있으면 확인 사유와 담당자, 없으면(X) 확인 사유 null")
+    void recipientDetail() throws Exception {
+        perform(get(RECIPIENTS + "/" + e2), null)
+                .andExpect(jsonPath("$.result.name").value("김영희"))
+                .andExpect(jsonPath("$.result.manager.name").value("박지현"))
+                .andExpect(jsonPath("$.result.statusCode").value("CAUTION"))
+                .andExpect(jsonPath("$.result.processingStatus").value("UNCHECKED"))
+                .andExpect(jsonPath("$.result.reason.title").value("동일 감정 반복"))
+                .andExpect(jsonPath("$.result.reason.guidanceLabel").value("확인 권장"))
+                .andExpect(jsonPath("$.result.recentActions").isEmpty());
+
+        perform(get(RECIPIENTS + "/" + e4), null)
+                .andExpect(jsonPath("$.result.statusCode").doesNotExist())
+                .andExpect(jsonPath("$.result.reason").doesNotExist())
+                .andExpect(jsonPath("$.result.manager").doesNotExist());
+    }
+
     private String raise(String recipientId, String reasonType, String message, LocalDateTime detectedAt) throws Exception {
         return json(perform(post("/v1/api/admin/dev/care-recipients/" + recipientId + "/records"),
                 "{\"reasonType\":\"%s\",\"reasonMessage\":\"%s\",\"detectedAt\":\"%s\"}"

@@ -23,6 +23,11 @@ public class CareHandler extends GeneralException {
     public static final GeneralException RECORD_NOT_PROCESSABLE =
             new CareHandler(ErrorStatus.CARE_RECORD_NOT_PROCESSABLE);
 
+    public static final GeneralException JOURNAL_INVALID_SELECTION =
+            new CareHandler(ErrorStatus.CARE_JOURNAL_INVALID_SELECTION);
+    public static final GeneralException JOURNAL_NOT_FOUND =
+            new CareHandler(ErrorStatus.CARE_JOURNAL_NOT_FOUND);
+
     public CareHandler(BaseErrorCode code) {
         super(code);
     }

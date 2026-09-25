@@ -35,11 +35,18 @@ public class PendingAuthorizationRules {
                 .requestMatchers(antMatcher(HttpMethod.PUT, "/v1/api/admin/managers/{managerId}/care-recipients"),
                         antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/manager"))
                 .access(authz.member())
-                // 대상자 현황·목록 (권한 담당자: RECIPIENT_READ 로 옮길 것. 범위는 이미 권한 범위로 거른다)
-                .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients"))
+                // 대상자 현황·목록·상세 (권한 담당자: RECIPIENT_READ 로 옮길 것. 목록 범위는 이미 권한 범위로 거르고,
+                // 상세는 authz.recipient(RECIPIENT_READ, "careRecipientId")로 옮기면 담당자는 본인 배정만 열린다)
+                .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients"),
+                        antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients/{careRecipientId}"))
                 .access(authz.member())
                 // 기록 상세·처리 상태 변경 (권한 담당자: CARE_REASON_READ / CARE_TASK_COMPLETE 로 옮길 것)
                 .requestMatchers(antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/records/{recordId}"))
+                .access(authz.member())
+                // 일지 폼·등록·상세 (권한 담당자: 폼은 member, 등록은 WORK_LOG_WRITE, 상세는 authz.recipient 로 옮길 것)
+                .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/journal-form"),
+                        antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/journals"),
+                        antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients/{careRecipientId}/journals/{journalId}"))
                 .access(authz.member())
                 // [개발용] 기록 추가 — 운영에서는 컨트롤러가 없다
                 .requestMatchers(antMatcher(HttpMethod.POST, "/v1/api/admin/dev/care-recipients/{careRecipientId}/records"))

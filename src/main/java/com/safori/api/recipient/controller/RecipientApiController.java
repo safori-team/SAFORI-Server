@@ -4,11 +4,13 @@ import com.safori.api.common.dto.ApiResponseDto;
 import com.safori.api.recipient.dto.CareRecordResponse;
 import com.safori.api.recipient.dto.ChangeProcessingStatusRequest;
 import com.safori.api.recipient.dto.RecipientAssignmentFilter;
+import com.safori.api.recipient.dto.RecipientDetailResponse;
 import com.safori.api.recipient.dto.RecipientListResponse;
 import com.safori.api.recipient.dto.RecipientLookupResponse;
 import com.safori.api.recipient.dto.RegisterRecipientRequest;
 import com.safori.api.recipient.dto.RegisterRecipientResponse;
 import com.safori.api.recipient.service.CareRecordUseCase;
+import com.safori.api.recipient.service.GetRecipientUseCase;
 import com.safori.api.recipient.service.ListRecipientsUseCase;
 import com.safori.api.recipient.service.LookupRecipientUseCase;
 import com.safori.api.recipient.service.RegisterRecipientUseCase;
@@ -55,6 +57,7 @@ public class RecipientApiController {
     private final WorkerAssignmentUseCase workerAssignmentUseCase;
     private final ListRecipientsUseCase listRecipientsUseCase;
     private final CareRecordUseCase careRecordUseCase;
+    private final GetRecipientUseCase getRecipientUseCase;
 
     @Operation(operationId = "lookupRecipient", summary = "대상자 추가 전 어르신 조회",
             description = """
@@ -145,6 +148,22 @@ public class RecipientApiController {
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return ApiResponseDto.onSuccess(listRecipientsUseCase.execute(actor, statusCode, assignment, keyword,
                 managerId, page, size));
+    }
+
+    @Operation(operationId = "getCareRecipient", summary = "대상자 상세 조회",
+            description = """
+                    현황 카드를 눌렀을 때의 상세 화면입니다. 이름·담당자·확인 필요도·처리 상태와 확인 사유를 줍니다.
+                    - 확인 사유(`reason`)는 상태 코드가 있을 때만 있고, 없으면 null입니다(표시 없음 X).
+                    - 담당자가 처리 상태를 바꿀 때는 `reason.recordId`로 처리 상태 변경 API를 부르세요.
+                    - 최근 조치 기록(`recentActions`)은 일지 요약(확인 일시 최신순)이고, 카드를 누르면 일지 상세 API를 부르세요.
+                    """)
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "400", description = "- `4454`: 존재하지 않는 대상자입니다")
+    @GetMapping("/{careRecipientId}")
+    public ApiResponseDto<RecipientDetailResponse> get(
+            @Parameter(hidden = true) @AuthenticationPrincipal BackofficeActor actor,
+            @Parameter(description = "대상자 식별자 (public_id)") @PathVariable String careRecipientId) {
+        return ApiResponseDto.onSuccess(getRecipientUseCase.execute(actor, careRecipientId));
     }
 
     @Operation(operationId = "getCareRecord", summary = "기록 상세 조회",

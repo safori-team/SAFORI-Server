@@ -73,7 +73,8 @@ public interface CareRecipientRepository extends JpaRepository<CareRecipient, Lo
      */
     @Query(value = "SELECT new com.safori.domain.care.model.RecipientStatusRow("
             + "r.publicId, u.name, u.birthDate, rec.publicId, rec.statusCode, rec.reasonMessage, "
-            + "rec.processingStatus, rec.detectedAt, wa.accountUuid, wa.name) "
+            + "rec.processingStatus, rec.detectedAt, wa.accountUuid, wa.name, "
+            + "(SELECT MAX(j.confirmedAt) FROM CareJournal j WHERE j.recipient = r)) "
             + STATUS_BOARD + STATUS_FILTERS
             + "ORDER BY CASE rec.statusCode "
             + "WHEN com.safori.domain.care.entity.CareStatusCode.URGENT THEN 3 "

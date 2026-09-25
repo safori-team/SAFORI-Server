@@ -32,7 +32,8 @@ public record RecipientListResponse(
             @Schema(description = "처리 상태 (UNCHECKED=미확인, IN_PROGRESS=조치중). 상태 코드가 없으면 null") CareProcessingStatus processingStatus,
             @Schema(description = "요청·감지 시각 ('20분 전 요청' 표시용)") LocalDateTime detectedAt,
             @Schema(description = "현재 기록 식별자. 기록 상세 경로의 {recordId}") String recordId,
-            @Schema(description = "현재 담당자. 미배정이면 null") Manager manager) {
+            @Schema(description = "현재 담당자. 미배정이면 null") Manager manager,
+            @Schema(description = "최근 안부 확인 (가장 최근 일지의 확인 일시). 없으면 null") LocalDateTime lastCheckedAt) {
     }
 
     public record Manager(
