@@ -1,6 +1,6 @@
 package com.safori.security.service;
 
-import com.safori.common.service.RedisService;
+import com.safori.common.service.RefreshTokenService;
 import com.safori.security.dto.JwtToken;
 import com.safori.security.exception.AuthHandler;
 import com.safori.domain.user.adaptor.UserAdaptor;
@@ -40,17 +40,17 @@ public class UserTokenServiceImpl implements UserTokenService {
     private final Key key;
     private final PasswordEncoder passwordEncoder;
     private final UserAdaptor userAdaptor;
-    private final RedisService redisService;
+    private final RefreshTokenService refreshTokenService;
 
     public UserTokenServiceImpl(Environment environment,
                                PasswordEncoder passwordEncoder,
                                UserAdaptor userAdaptor,
-                               RedisService redisService) {
+                               RefreshTokenService refreshTokenService) {
         byte[] keyBytes = Decoders.BASE64.decode(environment.getProperty("token.secret-user"));
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.passwordEncoder = passwordEncoder;
         this.userAdaptor = userAdaptor;
-        this.redisService = redisService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Override
@@ -66,13 +66,13 @@ public class UserTokenServiceImpl implements UserTokenService {
 
     @Override
     public JwtToken reissueToken(String refreshToken) {
-        // 1. Refresh Token 유효성 검사 (Redis 화이트리스트 존재 여부)
+        // 1. Refresh Token 유효성 검사 (화이트리스트 존재 여부)
         if (!existsRefreshToken(refreshToken)) {
             throw AuthHandler.INVALID_REFRESH_TOKEN;
         }
 
         // 2. 회전: 이전 리프레시 토큰 삭제
-        redisService.deleteValue(refreshToken);
+        refreshTokenService.deleteValue(refreshToken);
 
         // 3. 새 Authentication 생성 후 재발급
         Claims claims = parseClaims(refreshToken);
@@ -113,8 +113,8 @@ public class UserTokenServiceImpl implements UserTokenService {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        // 새 리프레시 토큰을 Redis 화이트리스트에 저장
-        redisService.setValue(refreshToken, authentication.getName());
+        // 새 리프레시 토큰을 화이트리스트에 저장
+        refreshTokenService.setValue(refreshToken, authentication.getName());
 
         return JwtToken.builder()
                 .grantType("Bearer")
@@ -145,13 +145,13 @@ public class UserTokenServiceImpl implements UserTokenService {
 
     @Override
     public boolean logout(String refreshToken) {
-        redisService.deleteValue(refreshToken);
+        refreshTokenService.deleteValue(refreshToken);
         return true;
     }
 
     @Override
     public boolean existsRefreshToken(String refreshToken) {
-        return redisService.getValue(refreshToken) != null;
+        return refreshTokenService.getValue(refreshToken) != null;
     }
 
     private Claims parseClaims(String token) {
