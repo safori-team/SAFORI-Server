@@ -88,6 +88,8 @@ public enum ErrorStatus implements BaseErrorCode {
     // 백오피스 계정 오류 (4350번대)
     ACCOUNT_LOGIN_ID_ALREADY_EXISTS(BAD_REQUEST, 4350, "이미 사용 중인 로그인 아이디입니다."),
     ACCOUNT_INACTIVE(BAD_REQUEST, 4351, "사용할 수 없는 백오피스 계정입니다."),
+    @ExplainError("담당자·보호자가 내 정보 수정에서 이름·연락처·아이디를 바꾸려 한 경우. 비밀번호만 바꿀 수 있다.")
+    ACCOUNT_PROFILE_NOT_EDITABLE(BAD_REQUEST, 4352, "기관 관리자만 수정할 수 있는 항목입니다."),
 
     // 권한·역할 오류 (4400번대)
     ACCESS_ROLE_CODE_ALREADY_EXISTS(BAD_REQUEST, 4400, "기관에 이미 존재하는 역할 코드입니다."),

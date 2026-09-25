@@ -62,6 +62,9 @@ public class PendingAuthorizationRules {
                 .requestMatchers(antMatcher(HttpMethod.PUT, "/v1/api/admin/care-recipients/{careRecipientId}/guardians"),
                         antMatcher(HttpMethod.DELETE, "/v1/api/admin/care-recipients/{careRecipientId}/guardians/{guardianId}"))
                 .access(authz.member())
+                // 내 정보 수정 — 본인 정보라 로그인만 확인하면 된다(항목별 제한은 서비스가 검사). 옮기지 않아도 됨
+                .requestMatchers(antMatcher(HttpMethod.PUT, "/v1/api/admin/me"))
+                .access(authz.member())
                 // [개발용] 기록 추가 — 운영에서는 컨트롤러가 없다
                 .requestMatchers(antMatcher(HttpMethod.POST, "/v1/api/admin/dev/care-recipients/{careRecipientId}/records"))
                 .access(authz.member());

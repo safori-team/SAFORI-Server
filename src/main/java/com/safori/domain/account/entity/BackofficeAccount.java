@@ -86,6 +86,14 @@ public class BackofficeAccount extends BaseTimeEntity {
         this.phone = phone;
     }
 
+    public void changeLoginId(String loginId) {
+        this.loginId = loginId;
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public boolean isActive() {
         return this.status == BackofficeAccountStatus.ACTIVE;
     }
