@@ -6,6 +6,7 @@ import com.safori.common.event.VoiceReanalyzedEvent;
 import com.safori.domain.voice.repository.VoiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -54,6 +55,7 @@ public class CareStatusDetectionListener {
     }
 
     /** 매일 오전 9시(담당자 업무 시작 전). 대상자 하나가 실패해도 나머지는 판정한다. */
+    @SchedulerLock(name = "careDiaryInterval", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
     @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
     public void evaluateDiaryIntervals() {
         LocalDateTime now = LocalDateTime.now();

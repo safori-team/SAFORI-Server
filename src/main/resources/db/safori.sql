@@ -696,3 +696,15 @@ create index idx_grl_guardian_active
 
 create index idx_grl_recipient_active
     on guardian_recipient_link (recipient_id, ended_at);
+
+-- -----------------------------------------------------------------------------
+-- shedlock : 스케줄러 중복 실행 방지 잠금(ShedLock). 앱에서는 JPA 엔티티(SchedulerLock)로 ddl-auto 가 만든다.
+-- -----------------------------------------------------------------------------
+create table if not exists shedlock
+(
+    name       varchar(64)  not null
+    primary key,
+    lock_until datetime(6)  not null,
+    locked_at  datetime(6)  not null,
+    locked_by  varchar(255) not null
+    );

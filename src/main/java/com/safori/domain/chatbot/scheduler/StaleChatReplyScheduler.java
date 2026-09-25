@@ -6,6 +6,7 @@ import com.safori.domain.chatbot.model.ChatbotReply;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,7 @@ public class StaleChatReplyScheduler {
     @Value("${safori.chatbot.reply-timeout:PT5M}")
     private Duration replyTimeout;
 
+    @SchedulerLock(name = "staleChatReply", lockAtMostFor = "PT5M")
     @Scheduled(initialDelayString = "PT1M", fixedDelayString = "PT1M")
     public void run() {
         List<ChatMessage> stale =

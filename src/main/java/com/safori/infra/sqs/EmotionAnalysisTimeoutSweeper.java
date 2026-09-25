@@ -6,6 +6,7 @@ import com.safori.domain.emotion.entity.EmotionAnalysisRequest;
 import com.safori.infra.sqs.config.EmotionAnalysisSqsProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,7 @@ public class EmotionAnalysisTimeoutSweeper {
     private final EmotionAnalysisResultApplier resultApplier;
     private final ApplicationEventPublisher eventPublisher;
 
+    @SchedulerLock(name = "emotionAnalysisTimeoutSweep", lockAtMostFor = "PT5M")
     @Scheduled(
             initialDelayString = "${safori.emotion-analysis.sweep-interval:PT2M}",
             fixedDelayString = "${safori.emotion-analysis.sweep-interval:PT2M}")
