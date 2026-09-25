@@ -45,6 +45,7 @@ erDiagram
         varchar login_id UK
         varchar password_hash
         varchar name
+        varchar phone "숫자만"
         varchar status "ACTIVE|SUSPENDED"
         bigint auth_version "토큰 무효화용"
     }
@@ -57,6 +58,7 @@ erDiagram
         bigint approved_by FK
         datetime approved_at
         datetime revoked_at
+        varchar job_title "담당자 직종"
     }
     ACCESS_PERMISSION {
         bigint permission_id PK
@@ -187,6 +189,8 @@ erDiagram
         varchar name
         varchar gender
         varchar nickname
+        date birth_date "대상자 목록·상세 표시"
+        varchar phone "숫자만"
     }
     DEVICE_TOKEN {
         bigint device_token_id PK

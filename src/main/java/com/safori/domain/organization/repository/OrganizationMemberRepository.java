@@ -1,13 +1,19 @@
 package com.safori.domain.organization.repository;
 
 import com.safori.domain.account.entity.BackofficeAccount;
+import com.safori.domain.account.entity.BackofficeAccountStatus;
 import com.safori.domain.organization.entity.Organization;
 import com.safori.domain.organization.entity.OrganizationMember;
 import com.safori.domain.organization.entity.OrganizationMemberStatus;
+import com.safori.domain.organization.model.StatusCount;
+import com.safori.domain.organization.model.WorkerSummary;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface OrganizationMemberRepository extends JpaRepository<OrganizationMember, Long> {
@@ -51,4 +57,34 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
             WHERE m.id = :memberId
             """)
     Optional<OrganizationMember> findForAuthorization(@Param("memberId") Long memberId);
+
+    /**
+     * 기관의 담당자(기본 그룹 CARE_WORKER 소속, 소속 종료 제외) 목록. 이름 부분 일치, 계정 상태로 거른다.
+     * 정렬은 이름 → 구성원 id(같은 이름끼리도 순서를 고정해 페이지가 어긋나지 않게).
+     */
+    @Query(value = "SELECT new com.safori.domain.organization.model.WorkerSummary("
+            + "a.accountUuid, a.name, m.jobTitle, a.status, "
+            + "(SELECT COUNT(ca) FROM CareAssignment ca WHERE ca.worker = m AND ca.endedAt IS NULL)) "
+            + WORKERS + "AND (:status IS NULL OR a.status = :status) ORDER BY a.name ASC, m.id ASC",
+            countQuery = "SELECT COUNT(m) " + WORKERS + "AND (:status IS NULL OR a.status = :status)")
+    Page<WorkerSummary> findWorkers(@Param("organizationId") Long organizationId,
+                                    @Param("keyword") String keyword,
+                                    @Param("status") BackofficeAccountStatus status,
+                                    Pageable pageable);
+
+    /** 담당자 목록 탭 개수. 검색어는 목록과 같이 적용한다. */
+    @Query("SELECT new com.safori.domain.organization.model.StatusCount(a.status, COUNT(m)) "
+            + WORKERS + "GROUP BY a.status")
+    List<StatusCount> countWorkersByStatus(@Param("organizationId") Long organizationId,
+                                           @Param("keyword") String keyword);
+
+    String WORKERS = """
+            FROM OrganizationMember m
+            JOIN m.account a
+            WHERE m.organization.id = :organizationId
+              AND m.status <> com.safori.domain.organization.entity.OrganizationMemberStatus.REVOKED
+              AND EXISTS (SELECT 1 FROM AccessGroupMember gm
+                          WHERE gm.member = m AND gm.group.systemCode = 'CARE_WORKER')
+              AND (:keyword IS NULL OR a.name LIKE CONCAT('%', :keyword, '%'))
+            """;
 }

@@ -40,7 +40,7 @@ class BackofficeAccountDomainServiceImplTest {
         given(passwordEncoder.encode("password1234!")).willReturn("ENCODED");
         given(accountRepository.save(any(BackofficeAccount.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        accountService.register("manager01", "password1234!", "김관리");
+        accountService.register("manager01", "password1234!", "김관리", null);
 
         verify(accountRepository).save(accountCaptor.capture());
         BackofficeAccount saved = accountCaptor.getValue();
@@ -56,7 +56,7 @@ class BackofficeAccountDomainServiceImplTest {
     void duplicateLoginIdIsRejected() {
         given(accountRepository.existsByLoginId("manager01")).willReturn(true);
 
-        assertThatThrownBy(() -> accountService.register("manager01", "password1234!", "김관리"))
+        assertThatThrownBy(() -> accountService.register("manager01", "password1234!", "김관리", null))
                 .isEqualTo(AccountHandler.LOGIN_ID_ALREADY_EXISTS);
         verify(accountRepository, never()).save(any());
     }

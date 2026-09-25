@@ -33,7 +33,8 @@ public class CreateOrganizationUseCase {
     public CreateOrganizationResponse execute(CreateOrganizationRequest request) {
         Organization organization = organizationDomainService.create(request.getOrganizationName());
         BackofficeAccount admin = accountDomainService.register(
-                request.getAdminLoginId(), request.getAdminPassword(), request.getAdminName());
+                request.getAdminLoginId(), request.getAdminPassword(), request.getAdminName(),
+                request.getAdminPhone());
         OrganizationMember member = memberDomainService.invite(organization, admin, RoleTemplateCode.ORG_ADMIN, null);
         memberDomainService.approve(member, null);
 

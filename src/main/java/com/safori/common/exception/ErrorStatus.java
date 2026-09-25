@@ -82,6 +82,8 @@ public enum ErrorStatus implements BaseErrorCode {
     ORGANIZATION_ADMIN_ALREADY_EXISTS(BAD_REQUEST, 4305, "이미 기관 관리자가 있는 기관입니다."),
     @ExplainError("백오피스 계정(관리자·담당자·보호자)은 한 기관에만 소속된다. 소속 종료되지 않은 다른 기관 멤버십이 있는 경우.")
     ORGANIZATION_MEMBER_OF_OTHER_ORGANIZATION(BAD_REQUEST, 4306, "이미 다른 기관에 소속된 계정입니다."),
+    @ExplainError("경로의 구성원 식별자가 없거나, 요청한 구성원의 기관 소속이 아니거나, 기대한 역할(예: 담당자)이 아닌 경우.")
+    ORGANIZATION_MEMBER_NOT_FOUND(BAD_REQUEST, 4307, "존재하지 않는 구성원입니다."),
 
     // 백오피스 계정 오류 (4350번대)
     ACCOUNT_LOGIN_ID_ALREADY_EXISTS(BAD_REQUEST, 4350, "이미 사용 중인 로그인 아이디입니다."),
@@ -100,7 +102,9 @@ public enum ErrorStatus implements BaseErrorCode {
     @ExplainError("활성 상태가 아니거나 배정 범위(ASSIGNED_RECIPIENT) 권한이 없는 구성원을 담당자로 배정하려 한 경우.")
     CARE_WORKER_NOT_ASSIGNABLE(BAD_REQUEST, 4452, "배정할 수 없는 담당자입니다."),
     @ExplainError("활성 상태가 아니거나 연결 범위(LINKED_RECIPIENT) 권한이 없는 구성원을 보호자로 연결하려 한 경우.")
-    CARE_GUARDIAN_NOT_LINKABLE(BAD_REQUEST, 4453, "연결할 수 없는 보호자입니다.");
+    CARE_GUARDIAN_NOT_LINKABLE(BAD_REQUEST, 4453, "연결할 수 없는 보호자입니다."),
+    @ExplainError("경로의 대상자 식별자(public_id)가 없거나 요청한 구성원의 기관 대상자가 아닌 경우.")
+    CARE_RECIPIENT_NOT_FOUND(BAD_REQUEST, 4454, "존재하지 않는 대상자입니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

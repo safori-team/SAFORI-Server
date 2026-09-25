@@ -19,6 +19,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -54,6 +55,13 @@ public class User extends BaseTimeEntity implements UserDetails {
     private Gender gender;
 
     private String nickname;
+
+    /** 생년월일. 기관 대상자 목록·상세에 표시한다. 컬럼 추가 전 가입자는 null. */
+    private LocalDate birthDate;
+
+    /** 휴대폰 번호(숫자만). 기관 대상자 조회·연락에 쓴다. 컬럼 추가 전 가입자는 null. */
+    @Column(length = 11)
+    private String phone;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

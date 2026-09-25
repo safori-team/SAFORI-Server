@@ -39,6 +39,8 @@ public class GetUserInfoUseCase {
                 .username(user.getUsername())
                 .gender(user.getGender())
                 .nickname(user.getNickname())
+                .birthDate(user.getBirthDate())
+                .phone(user.getPhone())
                 .build();
     }
 

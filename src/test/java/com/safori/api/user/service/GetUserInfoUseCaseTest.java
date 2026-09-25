@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,7 +27,7 @@ class GetUserInfoUseCaseTest {
     @Test
     @DisplayName("내 정보 조회 - 어르신 앱 토큰이면 username으로 조회하고 role=ELDER, 권한·기관 없음")
     void execute_returnsUserInfo() {
-        User user = User.builder().username("user01").name("홍길동").build();
+        User user = User.builder().username("user01").name("홍길동").birthDate(LocalDate.of(1960, 3, 12)).build();
         given(userAdaptor.queryUserByUsername("user01")).willReturn(user);
 
         UserInfoResponse response = getUserInfoUseCase.execute(
@@ -36,6 +37,7 @@ class GetUserInfoUseCaseTest {
         assertThat(response.getPermissions()).isEmpty();
         assertThat(response.getOrganization()).isNull();
         assertThat(response.getUsername()).isEqualTo("user01");
+        assertThat(response.getBirthDate()).isEqualTo(LocalDate.of(1960, 3, 12));
         assertThat(response.getName()).isEqualTo("홍길동");
     }
 }

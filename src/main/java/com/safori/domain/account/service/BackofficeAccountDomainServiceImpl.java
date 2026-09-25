@@ -1,6 +1,7 @@
 package com.safori.domain.account.service;
 
 import com.safori.common.annotation.DomainService;
+import com.safori.common.util.PhoneNumber;
 import com.safori.domain.account.entity.BackofficeAccount;
 import com.safori.domain.account.repository.BackofficeAccountRepository;
 import com.safori.domain.user.repository.UserRepository;
@@ -20,13 +21,21 @@ public class BackofficeAccountDomainServiceImpl implements BackofficeAccountDoma
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public BackofficeAccount register(String loginId, String rawPassword, String name) {
+    public BackofficeAccount register(String loginId, String rawPassword, String name, String phone) {
         // 로그인 엔드포인트가 하나라 아이디는 어르신 앱 계정과도 겹치면 안 된다.
         if (accountRepository.existsByLoginId(loginId) || userRepository.existsByUsername(loginId)) {
             throw LOGIN_ID_ALREADY_EXISTS;
         }
         return accountRepository.save(
-                BackofficeAccount.create(loginId, passwordEncoder.encode(rawPassword), name));
+                BackofficeAccount.create(loginId, passwordEncoder.encode(rawPassword), name,
+                        PhoneNumber.normalize(phone)));
+    }
+
+    @Override
+    public BackofficeAccount changeProfile(BackofficeAccount account, String name, String phone) {
+        BackofficeAccount current = reload(account);
+        current.changeProfile(name, PhoneNumber.normalize(phone));
+        return current;
     }
 
     @Override

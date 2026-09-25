@@ -37,7 +37,7 @@ class OperatorApiTest {
 
     private static final String URL = "/v1/api/operator/organizations";
     private static final String BODY = """
-            {"organizationName":"사포리 복지관","adminLoginId":"operator_admin","adminPassword":"tempPass1234","adminName":"관리자"}
+            {"organizationName":"사포리 복지관","adminLoginId":"operator_admin","adminPassword":"tempPass1234","adminName":"관리자","adminPhone":"010-1234-5678"}
             """;
 
     @Autowired WebApplicationContext context;
@@ -79,7 +79,7 @@ class OperatorApiTest {
         assertThat(member.getStatus()).isEqualTo(OrganizationMemberStatus.ACTIVE);
 
         Organization organization = member.getOrganization();
-        BackofficeAccount another = accountService.register("second_admin", "tempPass1234", "두번째");
+        BackofficeAccount another = accountService.register("second_admin", "tempPass1234", "두번째", null);
         assertThatThrownBy(() -> memberService.invite(organization, another, RoleTemplateCode.ORG_ADMIN, member))
                 .isEqualTo(OrganizationHandler.ADMIN_ALREADY_EXISTS);
     }

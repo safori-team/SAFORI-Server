@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Schema(description = "내 정보 응답")
@@ -28,6 +29,10 @@ public class UserInfoResponse {
     private final Gender gender;
     @Schema(description = "별명 (없으면 null)", example = "길동이")
     private final String nickname;
+    @Schema(description = "생년월일. 어르신만 있고 백오피스 계정은 null", example = "1960-03-12")
+    private final LocalDate birthDate;
+    @Schema(description = "휴대폰 번호(숫자만). 없으면 null", example = "01012345678")
+    private final String phone;
 
     public record Organization(
             @Schema(description = "기관 외부 식별자") String publicId,
