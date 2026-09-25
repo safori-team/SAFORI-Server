@@ -1,6 +1,7 @@
 package com.safori.domain.care.repository;
 
 import com.safori.domain.care.entity.CareRecipient;
+import com.safori.domain.care.entity.CareRecipientStatus;
 import com.safori.domain.care.entity.CareStatusCode;
 import com.safori.domain.care.model.RecipientStatusCounts;
 import com.safori.domain.care.model.RecipientStatusRow;
@@ -12,6 +13,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface CareRecipientRepository extends JpaRepository<CareRecipient, Long> {
@@ -42,6 +44,12 @@ public interface CareRecipientRepository extends JpaRepository<CareRecipient, Lo
     Optional<CareRecipient> findByPublicId(String publicId);
 
     boolean existsByUserId(Long userId);
+
+    /** 어르신 앱 계정의 대상자(어르신은 한 기관에만 등록된다). */
+    Optional<CareRecipient> findByUserIdAndStatus(Long userId, CareRecipientStatus status);
+
+    /** 판정 배치 대상: 앱 계정과 연결된 활성 대상자. */
+    List<CareRecipient> findAllByStatusAndUserIdIsNotNull(CareRecipientStatus status);
 
     /** 배정·연결 변경을 직렬화하기 위한 어르신 행 잠금. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

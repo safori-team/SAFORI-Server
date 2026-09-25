@@ -5,8 +5,8 @@ import com.safori.api.worker.service.OrganizationWorkers;
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.access.policy.BackofficeActor;
 import com.safori.domain.care.entity.CareProcessingStatus;
+import com.safori.domain.care.entity.CareReasonType;
 import com.safori.domain.care.entity.CareRecipient;
-import com.safori.domain.care.entity.CareStatusCode;
 import com.safori.domain.care.exception.CareHandler;
 import com.safori.domain.care.repository.CareRecordRepository;
 import com.safori.domain.care.service.CareRecordDomainService;
@@ -44,10 +44,10 @@ public class CareRecordUseCase {
     }
 
     @Transactional
-    public CareRecordResponse raise(BackofficeActor actor, String careRecipientId, CareStatusCode statusCode,
-                                    String reasonType, String reasonMessage, LocalDateTime detectedAt) {
+    public CareRecordResponse raise(BackofficeActor actor, String careRecipientId, CareReasonType reasonType,
+                                    String reasonMessage, LocalDateTime detectedAt) {
         CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
-        return CareRecordResponse.of(recordDomainService.raise(recipient, statusCode, reasonType, reasonMessage,
+        return CareRecordResponse.of(recordDomainService.raise(recipient, reasonType, reasonMessage,
                 detectedAt == null ? LocalDateTime.now() : detectedAt));
     }
 }

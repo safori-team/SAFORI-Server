@@ -28,4 +28,10 @@ public interface VoiceRepository extends JpaRepository<Voice, Long> {
 
     /** 최근 N건 (홈화면 미리보기용) */
     List<Voice> findByUser_UsernameOrderByCreatedDateDesc(String username, Pageable pageable);
+
+    /** 대상자 판정(작성 주기 감소): 이 시각 이후 일기 작성 시각, 최신순. */
+    @Query("SELECT v.createdDate FROM Voice v WHERE v.user.id = :userId AND v.createdDate >= :since "
+            + "ORDER BY v.createdDate DESC")
+    List<LocalDateTime> findCreatedDates(@Param("userId") Long userId, @Param("since") LocalDateTime since,
+                                         Pageable pageable);
 }

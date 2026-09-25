@@ -79,10 +79,10 @@ class RecipientStatusBoardTest {
         perform(put(RECIPIENTS + "/" + e1 + "/manager"), "{\"managerId\":\"" + worker + "\"}");
         perform(put(RECIPIENTS + "/" + e2 + "/manager"), "{\"managerId\":\"" + worker + "\"}");
 
-        raise(e1, "URGENT", "담당자와의 연결을 요청했어요.", LocalDateTime.now().minusMinutes(20));
-        raise(e2, "CAUTION", "최근 일기 3건 중 2건에서 슬픈 감정이 나타났어요.", LocalDateTime.now().minusDays(1));
-        absorbedRecordId = raise(e2, "INTEREST", "낮은 등급 사유", LocalDateTime.now());
-        raise(e3, "INTEREST", "최근 상담 3회 중 2회에서 '조금 더 이야기하기'를 선택했어요.", LocalDateTime.now().minusDays(3));
+        raise(e1, "HELP_REQUEST", "어르신이 담당자와의 연결을 요청했어요.", LocalDateTime.now().minusMinutes(20));
+        raise(e2, "SAME_EMOTION_REPEAT", "최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요.", LocalDateTime.now().minusDays(1));
+        absorbedRecordId = raise(e2, "COUNSEL_EXTENSION_REPEAT", "낮은 등급 사유", LocalDateTime.now());
+        raise(e3, "COUNSEL_EXTENSION_REPEAT", "최근 상담 3회 중 2회에서 '조금 더 이야기하기'를 선택했어요.", LocalDateTime.now().minusDays(3));
     }
 
     @Test
@@ -96,7 +96,7 @@ class RecipientStatusBoardTest {
                 .andExpect(jsonPath("$.result.counts.caution").value(1))
                 .andExpect(jsonPath("$.result.counts.interest").value(1))
                 .andExpect(jsonPath("$.result.recipients.items[*].careRecipientId").value(contains(e1, e2, e3, e4)))
-                .andExpect(jsonPath("$.result.recipients.items[1].reasonMessage").value("최근 일기 3건 중 2건에서 슬픈 감정이 나타났어요."))
+                .andExpect(jsonPath("$.result.recipients.items[1].reasonMessage").value("최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요."))
                 .andExpect(jsonPath("$.result.recipients.items[0].manager.name").value("박지현"))
                 .andExpect(jsonPath("$.result.recipients.items[3].statusCode").doesNotExist());
 
@@ -139,10 +139,31 @@ class RecipientStatusBoardTest {
                 .andExpect(jsonPath("$.code").value(4456));
     }
 
-    private String raise(String recipientId, String statusCode, String message, LocalDateTime detectedAt) throws Exception {
+    @Test
+    @DisplayName("같은 사유는 처리 중에 다시 감지돼도 무시(처리 상태 유지), 완료 후 다시 감지되면 새 기록")
+    void sameReasonIgnoredWhileOpenAndRaisedAgainAfterDone() throws Exception {
+        String first = json(perform(get(RECIPIENTS).param("statusCode", "CAUTION"), null))
+                .at("/result/recipients/items/0/recordId").asText();
+        perform(patch(RECIPIENTS + "/" + e2 + "/records/" + first), "{\"processingStatus\":\"IN_PROGRESS\"}");
+
+        String again = raise(e2, "SAME_EMOTION_REPEAT", "다시 감지", LocalDateTime.now());
+        org.assertj.core.api.Assertions.assertThat(again).isEqualTo(first);
+        perform(get(RECIPIENTS + "/" + e2 + "/records/" + first), null)
+                .andExpect(jsonPath("$.result.processingStatus").value("IN_PROGRESS"));
+
+        perform(patch(RECIPIENTS + "/" + e2 + "/records/" + first), "{\"processingStatus\":\"DONE\"}");
+        String next = raise(e2, "SAME_EMOTION_REPEAT", "완료 후 다시 감지", LocalDateTime.now());
+        org.assertj.core.api.Assertions.assertThat(next).isNotEqualTo(first);
+        perform(get(RECIPIENTS + "/" + e2 + "/records/" + next), null)
+                .andExpect(jsonPath("$.result.processingStatus").value("UNCHECKED"))
+                .andExpect(jsonPath("$.result.reasonTitle").value("동일 감정 반복"))
+                .andExpect(jsonPath("$.result.guidanceLabel").value("확인 권장"));
+    }
+
+    private String raise(String recipientId, String reasonType, String message, LocalDateTime detectedAt) throws Exception {
         return json(perform(post("/v1/api/admin/dev/care-recipients/" + recipientId + "/records"),
-                "{\"statusCode\":\"%s\",\"reasonMessage\":\"%s\",\"detectedAt\":\"%s\"}"
-                        .formatted(statusCode, message, detectedAt.withNano(0))))
+                "{\"reasonType\":\"%s\",\"reasonMessage\":\"%s\",\"detectedAt\":\"%s\"}"
+                        .formatted(reasonType, message, detectedAt.withNano(0))))
                 .at("/result/recordId").asText();
     }
 

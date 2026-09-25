@@ -56,11 +56,12 @@ public class CareRecord extends BaseTimeEntity {
     @Column(name = "status_code", nullable = false, columnDefinition = "VARCHAR(16)")
     private CareStatusCode statusCode;
 
-    /** 사유 종류(판정 규칙이 정한다. 예: 연결 요청, 감정 패턴). 규칙 확정 전이라 문자열로 둔다. */
-    @Column(name = "reason_type", length = 32)
-    private String reasonType;
+    /** 사유 종류. 제목·안내 문구는 종류로 정해진다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason_type", nullable = false, columnDefinition = "VARCHAR(32)")
+    private CareReasonType reasonType;
 
-    /** 현황 카드에 보이는 사유 문구. */
+    /** 사유 설명 문장(숫자·감정이 들어간 부분). 현황 카드와 확인 사유에 보인다. */
     @Column(name = "reason_message", nullable = false)
     private String reasonMessage;
 
@@ -80,12 +81,12 @@ public class CareRecord extends BaseTimeEntity {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
-    public static CareRecord detect(CareRecipient recipient, CareStatusCode statusCode, String reasonType,
-                                    String reasonMessage, LocalDateTime detectedAt) {
+    public static CareRecord detect(CareRecipient recipient, CareReasonType reasonType, String reasonMessage,
+                                    LocalDateTime detectedAt) {
         return CareRecord.builder()
                 .publicId(UUID.randomUUID().toString())
                 .recipient(recipient)
-                .statusCode(statusCode)
+                .statusCode(reasonType.statusCode())
                 .reasonType(reasonType)
                 .reasonMessage(reasonMessage)
                 .detectedAt(detectedAt)
