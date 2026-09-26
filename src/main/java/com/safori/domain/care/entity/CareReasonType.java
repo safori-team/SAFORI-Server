@@ -13,7 +13,10 @@ public enum CareReasonType {
     SAME_EMOTION_REPEAT(CareStatusCode.CAUTION, "동일 감정 반복",
             "다음 연락이나 방문 시 최근 기분에 달라진 점이 있는지 살펴봐 주세요.", false),
 
-    /** 평소 작성 간격의 2배가 지남. (예정된 작성 연속 2회 누락은 예정 데이터가 생기면 추가) */
+    /**
+     * 작성 주기 감소. 판정하지 않는다(개인별 작성 빈도 차이로 일괄 기준을 두기 어려워 실증 후 재검토).
+     * 판정하던 동안 저장된 기록을 읽기 위해 값만 남긴다.
+     */
     DIARY_INTERVAL_INCREASE(CareStatusCode.CAUTION, "작성 주기 감소",
             "다음 연락이나 방문 시 최근 마음일기 작성이 줄어든 이유와 안부를 함께 살펴봐 주세요.", false),
 

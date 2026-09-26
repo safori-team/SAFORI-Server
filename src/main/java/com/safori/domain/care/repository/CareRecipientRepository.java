@@ -60,9 +60,6 @@ public interface CareRecipientRepository extends JpaRepository<CareRecipient, Lo
     /** 어르신 앱 계정의 대상자(어르신은 한 기관에만 등록된다). */
     Optional<CareRecipient> findByUserIdAndStatus(Long userId, CareRecipientStatus status);
 
-    /** 판정 배치 대상: 앱 계정과 연결된 활성 대상자. */
-    List<CareRecipient> findAllByStatusAndUserIdIsNotNull(CareRecipientStatus status);
-
     /** 배정·연결 변경을 직렬화하기 위한 어르신 행 잠금. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM CareRecipient r WHERE r.id = :recipientId")
