@@ -6,6 +6,7 @@ import com.safori.api.journal.dto.JournalFormResponse;
 import com.safori.api.journal.dto.JournalListResponse;
 import com.safori.api.journal.dto.JournalSummary;
 import com.safori.api.journal.dto.WriteJournalRequest;
+import com.safori.api.recipient.dto.RecipientDetailResponse;
 import com.safori.api.recipient.service.OrganizationRecipients;
 import com.safori.api.worker.service.OrganizationWorkers;
 import com.safori.common.annotation.UseCase;
@@ -86,12 +87,31 @@ public class CareJournalUseCase {
         return detail(recipient, journal, journal.getSelections());
     }
 
+    /** 보호자(연결 범위로만 보는 구성원)는 보호자 공개 일지만 열 수 있다. 비공개면 없는 일지로 본다. */
     @Transactional(readOnly = true)
     public JournalDetailResponse get(BackofficeActor actor, String careRecipientId, String journalId) {
         CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
-        CareJournal journal = journalRepository.findByRecipientAndPublicId(recipient, journalId)
-                .orElseThrow(() -> CareHandler.JOURNAL_NOT_FOUND);
+        CareJournal journal = journalOf(recipient, journalId);
+        RecipientAccessScope scope = accessPolicy.recipientScope(actor.organizationMemberId(), PermissionCode.RECIPIENT_READ);
+        if (!scope.organizationWide() && !scope.includesAssigned() && !journal.isGuardianVisible()) {
+            throw CareHandler.JOURNAL_NOT_FOUND;
+        }
         return detail(recipient, journal, selectionRepository.findByJournals(List.of(journal)));
+    }
+
+    /** 일지 상세의 보호자 공개 토글. */
+    @Transactional
+    public JournalDetailResponse changeGuardianVisible(BackofficeActor actor, String careRecipientId, String journalId,
+                                                       boolean guardianVisible) {
+        CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
+        CareJournal journal = journalOf(recipient, journalId);
+        journal.changeGuardianVisible(guardianVisible);
+        return detail(recipient, journal, selectionRepository.findByJournals(List.of(journal)));
+    }
+
+    private CareJournal journalOf(CareRecipient recipient, String journalId) {
+        return journalRepository.findByRecipientAndPublicId(recipient, journalId)
+                .orElseThrow(() -> CareHandler.JOURNAL_NOT_FOUND);
     }
 
     /** 대상자 상세의 최근 조치 기록(확인 일시 최신순). 선택 항목은 한 번에 읽는다. */
@@ -141,8 +161,8 @@ public class CareJournalUseCase {
         return new JournalListResponse(start, end, PagedResponse.from(rows.map(row -> {
             List<CareJournalSelection> chosen = selections.getOrDefault(row.id(), List.of());
             return new JournalListResponse.Item(row.journalPublicId(), row.recipientPublicId(), row.recipientName(),
-                    row.confirmedAt(), row.statusCode(), first(chosen, METHOD), first(chosen, RESULT),
-                    row.writerName());
+                    row.confirmedAt(), row.statusCode(), row.reasonMessage(), row.processingStatus(),
+                    first(chosen, METHOD), first(chosen, RESULT), row.writerName());
         })));
     }
 
@@ -159,7 +179,8 @@ public class CareJournalUseCase {
                 .toList();
         return new JournalDetailResponse(journal.getPublicId(), recipient.getPublicId(), recipientName,
                 journal.getWriter().getAccount().getName(), journal.getStatusCodeSnapshot(),
-                journal.getProcessingStatusSnapshot(), journal.getConfirmedAt(), journal.getCreatedDate(),
+                journal.getProcessingStatusSnapshot(), RecipientDetailResponse.Reason.of(journal.getRecord()),
+                journal.getConfirmedAt(), journal.getCreatedDate(),
                 journal.isGuardianVisible(), journal.getMemo(), sections);
     }
 

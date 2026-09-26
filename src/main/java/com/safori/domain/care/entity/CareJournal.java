@@ -104,6 +104,10 @@ public class CareJournal extends BaseTimeEntity {
                 .build();
     }
 
+    public void changeGuardianVisible(boolean guardianVisible) {
+        this.guardianVisible = guardianVisible;
+    }
+
     public void select(JournalOption option, String text) {
         selections.add(CareJournalSelection.of(this, option, text));
     }

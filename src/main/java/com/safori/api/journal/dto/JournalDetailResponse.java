@@ -1,5 +1,6 @@
 package com.safori.api.journal.dto;
 
+import com.safori.api.recipient.dto.RecipientDetailResponse;
 import com.safori.domain.care.entity.CareProcessingStatus;
 import com.safori.domain.care.entity.CareStatusCode;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,6 +16,7 @@ public record JournalDetailResponse(
         @Schema(description = "작성자 이름", example = "박지현") String writerName,
         @Schema(description = "작성 당시 확인 필요도. 없었으면 null") CareStatusCode statusCode,
         @Schema(description = "작성 당시 처리 상태. 없었으면 null") CareProcessingStatus processingStatus,
+        @Schema(description = "작성 당시 확인 사유 (제목·문구·안내). 확인 사유가 없을 때 쓴 일지면 null") RecipientDetailResponse.Reason reason,
         @Schema(description = "확인 일시 (담당자 입력)") LocalDateTime confirmedAt,
         @Schema(description = "작성 일시 (시스템)") LocalDateTime writtenAt,
         @Schema(description = "보호자 공개 여부") boolean guardianVisible,

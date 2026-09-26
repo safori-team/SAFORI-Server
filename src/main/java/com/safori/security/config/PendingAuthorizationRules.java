@@ -43,10 +43,11 @@ public class PendingAuthorizationRules {
                 // 기록 상세·처리 상태 변경 (권한 담당자: CARE_REASON_READ / CARE_TASK_COMPLETE 로 옮길 것)
                 .requestMatchers(antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/records/{recordId}"))
                 .access(authz.member())
-                // 일지 폼·등록·상세 (권한 담당자: 폼은 member, 등록은 WORK_LOG_WRITE, 상세는 authz.recipient 로 옮길 것)
+                // 일지 폼·등록·상세·보호자 공개 변경 (권한 담당자: 폼은 member, 등록·공개 변경(PATCH)은 WORK_LOG_WRITE,
+                // 상세는 authz.recipient 로 옮길 것. 보호자에게 비공개 일지를 숨기는 건 서비스가 이미 한다)
                 .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/journal-form"),
                         antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/journals"),
-                        antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients/{careRecipientId}/journals/{journalId}"))
+                        antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/journals/{journalId}"))
                 .access(authz.member())
                 // 대상자 정보 수정 (권한 담당자: RECIPIENT_CREATE 로 옮길 것. 담당자 허용 여부는 기획 확인 필요)
                 .requestMatchers(antMatcher(HttpMethod.PUT, "/v1/api/admin/care-recipients/{careRecipientId}"))

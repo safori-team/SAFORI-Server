@@ -1,6 +1,7 @@
 package com.safori.api.journal.controller;
 
 import com.safori.api.common.dto.ApiResponseDto;
+import com.safori.api.journal.dto.ChangeGuardianVisibleRequest;
 import com.safori.api.journal.dto.JournalDetailResponse;
 import com.safori.api.journal.dto.JournalFormResponse;
 import com.safori.api.journal.dto.JournalListResponse;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -73,11 +75,16 @@ public class JournalApiController {
     }
 
     @Operation(operationId = "getJournal", summary = "일지 상세 조회",
-            description = "섹션별로 고른 항목(작성 당시 문구)과 확인 일시·작성 일시·작성 당시 상태를 줍니다.")
+            description = """
+                    일지 상세 화면입니다. 상태는 모두 **일지 작성 당시** 값입니다.
+                    - 확인 요청 당시: `statusCode`(당시 확인 단계)·`processingStatus`(당시 처리 상태)·`reason`(사유 제목·문구·안내, 사유 없이 쓴 일지면 null)
+                    - 확인 기록: `sections`(섹션별로 고른 항목, 작성 당시 문구)·`memo`
+                    보호자는 보호자 공개 일지만 열 수 있고, 비공개 일지는 `4458`입니다.
+                    """)
     @ApiResponse(responseCode = "200", description = "조회 성공")
     @ApiResponse(responseCode = "400", description = """
             - `4454`: 존재하지 않는 대상자입니다
-            - `4458`: 존재하지 않는 일지입니다
+            - `4458`: 존재하지 않는 일지입니다 (보호자가 비공개 일지를 연 경우 포함)
             """)
     @GetMapping("/care-recipients/{careRecipientId}/journals/{journalId}")
     public ApiResponseDto<JournalDetailResponse> get(
@@ -85,6 +92,23 @@ public class JournalApiController {
             @Parameter(description = "대상자 식별자 (public_id)") @PathVariable String careRecipientId,
             @Parameter(description = "일지 식별자") @PathVariable String journalId) {
         return ApiResponseDto.onSuccess(careJournalUseCase.get(actor, careRecipientId, journalId));
+    }
+
+    @Operation(operationId = "changeJournalGuardianVisible", summary = "일지 보호자 공개 여부 변경",
+            description = "일지 상세의 '보호자 공개 여부' 토글입니다. 공개로 바꾸면 보호자의 최근 안부 확인·일지 상세에 보입니다.")
+    @ApiResponse(responseCode = "200", description = "변경 성공 — 일지 상세 반환")
+    @ApiResponse(responseCode = "400", description = """
+            - `4454`: 존재하지 않는 대상자입니다
+            - `4458`: 존재하지 않는 일지입니다
+            """)
+    @PatchMapping("/care-recipients/{careRecipientId}/journals/{journalId}")
+    public ApiResponseDto<JournalDetailResponse> changeGuardianVisible(
+            @Parameter(hidden = true) @AuthenticationPrincipal BackofficeActor actor,
+            @Parameter(description = "대상자 식별자 (public_id)") @PathVariable String careRecipientId,
+            @Parameter(description = "일지 식별자") @PathVariable String journalId,
+            @Valid @RequestBody ChangeGuardianVisibleRequest request) {
+        return ApiResponseDto.onSuccess(careJournalUseCase.changeGuardianVisible(actor, careRecipientId, journalId,
+                request.guardianVisible()));
     }
 
     @Operation(operationId = "listJournals", summary = "일지 목록 조회",

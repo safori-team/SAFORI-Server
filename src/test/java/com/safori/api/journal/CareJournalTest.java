@@ -24,6 +24,7 @@ import java.time.LocalDate;
 
 import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -94,7 +95,10 @@ class CareJournalTest {
                 .andExpect(jsonPath("$.result.sections[*].code").value(contains("METHOD", "RESULT", "CONDITION", "ACTION", "FOLLOW_UP")))
                 .andExpect(jsonPath("$.result.sections[2].items[0].label").value("정서 변화"))
                 .andExpect(jsonPath("$.result.sections[2].items[0].children[*].label").value(contains("외로움 표현", "기타")))
-                .andExpect(jsonPath("$.result.sections[2].items[0].children[1].text").value("자녀 이야기에 눈물"));
+                .andExpect(jsonPath("$.result.sections[2].items[0].children[1].text").value("자녀 이야기에 눈물"))
+                .andExpect(jsonPath("$.result.reason.title").value("동일 감정 반복"))
+                .andExpect(jsonPath("$.result.reason.message").value("최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요."))
+                .andExpect(jsonPath("$.result.reason.guidance").exists());
 
         perform(get(RECIPIENTS + "/" + recipient), null)
                 .andExpect(jsonPath("$.result.recentActions[0].journalId").value(journalId))
@@ -121,6 +125,8 @@ class CareJournalTest {
                 .andExpect(jsonPath("$.result.journals.items[0].method").value("방문"))
                 .andExpect(jsonPath("$.result.journals.items[0].result").value("연락됨"))
                 .andExpect(jsonPath("$.result.journals.items[0].statusCode").value("CAUTION"))
+                .andExpect(jsonPath("$.result.journals.items[0].reasonMessage").value("최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요."))
+                .andExpect(jsonPath("$.result.journals.items[0].processingStatus").value("UNCHECKED"))
                 .andExpect(jsonPath("$.result.journals.items[0].recipientName").value("김영희"))
                 .andExpect(jsonPath("$.result.journals.items[0].writerName").value("이관리"))
                 .andExpect(jsonPath("$.result.journals.items[1].method").value("전화"));
@@ -133,6 +139,36 @@ class CareJournalTest {
                 .andExpect(jsonPath("$.code").value(4460));
         perform(get("/v1/api/admin/journals"), null)
                 .andExpect(jsonPath("$.result.to").value(LocalDate.now().toString()));
+    }
+
+    @Test
+    @DisplayName("보호자 공개 토글, 보호자는 공개 일지만 목록·상세로 본다(비공개 상세는 4458)")
+    void guardianVisibility() throws Exception {
+        String shown = json(perform(post(RECIPIENTS + "/" + recipient + "/journals"), journal("""
+                {"optionCode":"VISIT"},{"optionCode":"CONTACTED"},{"optionCode":"NO_ISSUE"}
+                """))).at("/result/journalId").asText();
+        String hidden = json(perform(post(RECIPIENTS + "/" + recipient + "/journals"), journal("""
+                {"optionCode":"PHONE"},{"optionCode":"CONTACTED"},{"optionCode":"NO_ISSUE"}
+                """))).at("/result/journalId").asText();
+        perform(patch(RECIPIENTS + "/" + recipient + "/journals/" + hidden), "{\"guardianVisible\":false}")
+                .andExpect(jsonPath("$.result.guardianVisible").value(false));
+
+        perform(post("/v1/api/admin/guardians"), """
+                {"name":"김희영","phone":"010-3333-4444","careRecipientId":"%s","relation":"CHILD","active":true,
+                 "loginId":"guard001","password":"guardPass1234"}
+                """.formatted(recipient));
+        String body = mockMvc.perform(post("/v1/api/auth/sign-in").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"guard001\",\"password\":\"guardPass1234\"}"))
+                .andReturn().getResponse().getContentAsString();
+        token = "Bearer " + objectMapper.readTree(body).at("/result/accessToken").asText();
+
+        perform(get("/v1/api/admin/journals").param("from", "2026-09-01").param("to", "2026-09-30"), null)
+                .andExpect(jsonPath("$.result.journals.totalElements").value(1))
+                .andExpect(jsonPath("$.result.journals.items[0].journalId").value(shown));
+        perform(get(RECIPIENTS + "/" + recipient + "/journals/" + shown), null)
+                .andExpect(jsonPath("$.result.reason.title").value("동일 감정 반복"));
+        perform(get(RECIPIENTS + "/" + recipient + "/journals/" + hidden), null)
+                .andExpect(jsonPath("$.code").value(4458));
     }
 
     @Test

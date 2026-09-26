@@ -1,6 +1,7 @@
 package com.safori.api.journal.dto;
 
 import com.safori.api.common.dto.PagedResponse;
+import com.safori.domain.care.entity.CareProcessingStatus;
 import com.safori.domain.care.entity.CareStatusCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -20,6 +21,8 @@ public record JournalListResponse(
             @Schema(description = "대상자 이름", example = "홍길동") String recipientName,
             @Schema(description = "확인 일시") LocalDateTime confirmedAt,
             @Schema(description = "작성 당시 확인 필요도. 없었으면 null") CareStatusCode statusCode,
+            @Schema(description = "작성 당시 확인 사유 문구. 없었으면 null", example = "최근 일기 3건 중 2건에서 슬픔 감정이 나타났어요.") String reasonMessage,
+            @Schema(description = "작성 당시 처리 상태. 없었으면 null") CareProcessingStatus processingStatus,
             @Schema(description = "확인 방식", example = "방문") String method,
             @Schema(description = "확인 결과", example = "연락됨") String result,
             @Schema(description = "작성자 이름", example = "박지현") String writerName) {
