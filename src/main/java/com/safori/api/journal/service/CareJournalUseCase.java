@@ -79,7 +79,7 @@ public class CareJournalUseCase {
 
     @Transactional
     public JournalDetailResponse write(BackofficeActor actor, String careRecipientId, WriteJournalRequest request) {
-        CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
+        CareRecipient recipient = organizationRecipients.getForCurrentWorker(actor, careRecipientId);
         CareJournal journal = journalDomainService.write(recipient, organizationWorkers.actorOf(actor),
                 request.confirmedAt(),
                 request.selections().stream().map(s -> new JournalSelectionInput(s.optionCode(), s.text())).toList(),
@@ -126,7 +126,7 @@ public class CareJournalUseCase {
                 .collect(Collectors.groupingBy(s -> s.getJournal().getId()));
         return journals.stream().map(journal -> {
             List<CareJournalSelection> chosen = selections.getOrDefault(journal.getId(), List.of());
-            return new JournalSummary(journal.getPublicId(), journal.getConfirmedAt(),
+            return new JournalSummary(journal.getPublicId(), journal.getConfirmedAt(), journal.getStatusCodeSnapshot(),
                     journal.getWriter().getAccount().getName(), first(chosen, METHOD), first(chosen, RESULT),
                     labels(chosen, ACTION), labels(chosen, FOLLOW_UP));
         }).toList();

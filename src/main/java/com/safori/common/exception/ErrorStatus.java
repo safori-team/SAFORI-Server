@@ -118,7 +118,9 @@ public enum ErrorStatus implements BaseErrorCode {
     CARE_JOURNAL_NOT_FOUND(BAD_REQUEST, 4458, "존재하지 않는 일지입니다."),
     @ExplainError("보호자는 대상자 한 명에만 연결된다. 다른 대상자와 연결된 보호자는 먼저 연결을 해제해야 한다.")
     CARE_GUARDIAN_ALREADY_LINKED(BAD_REQUEST, 4459, "이미 다른 대상자와 연결된 보호자입니다."),
-    CARE_JOURNAL_INVALID_PERIOD(BAD_REQUEST, 4460, "조회 기간이 올바르지 않습니다.");
+    CARE_JOURNAL_INVALID_PERIOD(BAD_REQUEST, 4460, "조회 기간이 올바르지 않습니다."),
+    @ExplainError("처리 상태 변경·일지 작성은 대상자의 현재 담당자만 할 수 있다(관리 이력이 꼬이지 않도록). 관리자도 불가.")
+    CARE_NOT_CURRENT_WORKER(FORBIDDEN, 4461, "대상자의 현재 담당자만 할 수 있습니다.");
 
     private final HttpStatus httpStatus;
     private final Integer code;

@@ -40,7 +40,8 @@ public class PendingAuthorizationRules {
                 .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients"),
                         antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients/{careRecipientId}"))
                 .access(authz.member())
-                // 기록 상세·처리 상태 변경 (권한 담당자: CARE_REASON_READ / CARE_TASK_COMPLETE 로 옮길 것)
+                // 기록 상세·처리 상태 변경 (권한 담당자: CARE_REASON_READ / CARE_TASK_COMPLETE 로 옮길 것.
+                // 처리 상태 변경·일지 등록이 현재 담당자만 되는 건(관리자 불가, 4461) 서비스가 이미 검사한다)
                 .requestMatchers(antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/records/{recordId}"))
                 .access(authz.member())
                 // 일지 폼·등록·상세·보호자 공개 변경 (권한 담당자: 폼은 member, 등록·공개 변경(PATCH)은 WORK_LOG_WRITE,

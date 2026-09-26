@@ -1,5 +1,6 @@
 package com.safori.api.journal.dto;
 
+import com.safori.domain.care.entity.CareStatusCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -9,6 +10,7 @@ import java.util.List;
 public record JournalSummary(
         @Schema(description = "일지 식별자") String journalId,
         @Schema(description = "확인 일시") LocalDateTime confirmedAt,
+        @Schema(description = "작성 당시 확인 필요도 (배지). 없었으면 null") CareStatusCode statusCode,
         @Schema(description = "작성자 이름", example = "박지현") String writerName,
         @Schema(description = "확인 방식", example = "방문") String method,
         @Schema(description = "확인 결과", example = "연락됨") String result,

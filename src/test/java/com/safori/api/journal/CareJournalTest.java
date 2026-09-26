@@ -47,6 +47,7 @@ class CareJournalTest {
 
     private MockMvc mockMvc;
     private String token;
+    private String adminToken;
     private String recipient;
 
     @BeforeEach
@@ -64,6 +65,18 @@ class CareJournalTest {
         recipient = json(perform(post(RECIPIENTS), "{\"loginId\":\"elder001\"}")).at("/result/recipientPublicId").asText();
         perform(post("/v1/api/admin/dev/care-recipients/" + recipient + "/records"),
                 "{\"reasonType\":\"SAME_EMOTION_REPEAT\",\"reasonMessage\":\"최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요.\"}");
+
+        // 일지는 현재 담당자만 쓴다. 담당자를 배정하고 담당자로 진행한다.
+        String managerId = json(perform(post("/v1/api/admin/managers"), """
+                {"name":"박지현","phone":"01012345678","jobTitle":"사회복지사","active":true,
+                 "loginId":"worker001","password":"workPass1234"}
+                """)).at("/result/managerId").asText();
+        perform(post(RECIPIENTS + "/" + recipient + "/manager"), "{\"managerId\":\"" + managerId + "\"}");
+        adminToken = token;
+        String signIn = mockMvc.perform(post("/v1/api/auth/sign-in").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"worker001\",\"password\":\"workPass1234\"}"))
+                .andReturn().getResponse().getContentAsString();
+        token = "Bearer " + objectMapper.readTree(signIn).at("/result/accessToken").asText();
     }
 
     @Test
@@ -87,7 +100,7 @@ class CareJournalTest {
 
         perform(get(RECIPIENTS + "/" + recipient + "/journals/" + journalId), null)
                 .andExpect(jsonPath("$.result.recipientName").value("김영희"))
-                .andExpect(jsonPath("$.result.writerName").value("이관리"))
+                .andExpect(jsonPath("$.result.writerName").value("박지현"))
                 .andExpect(jsonPath("$.result.statusCode").value("CAUTION"))
                 .andExpect(jsonPath("$.result.processingStatus").value("UNCHECKED"))
                 .andExpect(jsonPath("$.result.writtenAt").exists())
@@ -103,6 +116,7 @@ class CareJournalTest {
         perform(get(RECIPIENTS + "/" + recipient), null)
                 .andExpect(jsonPath("$.result.recentActions[0].journalId").value(journalId))
                 .andExpect(jsonPath("$.result.recentActions[0].method").value("방문"))
+                .andExpect(jsonPath("$.result.recentActions[0].statusCode").value("CAUTION"))
                 .andExpect(jsonPath("$.result.recentActions[0].result").value("연락됨"))
                 .andExpect(jsonPath("$.result.recentActions[0].actions[0]").value("안부 확인 완료"))
                 .andExpect(jsonPath("$.result.recentActions[0].followUps[0]").value("보호자 연락 필요"));
@@ -128,7 +142,7 @@ class CareJournalTest {
                 .andExpect(jsonPath("$.result.journals.items[0].reasonMessage").value("최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요."))
                 .andExpect(jsonPath("$.result.journals.items[0].processingStatus").value("UNCHECKED"))
                 .andExpect(jsonPath("$.result.journals.items[0].recipientName").value("김영희"))
-                .andExpect(jsonPath("$.result.journals.items[0].writerName").value("이관리"))
+                .andExpect(jsonPath("$.result.journals.items[0].writerName").value("박지현"))
                 .andExpect(jsonPath("$.result.journals.items[1].method").value("전화"));
         perform(get("/v1/api/admin/journals").param("from", "2026-09-11").param("to", "2026-09-13"), null)
                 .andExpect(jsonPath("$.result.journals.totalElements").value(1));
@@ -153,6 +167,7 @@ class CareJournalTest {
         perform(patch(RECIPIENTS + "/" + recipient + "/journals/" + hidden), "{\"guardianVisible\":false}")
                 .andExpect(jsonPath("$.result.guardianVisible").value(false));
 
+        token = adminToken;
         perform(post("/v1/api/admin/guardians"), """
                 {"name":"김희영","phone":"010-3333-4444","careRecipientId":"%s","relation":"CHILD","active":true,
                  "loginId":"guard001","password":"guardPass1234"}
@@ -172,8 +187,14 @@ class CareJournalTest {
     }
 
     @Test
-    @DisplayName("폼 규칙 위반은 4457: 단일 섹션 2개, 특이사항 없음+다른 상태, 부모 없는 하위 항목, 기타 입력 누락, 필수 섹션 누락")
+    @DisplayName("관리자는 일지를 쓸 수 없다(4461). 폼 규칙 위반은 4457: 단일 섹션 2개, 특이사항 없음+다른 상태, 부모 없는 하위 항목, 기타 입력 누락, 필수 섹션 누락")
     void invalidSelections() throws Exception {
+        String worker = token;
+        token = adminToken;
+        perform(post(RECIPIENTS + "/" + recipient + "/journals"), journal("""
+                {"optionCode":"VISIT"},{"optionCode":"CONTACTED"},{"optionCode":"NO_ISSUE"}
+                """)).andExpect(jsonPath("$.code").value(4461));
+        token = worker;
         for (String selections : new String[]{
                 "{\"optionCode\":\"VISIT\"},{\"optionCode\":\"PHONE\"},{\"optionCode\":\"CONTACTED\"},{\"optionCode\":\"NO_ISSUE\"}",
                 "{\"optionCode\":\"VISIT\"},{\"optionCode\":\"CONTACTED\"},{\"optionCode\":\"NO_ISSUE\"},{\"optionCode\":\"SLEEP_CHANGE\"}",

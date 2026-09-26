@@ -122,13 +122,17 @@ class RecipientStatusBoardTest {
     }
 
     @Test
-    @DisplayName("처리 상태: 진행 중 → 완료하면 상태 코드 X, 완료된 기록은 다시 바꿀 수 없다(4456)")
+    @DisplayName("처리 상태: 현재 담당자만(관리자 4461), 진행 중 → 완료하면 상태 코드 X, 완료된 기록은 다시 바꿀 수 없다(4456)")
     void processingToDoneClearsStatus() throws Exception {
         String recordId = json(perform(get(RECIPIENTS), null)).at("/result/recipients/items/0/recordId").asText();
+        perform(patch(RECIPIENTS + "/" + e1 + "/records/" + recordId), "{\"processingStatus\":\"IN_PROGRESS\"}")
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(4461));
 
+        token = workerToken;
         perform(patch(RECIPIENTS + "/" + e1 + "/records/" + recordId), "{\"processingStatus\":\"IN_PROGRESS\"}")
                 .andExpect(jsonPath("$.result.processingStatus").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.result.processedByName").value("이관리"));
+                .andExpect(jsonPath("$.result.processedByName").value("박지현"));
         perform(patch(RECIPIENTS + "/" + e1 + "/records/" + recordId), "{\"processingStatus\":\"DONE\"}")
                 .andExpect(status().isOk());
 
@@ -144,6 +148,7 @@ class RecipientStatusBoardTest {
     void sameReasonIgnoredWhileOpenAndRaisedAgainAfterDone() throws Exception {
         String first = json(perform(get(RECIPIENTS).param("statusCode", "CAUTION"), null))
                 .at("/result/recipients/items/0/recordId").asText();
+        token = workerToken;
         perform(patch(RECIPIENTS + "/" + e2 + "/records/" + first), "{\"processingStatus\":\"IN_PROGRESS\"}");
 
         String again = raise(e2, "SAME_EMOTION_REPEAT", "다시 감지", LocalDateTime.now());
