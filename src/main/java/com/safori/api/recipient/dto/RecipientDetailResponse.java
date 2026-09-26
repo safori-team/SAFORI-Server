@@ -3,6 +3,7 @@ package com.safori.api.recipient.dto;
 import com.safori.api.journal.dto.JournalSummary;
 import com.safori.domain.care.entity.CareProcessingStatus;
 import com.safori.domain.care.entity.CareReasonType;
+import com.safori.domain.care.entity.CareRecord;
 import com.safori.domain.care.entity.CareStatusCode;
 import com.safori.domain.care.entity.GuardianRelation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -44,12 +45,19 @@ public record RecipientDetailResponse(
     }
 
     public record Reason(
-            @Schema(description = "현재 기록 식별자. 처리 상태 변경 경로의 {recordId}") String recordId,
+            @Schema(description = "기록 식별자. 기록 상세·처리 상태 변경 경로의 {recordId} (처리 상태는 현재 기록만 바꿀 수 있다)") String recordId,
             @Schema(description = "사유 종류") CareReasonType reasonType,
             @Schema(description = "사유 제목", example = "동일 감정 반복") String title,
             @Schema(description = "사유 설명", example = "최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요.") String message,
             @Schema(description = "안내 라벨", example = "확인 권장") String guidanceLabel,
             @Schema(description = "안내 문구", example = "다음 연락이나 방문 시 최근 기분에 달라진 점이 있는지 살펴봐 주세요.") String guidance,
             @Schema(description = "요청·감지 시각") LocalDateTime detectedAt) {
+
+        /** 기록의 사유. 기록이 없으면 null. 기록의 사유·문구는 바뀌지 않으므로 지난 기록이면 그때의 사유다. */
+        public static Reason of(CareRecord record) {
+            return record == null ? null : new Reason(record.getPublicId(), record.getReasonType(),
+                    record.getReasonType().title(), record.getReasonMessage(), record.getStatusCode().guidanceLabel(),
+                    record.getReasonType().guidance(), record.getDetectedAt());
+        }
     }
 }

@@ -31,7 +31,8 @@ public interface CareJournalRepository extends JpaRepository<CareJournal, Long> 
      * @param managerId 작성자(계정 UUID). null이면 거르지 않는다
      */
     @Query(value = "SELECT new com.safori.domain.care.model.JournalListRow("
-            + "j.id, j.publicId, r.publicId, u.name, j.confirmedAt, j.statusCodeSnapshot, wa.name) "
+            + "j.id, j.publicId, r.publicId, u.name, j.confirmedAt, j.statusCodeSnapshot, rec.reasonMessage, "
+            + "j.processingStatusSnapshot, wa.name) "
             + JOURNALS + "ORDER BY j.confirmedAt DESC, j.id DESC",
             countQuery = "SELECT COUNT(j) " + JOURNALS)
     Page<JournalListRow> findJournals(@Param("organizationId") Long organizationId,
@@ -50,6 +51,7 @@ public interface CareJournalRepository extends JpaRepository<CareJournal, Long> 
             JOIN j.recipient r
             JOIN j.writer w
             JOIN w.account wa
+            LEFT JOIN j.record rec
             LEFT JOIN User u ON u.id = r.userId
             WHERE r.organization.id = :organizationId
               AND r.status = com.safori.domain.care.entity.CareRecipientStatus.ACTIVE

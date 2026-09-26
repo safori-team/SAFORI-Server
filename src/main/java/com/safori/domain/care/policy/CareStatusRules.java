@@ -2,9 +2,6 @@ package com.safori.domain.care.policy;
 
 import com.safori.domain.emotion.entity.EmotionType;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -20,10 +17,6 @@ public final class CareStatusRules {
     public static final int LATEST = 3;
     /** 그중 몇 건(회) 이상이면 발생하는지. */
     public static final int THRESHOLD = 2;
-    /** 평소 작성 간격을 계산할 최근 일기 수. */
-    public static final int INTERVAL_SAMPLE = 10;
-    /** 평소 작성 간격을 계산하는 최소 일기 수(간격 2개). */
-    public static final int INTERVAL_MIN_DIARIES = 3;
 
     private static final Map<EmotionType, String> NEGATIVE = Map.of(
             EmotionType.SAD, "슬픔", EmotionType.ANXIETY, "불안", EmotionType.ANGRY, "분노");
@@ -58,29 +51,5 @@ public final class CareStatusRules {
         }
         return Optional.of("최근 상담 %d회 중 %d회에서 '조금 더 이야기하기'를 선택했어요."
                 .formatted(latestExtended.size(), extended));
-    }
-
-    /**
-     * 작성 주기 감소. 평소 간격(최근 일기 간격의 중앙값)의 2배 이상이 지남.
-     *
-     * @param diaryDates 최신순 일기 작성일(최대 10건)
-     * @param base       경과를 재는 기준일(마지막 일기일과 이 사유 마지막 완료일 중 늦은 날)
-     */
-    public static Optional<String> diaryInterval(List<LocalDate> diaryDates, LocalDate base, LocalDate today) {
-        if (diaryDates.size() < INTERVAL_MIN_DIARIES) {
-            return Optional.empty();
-        }
-        List<Long> gaps = new ArrayList<>();
-        for (int i = 0; i + 1 < diaryDates.size(); i++) {
-            gaps.add(ChronoUnit.DAYS.between(diaryDates.get(i + 1), diaryDates.get(i)));
-        }
-        gaps.sort(null);
-        // 중앙값: 한 번 길게 비운 간격이 평소 간격을 부풀리지 않게. 하루에 여러 번 쓴 경우를 위해 최소 1일.
-        long usual = Math.max(1, gaps.get(gaps.size() / 2));
-        long elapsed = ChronoUnit.DAYS.between(base, today);
-        if (elapsed < usual * 2) {
-            return Optional.empty();
-        }
-        return Optional.of("평소 %d일이던 마음일기 작성 간격이 현재 %d일로 길어졌어요.".formatted(usual, elapsed));
     }
 }

@@ -53,10 +53,7 @@ public class GetRecipientUseCase {
                 guardians(recipient),
                 current == null ? null : current.getStatusCode(),
                 current == null ? null : current.getProcessingStatus(),
-                current == null ? null : new RecipientDetailResponse.Reason(current.getPublicId(),
-                        current.getReasonType(), current.getReasonType().title(), current.getReasonMessage(),
-                        current.getStatusCode().guidanceLabel(), current.getReasonType().guidance(),
-                        current.getDetectedAt()),
+                RecipientDetailResponse.Reason.of(current),
                 careJournalUseCase.recent(recipient));
     }
 

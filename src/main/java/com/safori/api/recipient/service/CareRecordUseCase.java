@@ -38,7 +38,7 @@ public class CareRecordUseCase {
     @Transactional
     public CareRecordResponse changeProcessingStatus(BackofficeActor actor, String careRecipientId, String recordId,
                                                      CareProcessingStatus status) {
-        CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
+        CareRecipient recipient = organizationRecipients.getForCurrentWorker(actor, careRecipientId);
         return CareRecordResponse.of(
                 recordDomainService.process(recipient, recordId, status, organizationWorkers.actorOf(actor)));
     }

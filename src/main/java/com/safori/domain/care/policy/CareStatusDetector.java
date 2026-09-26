@@ -9,13 +9,10 @@ import com.safori.domain.chatbot.repository.ChatSessionRepository;
 import com.safori.domain.emotion.entity.EmotionType;
 import com.safori.domain.emotion.service.EmotionResolver;
 import com.safori.domain.voice.repository.DiaryEmotionHistoryRepository;
-import com.safori.domain.voice.repository.VoiceRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,13 +28,11 @@ import java.util.Optional;
 public class CareStatusDetector {
 
     static final int WINDOW_DAYS = 30;
-    static final int INTERVAL_WINDOW_DAYS = 60;
 
     private final CareRecipientRepository recipientRepository;
     private final CareRecordDomainService recordDomainService;
     private final DiaryEmotionHistoryRepository diaryEmotionRepository;
     private final ChatSessionRepository chatSessionRepository;
-    private final VoiceRepository voiceRepository;
 
     /** 동일 감정 반복 — 일기 분석이 끝나거나 재분석됐을 때. */
     @Transactional
@@ -66,29 +61,6 @@ public class CareStatusDetector {
             CareStatusRules.counselExtension(latest).ifPresent(message ->
                     recordDomainService.raise(recipient, CareReasonType.COUNSEL_EXTENSION_REPEAT, message, now));
         });
-    }
-
-    /** 작성 주기 감소 — 매일 배치. 기준일은 마지막 일기일과 이 사유 마지막 완료일 중 늦은 날. */
-    @Transactional
-    public void evaluateDiaryInterval(CareRecipient recipient, LocalDateTime now) {
-        List<LocalDate> dates = voiceRepository.findCreatedDates(recipient.getUserId(),
-                        now.minusDays(INTERVAL_WINDOW_DAYS), PageRequest.of(0, CareStatusRules.INTERVAL_SAMPLE))
-                .stream().map(LocalDateTime::toLocalDate).toList();
-        if (dates.isEmpty()) {
-            return;
-        }
-        LocalDate base = recordDomainService.lastCompletedAt(recipient, CareReasonType.DIARY_INTERVAL_INCREASE)
-                .map(LocalDateTime::toLocalDate)
-                .filter(completed -> completed.isAfter(dates.get(0)))
-                .orElse(dates.get(0));
-        CareStatusRules.diaryInterval(dates, base, now.toLocalDate()).ifPresent(message ->
-                recordDomainService.raise(recipient, CareReasonType.DIARY_INTERVAL_INCREASE, message, now));
-    }
-
-    /** 판정 배치 대상. */
-    @Transactional(readOnly = true)
-    public List<CareRecipient> intervalTargets() {
-        return recipientRepository.findAllByStatusAndUserIdIsNotNull(CareRecipientStatus.ACTIVE);
     }
 
     private Optional<CareRecipient> recipientOf(Long userId) {
