@@ -50,6 +50,21 @@ public enum PermissionCode {
     /** 보호자 연결·해제. */
     GUARDIAN_LINK_MANAGE("보호자 연결·해제", true),
 
+    /** 기관 내 보호자 목록·상세 조회. */
+    GUARDIAN_READ("보호자 목록·상세 조회", true),
+
+    /** 대상자 상세에서 연결된 보호자의 이름·관계·연락처 조회. */
+    RECIPIENT_GUARDIAN_READ("대상자에 연결된 보호자 정보 조회", true),
+
+    /** 일반 업무일지 조회. 담당자는 현재 배정 기간에 작성된 기록만 허용한다. */
+    WORK_LOG_READ("업무일지 조회", true),
+
+    /** 이전 담당자가 작성한 업무일지 조회. 담당자는 별도의 유효한 열람 승인도 필요하다. */
+    WORK_LOG_HISTORY_READ("이전 담당자의 업무일지 조회", true),
+
+    /** 이전 담당자의 업무일지 열람 요청 승인·거절·회수. */
+    WORK_LOG_HISTORY_APPROVE("이전 업무일지 열람 승인", true),
+
     /** 기관 초대·승인·정지 등 구성원 관리. 권한표 밖이지만 "기관 초대·승인으로 가입" 결정에 필요하다. */
     MEMBER_MANAGE("구성원 초대·승인·관리", true),
 

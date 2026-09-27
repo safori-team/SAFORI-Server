@@ -12,10 +12,15 @@ import static com.safori.domain.access.entity.PermissionCode.CARE_REASON_READ;
 import static com.safori.domain.access.entity.PermissionCode.CARE_STATUS_READ;
 import static com.safori.domain.access.entity.PermissionCode.CARE_TASK_COMPLETE;
 import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_LINK_MANAGE;
+import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_STATUS_READ;
 import static com.safori.domain.access.entity.PermissionCode.MEMBER_MANAGE;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_CREATE;
+import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_READ;
+import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_APPROVE;
+import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_READ;
+import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_READ;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_WRITE;
 
 /**
@@ -28,6 +33,10 @@ import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_WRITE;
  * | 담당자별 배정 대상 조회             | 소속 기관     | 금지          | 금지              |
  * | 상태·조치 조회                     | 소속 기관     | 본인 배정     | 연결 대상 공개 항목 |
  * | 확인 사유·자동 분석 근거            | 소속 기관     | 본인 배정     | 금지              |
+ * | 보호자 목록·상세                   | 소속 기관     | 금지          | 금지              |
+ * | 대상자에 연결된 보호자 정보          | 소속 기관     | 본인 배정     | 금지              |
+ * | 업무일지 조회                      | 소속 기관     | 현재 배정 기간 | 금지              |
+ * | 이전 담당자의 업무일지              | 소속 기관     | 별도 승인 필요 | 금지              |
  * | 업무일지 작성·업무 완료             | 소속 기관     | 현재 본인 배정 | 금지              |
  * | 대상자 등록·담당자 배정/변경/해제    | 소속 기관     | 금지          | 금지              |
  * | 보호자 연결·해제                   | 소속 기관     | 금지          | 금지              |
@@ -41,11 +50,16 @@ import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_WRITE;
 @Getter
 public enum RoleTemplateCode {
 
-    ORG_ADMIN("기관 관리자", 1, DataScope.ORGANIZATION, EnumSet.of(
+    ORG_ADMIN("기관 관리자", 2, DataScope.ORGANIZATION, EnumSet.of(
             RECIPIENT_READ,
             ASSIGNMENT_READ,
             CARE_STATUS_READ,
             CARE_REASON_READ,
+            GUARDIAN_READ,
+            RECIPIENT_GUARDIAN_READ,
+            WORK_LOG_READ,
+            WORK_LOG_HISTORY_READ,
+            WORK_LOG_HISTORY_APPROVE,
             WORK_LOG_WRITE,
             CARE_TASK_COMPLETE,
             RECIPIENT_CREATE,
@@ -53,10 +67,13 @@ public enum RoleTemplateCode {
             GUARDIAN_LINK_MANAGE,
             MEMBER_MANAGE)),
 
-    CARE_WORKER("담당자", 1, DataScope.ASSIGNED_RECIPIENT, EnumSet.of(
+    CARE_WORKER("담당자", 2, DataScope.ASSIGNED_RECIPIENT, EnumSet.of(
             RECIPIENT_READ,
             CARE_STATUS_READ,
             CARE_REASON_READ,
+            RECIPIENT_GUARDIAN_READ,
+            WORK_LOG_READ,
+            WORK_LOG_HISTORY_READ,
             WORK_LOG_WRITE,
             CARE_TASK_COMPLETE)),
 

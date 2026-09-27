@@ -10,9 +10,16 @@ import java.util.Arrays;
 
 import static com.safori.domain.access.entity.PermissionCode.CARE_REASON_READ;
 import static com.safori.domain.access.entity.PermissionCode.CARE_STATUS_READ;
+import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_STATUS_READ;
 import static com.safori.domain.access.entity.PermissionCode.RAW_CONTENT_READ;
+import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_GUARDIAN_READ;
+import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_APPROVE;
+import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_READ;
+import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_READ;
+import static com.safori.domain.access.entity.RoleTemplateCode.CARE_WORKER;
 import static com.safori.domain.access.entity.RoleTemplateCode.GUARDIAN;
+import static com.safori.domain.access.entity.RoleTemplateCode.ORG_ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -52,6 +59,30 @@ class RoleTemplateCodeTest {
     void guardianReadsPublishedStatusOnly() {
         assertThat(GUARDIAN.getDefaultPermissions())
                 .contains(GUARDIAN_STATUS_READ)
-                .doesNotContain(CARE_STATUS_READ, CARE_REASON_READ);
+                .doesNotContain(CARE_STATUS_READ, CARE_REASON_READ, GUARDIAN_READ,
+                        RECIPIENT_GUARDIAN_READ, WORK_LOG_READ, WORK_LOG_HISTORY_READ);
+    }
+
+    @Test
+    @DisplayName("기관 전체 보호자 목록·상세 조회는 관리자에게만 부여한다")
+    void guardianDirectoryIsAdminOnly() {
+        assertThat(ORG_ADMIN.getDefaultPermissions()).contains(GUARDIAN_READ);
+        assertThat(CARE_WORKER.getDefaultPermissions()).doesNotContain(GUARDIAN_READ);
+    }
+
+    @Test
+    @DisplayName("담당자는 배정 대상의 연결 보호자와 업무일지를 조회할 수 있다")
+    void workerReadsAssignedRecipientGuardiansAndWorkLogs() {
+        assertThat(CARE_WORKER.getDefaultPermissions())
+                .contains(RECIPIENT_GUARDIAN_READ, WORK_LOG_READ, WORK_LOG_HISTORY_READ)
+                .doesNotContain(WORK_LOG_HISTORY_APPROVE);
+    }
+
+    @Test
+    @DisplayName("이전 업무일지 열람 승인은 관리자에게만 부여한다")
+    void workLogHistoryApprovalIsAdminOnly() {
+        assertThat(ORG_ADMIN.getDefaultPermissions())
+                .contains(WORK_LOG_HISTORY_READ, WORK_LOG_HISTORY_APPROVE);
+        assertThat(CARE_WORKER.getDefaultPermissions()).doesNotContain(WORK_LOG_HISTORY_APPROVE);
     }
 }
