@@ -36,7 +36,8 @@ public class PendingAuthorizationRules {
                         antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/manager"))
                 .access(authz.member())
                 // 대상자 현황·목록·상세 (권한 담당자: RECIPIENT_READ 로 옮길 것. 목록 범위는 이미 권한 범위로 거르고,
-                // 상세는 authz.recipient(RECIPIENT_READ, "careRecipientId")로 옮기면 담당자는 본인 배정만 열린다)
+                // 상세는 authz.recipient(RECIPIENT_READ, "careRecipientId")로 옮기면 담당자는 본인 배정만 열린다.
+                // 상세 응답의 연결 보호자 필드는 RECIPIENT_GUARDIAN_READ도 검사해 별도로 projection한다)
                 .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients"),
                         antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients/{careRecipientId}"))
                 .access(authz.member())
@@ -45,7 +46,8 @@ public class PendingAuthorizationRules {
                 .requestMatchers(antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/records/{recordId}"))
                 .access(authz.member())
                 // 일지 폼·등록·상세·보호자 공개 변경 (권한 담당자: 폼은 member, 등록·공개 변경(PATCH)은 WORK_LOG_WRITE,
-                // 상세는 authz.recipient 로 옮길 것. 보호자에게 비공개 일지를 숨기는 건 서비스가 이미 한다)
+                // 상세는 WORK_LOG_READ + 대상 범위로 옮길 것. 이전 담당자 기록은 WORK_LOG_HISTORY_READ뿐 아니라
+                // 유효한 열람 승인도 필요하다. 보호자에게 비공개 일지를 숨기는 건 서비스가 이미 한다)
                 .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/journal-form"),
                         antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/journals"),
                         antMatcher("/v1/api/admin/care-recipients/{careRecipientId}/journals/{journalId}"))
@@ -53,10 +55,12 @@ public class PendingAuthorizationRules {
                 // 대상자 정보 수정 (권한 담당자: RECIPIENT_CREATE 로 옮길 것. 담당자 허용 여부는 기획 확인 필요)
                 .requestMatchers(antMatcher(HttpMethod.PUT, "/v1/api/admin/care-recipients/{careRecipientId}"))
                 .access(authz.member())
-                // 일지 목록 (권한 담당자: RECIPIENT_READ 로 옮길 것. 범위는 이미 권한 범위로 거른다)
+                // 일지 목록 (권한 담당자: WORK_LOG_READ 로 옮기고 담당자는 현재 배정 기간으로 거를 것.
+                // 이전 담당자 기록은 WORK_LOG_HISTORY_READ + 유효한 열람 승인 전용 정책을 사용한다)
                 .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/journals"))
                 .access(authz.member())
-                // 보호자 등록·목록·상세·수정 (권한 담당자: MEMBER_MANAGE 로 옮길 것)
+                // 보호자 등록·수정은 MEMBER_MANAGE, 목록·상세는 GUARDIAN_READ 로 옮길 것.
+                // GUARDIAN_READ는 기관 관리자 전용이며 담당자에게 기관 전체 보호자 명부를 열지 않는다)
                 .requestMatchers(antMatcher("/v1/api/admin/guardians"),
                         antMatcher("/v1/api/admin/guardians/{guardianId}"))
                 .access(authz.member())
