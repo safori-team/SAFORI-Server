@@ -29,11 +29,17 @@ public class RegisterWorkerUseCase {
 
     @Transactional
     public RegisterWorkerResponse execute(BackofficeActor actor, RegisterWorkerRequest request) {
-        OrganizationMember registeredBy = memberRepository.getReferenceById(actor.organizationMemberId());
+        return execute(actor.organizationId(), memberRepository.getReferenceById(actor.organizationMemberId()), request);
+    }
+
+    /** @param registeredBy 등록한 구성원. null이면 SAFORI 운영자가 등록했다. */
+    @Transactional
+    public RegisterWorkerResponse execute(Long organizationId, OrganizationMember registeredBy,
+                                          RegisterWorkerRequest request) {
         BackofficeAccount account = accountDomainService.register(
                 request.loginId(), request.password(), request.name(), request.phone());
         OrganizationMember worker = memberDomainService.invite(
-                organizationRepository.getReferenceById(actor.organizationId()), account,
+                organizationRepository.getReferenceById(organizationId), account,
                 RoleTemplateCode.CARE_WORKER, registeredBy);
         memberDomainService.approve(worker, registeredBy).changeJobTitle(request.jobTitle());
         if (!request.active()) {

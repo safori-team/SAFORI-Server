@@ -1,15 +1,25 @@
 package com.safori.api.operator.service;
 
 import com.safori.api.common.dto.PagedResponse;
+import com.safori.api.guardian.dto.GuardianDetailResponse;
+import com.safori.api.guardian.dto.RegisterGuardianRequest;
+import com.safori.api.guardian.service.GuardianUseCase;
 import com.safori.api.operator.dto.OrganizationDetailResponse;
 import com.safori.api.operator.dto.OrganizationSummaryResponse;
 import com.safori.api.operator.dto.ReplaceOrganizationAdminRequest;
 import com.safori.api.operator.dto.ReplaceOrganizationAdminResponse;
+import com.safori.api.recipient.dto.RegisterRecipientResponse;
+import com.safori.api.user.dto.UserRegisterRequest;
+import com.safori.api.user.service.SignUpUseCase;
+import com.safori.api.worker.dto.RegisterWorkerRequest;
+import com.safori.api.worker.dto.RegisterWorkerResponse;
+import com.safori.api.worker.service.RegisterWorkerUseCase;
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.access.entity.RoleTemplateCode;
 import com.safori.domain.account.entity.BackofficeAccount;
 import com.safori.domain.account.service.BackofficeAccountDomainService;
 import com.safori.domain.care.repository.CareRecipientRepository;
+import com.safori.domain.care.service.CareRelationDomainService;
 import com.safori.domain.organization.entity.Organization;
 import com.safori.domain.organization.entity.OrganizationMember;
 import com.safori.domain.organization.entity.OrganizationStatus;
@@ -47,6 +57,10 @@ public class OperatorOrganizationUseCase {
     private final OrganizationDomainService organizationDomainService;
     private final OrganizationMemberDomainService memberDomainService;
     private final BackofficeAccountDomainService accountDomainService;
+    private final RegisterWorkerUseCase registerWorkerUseCase;
+    private final GuardianUseCase guardianUseCase;
+    private final SignUpUseCase signUpUseCase;
+    private final CareRelationDomainService careRelationDomainService;
 
     @Transactional(readOnly = true)
     public PagedResponse<OrganizationSummaryResponse> list(String keyword, OrganizationStatus status, int page, int size) {
@@ -113,6 +127,29 @@ public class OperatorOrganizationUseCase {
         log.info("운영자 기관 관리자 교체: organization={}, adminAccount={}",
                 organization.getPublicId(), admin.getAccountUuid());
         return new ReplaceOrganizationAdminResponse(admin.getAccountUuid());
+    }
+
+    /** 테스트·지원용: 운영자가 기관 담당자 계정을 만든다. 관리자가 등록한 것과 같고 등록자만 운영(null)이다. */
+    @Transactional
+    public RegisterWorkerResponse registerManager(String organizationPublicId, RegisterWorkerRequest request) {
+        return registerWorkerUseCase.execute(organizationOf(organizationPublicId).getId(), null, request);
+    }
+
+    /** 테스트·지원용: 운영자가 기관 보호자 계정을 만든다(대상자를 고르면 연결까지). */
+    @Transactional
+    public GuardianDetailResponse registerGuardian(String organizationPublicId, RegisterGuardianRequest request) {
+        return guardianUseCase.register(organizationOf(organizationPublicId).getId(), null, request);
+    }
+
+    /**
+     * 테스트·지원용: 어르신 앱 계정을 만들고 바로 기관 대상자로 등록한다(앱 회원가입 + 대상자 추가).
+     * 한 트랜잭션이라 등록이 실패하면 앱 계정도 남지 않는다.
+     */
+    @Transactional
+    public RegisterRecipientResponse registerRecipient(String organizationPublicId, UserRegisterRequest request) {
+        Organization organization = organizationOf(organizationPublicId);
+        Long userId = signUpUseCase.execute(request);
+        return new RegisterRecipientResponse(careRelationDomainService.registerRecipient(organization, userId).getPublicId());
     }
 
     private OrganizationDetailResponse detail(Organization organization) {

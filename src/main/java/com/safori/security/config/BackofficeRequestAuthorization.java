@@ -39,11 +39,17 @@ public class BackofficeRequestAuthorization {
      */
     public AuthorizationManager<RequestAuthorizationContext> recipient(PermissionCode permission,
                                                                        String recipientPublicIdVariable) {
+        return recipient(recipientPublicIdVariable, permission);
+    }
+
+    /** {@link #recipient(PermissionCode, String)}와 같고, 나열한 권한 중 하나라도 그 어르신 범위에 있으면 허용한다. */
+    public AuthorizationManager<RequestAuthorizationContext> recipient(String recipientPublicIdVariable,
+                                                                       PermissionCode... anyOf) {
         return (authentication, context) -> {
             String recipientPublicId = context.getVariables().get(recipientPublicIdVariable);
             boolean granted = BackofficeActor.from(authentication.get())
-                    .map(actor -> accessPolicy.canAccessRecipientByPublicId(
-                            actor.organizationMemberId(), permission, recipientPublicId))
+                    .map(actor -> Arrays.stream(anyOf).anyMatch(permission -> accessPolicy.canAccessRecipientByPublicId(
+                            actor.organizationMemberId(), permission, recipientPublicId)))
                     .orElse(false);
             return new AuthorizationDecision(granted);
         };

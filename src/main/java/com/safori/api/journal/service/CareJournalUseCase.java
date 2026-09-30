@@ -10,6 +10,7 @@ import com.safori.api.recipient.dto.RecipientDetailResponse;
 import com.safori.api.recipient.service.OrganizationRecipients;
 import com.safori.api.worker.service.OrganizationWorkers;
 import com.safori.common.annotation.UseCase;
+import com.safori.domain.access.entity.DataScope;
 import com.safori.domain.access.entity.PermissionCode;
 import com.safori.domain.access.policy.BackofficeAccessPolicy;
 import com.safori.domain.access.policy.BackofficeActor;
@@ -34,9 +35,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.safori.domain.care.service.JournalFormSeeder.ACTION;
@@ -87,13 +90,12 @@ public class CareJournalUseCase {
         return detail(recipient, journal, journal.getSelections());
     }
 
-    /** 보호자(연결 범위로만 보는 구성원)는 보호자 공개 일지만 열 수 있다. 비공개면 없는 일지로 본다. */
+    /** 업무일지 조회 권한이 없는 구성원(보호자)은 보호자 공개 일지만 열 수 있다. 비공개면 없는 일지로 본다. */
     @Transactional(readOnly = true)
     public JournalDetailResponse get(BackofficeActor actor, String careRecipientId, String journalId) {
         CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
         CareJournal journal = journalOf(recipient, journalId);
-        RecipientAccessScope scope = accessPolicy.recipientScope(actor.organizationMemberId(), PermissionCode.RECIPIENT_READ);
-        if (!scope.organizationWide() && !scope.includesAssigned() && !journal.isGuardianVisible()) {
+        if (!journal.isGuardianVisible() && !canReadWorkLog(actor, recipient)) {
             throw CareHandler.JOURNAL_NOT_FOUND;
         }
         return detail(recipient, journal, selectionRepository.findByJournals(List.of(journal)));
@@ -109,16 +111,43 @@ public class CareJournalUseCase {
         return detail(recipient, journal, selectionRepository.findByJournals(List.of(journal)));
     }
 
+    /** 업무일지 조회 권한이 그 대상자 범위에 있는지(관리자 기관 전체, 담당자 현재 배정). */
+    public boolean canReadWorkLog(BackofficeActor actor, CareRecipient recipient) {
+        return accessPolicy.canAccessRecipient(actor.organizationMemberId(), PermissionCode.WORK_LOG_READ,
+                recipient.getId());
+    }
+
+    /**
+     * 일지 목록 범위. 업무일지 조회(WORK_LOG_READ) 범위와 보호자 공개 조회(GUARDIAN_STATUS_READ) 범위를 합친다.
+     * 연결 범위(보호자)로 보는 일지는 쿼리가 보호자 공개 일지로 한정한다.
+     */
+    private RecipientAccessScope journalScope(BackofficeActor actor) {
+        RecipientAccessScope workLog = accessPolicy.recipientScope(actor.organizationMemberId(), PermissionCode.WORK_LOG_READ);
+        RecipientAccessScope guardian = accessPolicy.recipientScope(actor.organizationMemberId(),
+                PermissionCode.GUARDIAN_STATUS_READ);
+        Set<DataScope> scopes = EnumSet.noneOf(DataScope.class);
+        scopes.addAll(workLog.scopes());
+        scopes.addAll(guardian.scopes());
+        RecipientAccessScope base = workLog.organizationId() != null ? workLog : guardian;
+        return new RecipientAccessScope(base.organizationId(), base.organizationMemberId(), scopes);
+    }
+
     private CareJournal journalOf(CareRecipient recipient, String journalId) {
         return journalRepository.findByRecipientAndPublicId(recipient, journalId)
                 .orElseThrow(() -> CareHandler.JOURNAL_NOT_FOUND);
     }
 
-    /** 대상자 상세의 최근 조치 기록(확인 일시 최신순). 선택 항목은 한 번에 읽는다. */
+    /**
+     * 대상자 상세의 최근 조치 기록(확인 일시 최신순). 선택 항목은 한 번에 읽는다.
+     *
+     * @param publicOnly 보호자 공개 일지만 (업무일지 조회 권한이 없는 구성원)
+     */
     @Transactional(readOnly = true)
-    public List<JournalSummary> recent(CareRecipient recipient) {
-        List<CareJournal> journals = journalRepository.findByRecipientOrderByConfirmedAtDescIdDesc(
-                recipient, PageRequest.of(0, RECENT_LIMIT));
+    public List<JournalSummary> recent(CareRecipient recipient, boolean publicOnly) {
+        PageRequest page = PageRequest.of(0, RECENT_LIMIT);
+        List<CareJournal> journals = publicOnly
+                ? journalRepository.findByRecipientAndGuardianVisibleTrueOrderByConfirmedAtDescIdDesc(recipient, page)
+                : journalRepository.findByRecipientOrderByConfirmedAtDescIdDesc(recipient, page);
         if (journals.isEmpty()) {
             return List.of();
         }
@@ -145,7 +174,7 @@ public class CareJournalUseCase {
             throw CareHandler.JOURNAL_INVALID_PERIOD;
         }
         PageRequest pageable = PageRequest.of(page - 1, size);
-        RecipientAccessScope scope = accessPolicy.recipientScope(actor.organizationMemberId(), PermissionCode.RECIPIENT_READ);
+        RecipientAccessScope scope = journalScope(actor);
         if (scope.isEmpty()) {
             return new JournalListResponse(start, end, PagedResponse.from(Page.empty(pageable)));
         }

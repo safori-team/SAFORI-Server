@@ -23,6 +23,11 @@ public interface CareJournalRepository extends JpaRepository<CareJournal, Long> 
     @EntityGraph(attributePaths = {"writer", "writer.account"})
     List<CareJournal> findByRecipientOrderByConfirmedAtDescIdDesc(CareRecipient recipient, Pageable pageable);
 
+    /** 최근 조치 기록 중 보호자 공개 일지만(업무일지 조회 권한이 없는 보호자용). */
+    @EntityGraph(attributePaths = {"writer", "writer.account"})
+    List<CareJournal> findByRecipientAndGuardianVisibleTrueOrderByConfirmedAtDescIdDesc(CareRecipient recipient,
+                                                                                       Pageable pageable);
+
     /**
      * 일지 목록. 조회 범위(기관 전체 / 현재 본인 배정 / 현재 본인 연결)는 대상자 현황과 같고, 연결 범위(보호자)로만
      * 보는 일지는 보호자 공개 일지뿐이다. 확인 일시 {@code [from, to)} 안에서 최신순(같으면 id 역순).

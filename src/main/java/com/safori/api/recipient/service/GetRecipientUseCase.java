@@ -3,6 +3,8 @@ package com.safori.api.recipient.service;
 import com.safori.api.journal.service.CareJournalUseCase;
 import com.safori.api.recipient.dto.RecipientDetailResponse;
 import com.safori.common.annotation.UseCase;
+import com.safori.domain.access.entity.PermissionCode;
+import com.safori.domain.access.policy.BackofficeAccessPolicy;
 import com.safori.domain.access.policy.BackofficeActor;
 import com.safori.domain.account.entity.BackofficeAccount;
 import com.safori.domain.care.entity.CareAssignment;
@@ -30,14 +32,18 @@ public class GetRecipientUseCase {
     private final GuardianRecipientLinkRepository linkRepository;
     private final UserAdaptor userAdaptor;
     private final CareJournalUseCase careJournalUseCase;
+    private final BackofficeAccessPolicy accessPolicy;
 
     @Transactional(readOnly = true)
     public RecipientDetailResponse execute(BackofficeActor actor, String careRecipientId) {
-        return detail(organizationRecipients.get(actor, careRecipientId));
+        CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
+        // 연결 보호자(이름·관계·연락처)는 RECIPIENT_GUARDIAN_READ, 최근 일지 전체는 WORK_LOG_READ가 있을 때만.
+        boolean guardianInfo = accessPolicy.canAccessRecipient(actor.organizationMemberId(),
+                PermissionCode.RECIPIENT_GUARDIAN_READ, recipient.getId());
+        return detail(recipient, guardianInfo, !careJournalUseCase.canReadWorkLog(actor, recipient));
     }
 
-    @Transactional(readOnly = true)
-    public RecipientDetailResponse detail(CareRecipient recipient) {
+    private RecipientDetailResponse detail(CareRecipient recipient, boolean guardianInfo, boolean publicJournalsOnly) {
         User user = recipient.getUserId() == null ? null : userAdaptor.queryUserById(recipient.getUserId());
         CareRecord current = recipient.getCurrentRecord();
 
@@ -50,11 +56,11 @@ public class GetRecipientUseCase {
                 recipient.isActive(),
                 user == null ? null : user.getCreatedDate(),
                 currentManager(recipient),
-                guardians(recipient),
+                guardianInfo ? guardians(recipient) : List.of(),
                 current == null ? null : current.getStatusCode(),
                 current == null ? null : current.getProcessingStatus(),
                 RecipientDetailResponse.Reason.of(current),
-                careJournalUseCase.recent(recipient));
+                careJournalUseCase.recent(recipient, publicJournalsOnly));
     }
 
     private RecipientDetailResponse.Manager currentManager(CareRecipient recipient) {

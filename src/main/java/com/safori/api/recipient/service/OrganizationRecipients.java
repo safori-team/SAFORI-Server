@@ -19,8 +19,12 @@ public class OrganizationRecipients {
     private final CareAssignmentRepository assignmentRepository;
 
     public CareRecipient get(BackofficeActor actor, String careRecipientId) {
+        return get(actor.organizationId(), careRecipientId);
+    }
+
+    public CareRecipient get(Long organizationId, String careRecipientId) {
         return recipientAdaptor.findByPublicId(careRecipientId)
-                .filter(recipient -> recipient.getOrganization().getId().equals(actor.organizationId()))
+                .filter(recipient -> recipient.getOrganization().getId().equals(organizationId))
                 .orElseThrow(() -> CareHandler.RECIPIENT_NOT_FOUND);
     }
 
