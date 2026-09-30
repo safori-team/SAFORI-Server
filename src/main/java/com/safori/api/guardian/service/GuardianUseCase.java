@@ -56,14 +56,20 @@ public class GuardianUseCase {
     /** 계정을 만들어 기관에 바로 소속시키고, 대상자를 골랐으면 연결까지 한 번에 한다. 중간에 실패하면 모두 되돌린다. */
     @Transactional
     public GuardianDetailResponse register(BackofficeActor actor, RegisterGuardianRequest request) {
-        OrganizationMember registeredBy = actorOf(actor);
+        return register(actor.organizationId(), actorOf(actor), request);
+    }
+
+    /** @param registeredBy 등록한 구성원. null이면 SAFORI 운영자가 등록했다(연결자도 운영). */
+    @Transactional
+    public GuardianDetailResponse register(Long organizationId, OrganizationMember registeredBy,
+                                           RegisterGuardianRequest request) {
         // 대상자 확인을 먼저 해 잘못된 대상자면 계정을 만들지 않는다.
         CareRecipient recipient = StringUtils.hasText(request.careRecipientId())
-                ? organizationRecipients.get(actor, request.careRecipientId()) : null;
+                ? organizationRecipients.get(organizationId, request.careRecipientId()) : null;
         BackofficeAccount account = accountDomainService.register(
                 request.loginId(), request.password(), request.name(), request.phone());
         OrganizationMember guardian = memberDomainService.invite(
-                organizationRepository.getReferenceById(actor.organizationId()), account,
+                organizationRepository.getReferenceById(organizationId), account,
                 RoleTemplateCode.GUARDIAN, registeredBy);
         guardian = memberDomainService.approve(guardian, registeredBy);
         if (recipient != null) {

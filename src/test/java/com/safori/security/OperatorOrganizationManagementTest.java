@@ -117,6 +117,41 @@ class OperatorOrganizationManagementTest {
                 .andExpect(jsonPath("$.isSuccess").value(true));
     }
 
+    @Test
+    @DisplayName("테스트 계정: 운영자가 대상자(앱 계정+등록)·보호자(연결)·담당자를 만들면 각자 로그인되고 관리자 화면에 보인다")
+    void registerMembers() throws Exception {
+        String recipient = json(operator(post(URL + "/" + happy + "/care-recipients"), """
+                {"name":"김영희","username":"elder001","password":"elderPass1","gender":"FEMALE","birthDate":"1960-03-12"}
+                """)).at("/result/recipientPublicId").asText();
+        operator(post(URL + "/" + happy + "/guardians"), """
+                {"name":"김희영","phone":"010-3333-4444","careRecipientId":"%s","relation":"CHILD","active":true,
+                 "loginId":"guard001","password":"guardPass1234"}
+                """.formatted(recipient))
+                .andExpect(jsonPath("$.result.careRecipient.name").value("김영희"));
+        operator(post(URL + "/" + happy + "/managers"), """
+                {"name":"박지현","phone":"010-2222-3333","jobTitle":"사회복지사","active":true,
+                 "loginId":"worker001","password":"workPass1234"}
+                """)
+                .andExpect(jsonPath("$.result.loginId").value("worker001"));
+
+        signIn("elder001", "elderPass1");
+        signIn("guard001", "guardPass1234");
+        signIn("worker001", "workPass1234");
+        String adminToken = signIn("orgadmin01", "tempPass1234");
+        mockMvc.perform(get("/v1/api/admin/care-recipients/" + recipient).header(HttpHeaders.AUTHORIZATION, adminToken))
+                .andExpect(jsonPath("$.result.name").value("김영희"))
+                .andExpect(jsonPath("$.result.guardians[0].name").value("김희영"));
+        operator(get(URL + "/" + happy), null)
+                .andExpect(jsonPath("$.result.careWorkerCount").value(1))
+                .andExpect(jsonPath("$.result.guardianCount").value(1))
+                .andExpect(jsonPath("$.result.recipientCount").value(1));
+
+        operator(post(URL + "/no-such-org/managers"), """
+                {"name":"박지현","phone":"010-2222-3333","jobTitle":"사회복지사","active":true,
+                 "loginId":"worker002","password":"workPass1234"}
+                """).andExpect(status().isNotFound());
+    }
+
     private String create(String name, String adminLoginId) throws Exception {
         return json(operator(post(URL), """
                 {"organizationName":"%s","adminLoginId":"%s","adminPassword":"tempPass1234","adminName":"이관리","adminPhone":"010-1111-2222"}
