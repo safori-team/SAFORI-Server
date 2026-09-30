@@ -156,7 +156,7 @@ class CareJournalTest {
     }
 
     @Test
-    @DisplayName("보호자 공개 토글, 보호자는 공개 일지만 목록·상세로 본다(비공개 상세는 4458)")
+    @DisplayName("보호자 공개 토글. 보호자는 노션 권한표상 일지 목록·상세가 403")
     void guardianVisibility() throws Exception {
         String shown = json(perform(post(RECIPIENTS + "/" + recipient + "/journals"), journal("""
                 {"optionCode":"VISIT"},{"optionCode":"CONTACTED"},{"optionCode":"NO_ISSUE"}
@@ -177,13 +177,8 @@ class CareJournalTest {
                 .andReturn().getResponse().getContentAsString();
         token = "Bearer " + objectMapper.readTree(body).at("/result/accessToken").asText();
 
-        perform(get("/v1/api/admin/journals").param("from", "2026-09-01").param("to", "2026-09-30"), null)
-                .andExpect(jsonPath("$.result.journals.totalElements").value(1))
-                .andExpect(jsonPath("$.result.journals.items[0].journalId").value(shown));
-        perform(get(RECIPIENTS + "/" + recipient + "/journals/" + shown), null)
-                .andExpect(jsonPath("$.result.reason.title").value("동일 감정 반복"));
-        perform(get(RECIPIENTS + "/" + recipient + "/journals/" + hidden), null)
-                .andExpect(jsonPath("$.code").value(4458));
+        perform(get("/v1/api/admin/journals"), null).andExpect(status().isForbidden());
+        perform(get(RECIPIENTS + "/" + recipient + "/journals/" + shown), null).andExpect(status().isForbidden());
     }
 
     @Test
