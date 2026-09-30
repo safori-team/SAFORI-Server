@@ -122,6 +122,34 @@ class AdminApiAuthorizationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    @DisplayName("보호자 전용 경로: 연결 대상자(현재 상태는 비움)·공개 일지만, 비공개 4458, 다른 대상자 403, 직원은 403")
+    void guardianView() throws Exception {
+        call(admin, post("/v1/api/admin/dev/care-recipients/" + assigned + "/records"),
+                "{\"reasonType\":\"SAME_EMOTION_REPEAT\",\"reasonMessage\":\"최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요.\"}");
+
+        call(guardian, get("/v1/api/guardian/care-recipients"), null)
+                .andExpect(jsonPath("$.result.counts.total").value(1))
+                .andExpect(jsonPath("$.result.recipients.items[0].careRecipientId").value(assigned))
+                .andExpect(jsonPath("$.result.recipients.items[0].name").value("김영희"))
+                .andExpect(jsonPath("$.result.recipients.items[0].statusCode").doesNotExist())
+                .andExpect(jsonPath("$.result.recipients.items[0].reasonMessage").doesNotExist())
+                .andExpect(jsonPath("$.result.recipients.items[0].manager").doesNotExist());
+        String shown = json(call(guardian, get("/v1/api/guardian/journals").param("from", "2026-09-01")
+                .param("to", "2026-09-30"), null)
+                .andExpect(jsonPath("$.result.journals.totalElements").value(1)))
+                .at("/result/journals/items/0/journalId").asText();
+        call(guardian, get("/v1/api/guardian/care-recipients/" + assigned + "/journals/" + shown), null)
+                .andExpect(jsonPath("$.result.guardianVisible").value(true));
+        call(guardian, get("/v1/api/guardian/care-recipients/" + assigned + "/journals/" + hiddenJournal), null)
+                .andExpect(jsonPath("$.code").value(4458));
+        call(guardian, get("/v1/api/guardian/care-recipients/" + other + "/journals/" + shown), null)
+                .andExpect(status().isForbidden());
+
+        call(worker, get("/v1/api/guardian/journals"), null).andExpect(status().isForbidden());
+        call(admin, get("/v1/api/guardian/care-recipients"), null).andExpect(status().isForbidden());
+    }
+
     private static String journal(boolean guardianVisible) {
         return """
                 {"confirmedAt":"2026-09-13T14:00:00","guardianVisible":%s,
