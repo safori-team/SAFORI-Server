@@ -108,21 +108,18 @@ class AdminApiAuthorizationTest {
     }
 
     @Test
-    @DisplayName("보호자: 연결 대상자 상세는 보호자 정보 없이 공개 일지만, 기록·일지 작성·처리 상태는 403, 일지 목록은 공개 일지만")
+    @DisplayName("보호자: 노션 권한표상 대상자 목록·상세, 기록, 일지 목록·상세·작성·공개 변경이 모두 403")
     void guardianScope() throws Exception {
-        call(guardian, get(RECIPIENTS + "/" + assigned), null)
-                .andExpect(jsonPath("$.result.guardians").isEmpty())
-                .andExpect(jsonPath("$.result.recentActions.length()").value(1));
-        call(guardian, get(RECIPIENTS + "/" + other), null).andExpect(status().isForbidden());
+        call(guardian, get(RECIPIENTS), null).andExpect(status().isForbidden());
+        call(guardian, get(RECIPIENTS + "/" + assigned), null).andExpect(status().isForbidden());
         call(guardian, post(RECIPIENTS + "/" + assigned + "/journals"), journal(true)).andExpect(status().isForbidden());
         call(guardian, patch(RECIPIENTS + "/" + assigned + "/journals/" + hiddenJournal), "{\"guardianVisible\":true}")
                 .andExpect(status().isForbidden());
         call(guardian, get(RECIPIENTS + "/" + assigned + "/records/no-such-record"), null)
                 .andExpect(status().isForbidden());
-        call(guardian, get("/v1/api/admin/journals").param("from", "2026-09-01").param("to", "2026-09-30"), null)
-                .andExpect(jsonPath("$.result.journals.totalElements").value(1));
+        call(guardian, get("/v1/api/admin/journals"), null).andExpect(status().isForbidden());
         call(guardian, get(RECIPIENTS + "/" + assigned + "/journals/" + hiddenJournal), null)
-                .andExpect(jsonPath("$.code").value(4458));
+                .andExpect(status().isForbidden());
     }
 
     private static String journal(boolean guardianVisible) {
