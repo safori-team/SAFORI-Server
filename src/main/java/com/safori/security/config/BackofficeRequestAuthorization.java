@@ -7,10 +7,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * {@link BackofficeAuthorizationRules}에서 쓰는 URL 인가 판정 모음.
@@ -42,13 +44,23 @@ public class BackofficeRequestAuthorization {
         return recipient(recipientPublicIdVariable, permission);
     }
 
-    /** {@link #recipient(PermissionCode, String)}와 같고, 나열한 권한 중 하나라도 그 어르신 범위에 있으면 허용한다. */
+    /** 나열한 권한을 모두 가져야 허용한다. 데이터 범위는 보지 않는다. */
+    public AuthorizationManager<RequestAuthorizationContext> allOf(PermissionCode... allOf) {
+        return (authentication, context) -> {
+            var authorities = authentication.get().getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toSet());
+            return new AuthorizationDecision(Arrays.stream(allOf).allMatch(p -> authorities.contains(p.name())));
+        };
+    }
+
+    /** {@link #recipient(PermissionCode, String)}와 같고, 나열한 권한이 모두 그 어르신 범위에 있어야 허용한다. */
     public AuthorizationManager<RequestAuthorizationContext> recipient(String recipientPublicIdVariable,
-                                                                       PermissionCode... anyOf) {
+                                                                       PermissionCode... allOf) {
         return (authentication, context) -> {
             String recipientPublicId = context.getVariables().get(recipientPublicIdVariable);
             boolean granted = BackofficeActor.from(authentication.get())
-                    .map(actor -> Arrays.stream(anyOf).anyMatch(permission -> accessPolicy.canAccessRecipientByPublicId(
+                    .map(actor -> Arrays.stream(allOf).allMatch(permission -> accessPolicy.canAccessRecipientByPublicId(
                             actor.organizationMemberId(), permission, recipientPublicId)))
                     .orElse(false);
             return new AuthorizationDecision(granted);

@@ -108,21 +108,46 @@ class AdminApiAuthorizationTest {
     }
 
     @Test
-    @DisplayName("보호자: 연결 대상자 상세는 보호자 정보 없이 공개 일지만, 기록·일지 작성·처리 상태는 403, 일지 목록은 공개 일지만")
+    @DisplayName("보호자: 노션 권한표상 대상자 목록·상세, 기록, 일지 목록·상세·작성·공개 변경이 모두 403")
     void guardianScope() throws Exception {
-        call(guardian, get(RECIPIENTS + "/" + assigned), null)
-                .andExpect(jsonPath("$.result.guardians").isEmpty())
-                .andExpect(jsonPath("$.result.recentActions.length()").value(1));
-        call(guardian, get(RECIPIENTS + "/" + other), null).andExpect(status().isForbidden());
+        call(guardian, get(RECIPIENTS), null).andExpect(status().isForbidden());
+        call(guardian, get(RECIPIENTS + "/" + assigned), null).andExpect(status().isForbidden());
         call(guardian, post(RECIPIENTS + "/" + assigned + "/journals"), journal(true)).andExpect(status().isForbidden());
         call(guardian, patch(RECIPIENTS + "/" + assigned + "/journals/" + hiddenJournal), "{\"guardianVisible\":true}")
                 .andExpect(status().isForbidden());
         call(guardian, get(RECIPIENTS + "/" + assigned + "/records/no-such-record"), null)
                 .andExpect(status().isForbidden());
-        call(guardian, get("/v1/api/admin/journals").param("from", "2026-09-01").param("to", "2026-09-30"), null)
-                .andExpect(jsonPath("$.result.journals.totalElements").value(1));
+        call(guardian, get("/v1/api/admin/journals"), null).andExpect(status().isForbidden());
         call(guardian, get(RECIPIENTS + "/" + assigned + "/journals/" + hiddenJournal), null)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("보호자 전용 경로: 연결 대상자(현재 상태는 비움)·공개 일지만, 비공개 4458, 다른 대상자 403, 직원은 403")
+    void guardianView() throws Exception {
+        call(admin, post("/v1/api/admin/dev/care-recipients/" + assigned + "/records"),
+                "{\"reasonType\":\"SAME_EMOTION_REPEAT\",\"reasonMessage\":\"최근 일기 3건 중 2건에서 슬픔 계열 감정이 반복됐어요.\"}");
+
+        call(guardian, get("/v1/api/guardian/care-recipients"), null)
+                .andExpect(jsonPath("$.result.counts.total").value(1))
+                .andExpect(jsonPath("$.result.recipients.items[0].careRecipientId").value(assigned))
+                .andExpect(jsonPath("$.result.recipients.items[0].name").value("김영희"))
+                .andExpect(jsonPath("$.result.recipients.items[0].statusCode").doesNotExist())
+                .andExpect(jsonPath("$.result.recipients.items[0].reasonMessage").doesNotExist())
+                .andExpect(jsonPath("$.result.recipients.items[0].manager").doesNotExist());
+        String shown = json(call(guardian, get("/v1/api/guardian/journals").param("from", "2026-09-01")
+                .param("to", "2026-09-30"), null)
+                .andExpect(jsonPath("$.result.journals.totalElements").value(1)))
+                .at("/result/journals/items/0/journalId").asText();
+        call(guardian, get("/v1/api/guardian/care-recipients/" + assigned + "/journals/" + shown), null)
+                .andExpect(jsonPath("$.result.guardianVisible").value(true));
+        call(guardian, get("/v1/api/guardian/care-recipients/" + assigned + "/journals/" + hiddenJournal), null)
                 .andExpect(jsonPath("$.code").value(4458));
+        call(guardian, get("/v1/api/guardian/care-recipients/" + other + "/journals/" + shown), null)
+                .andExpect(status().isForbidden());
+
+        call(worker, get("/v1/api/guardian/journals"), null).andExpect(status().isForbidden());
+        call(admin, get("/v1/api/guardian/care-recipients"), null).andExpect(status().isForbidden());
     }
 
     private static String journal(boolean guardianVisible) {

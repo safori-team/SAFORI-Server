@@ -56,6 +56,29 @@ public class ListRecipientsUseCase {
                 PagedResponse.from(recipients));
     }
 
+    /**
+     * 보호자 홈: 연결된 대상자. 응답 형식은 {@link #execute}와 같고, 보호자 권한(GUARDIAN_STATUS_READ) 밖의 값 —
+     * 현재 상태 코드·사유·처리 상태·담당자·최근 안부 확인 — 은 비운다. 탭 개수는 전체만 채운다.
+     */
+    @Transactional(readOnly = true)
+    public RecipientListResponse forGuardian(BackofficeActor actor, int page, int size) {
+        RecipientAccessScope scope = accessPolicy.recipientScope(actor.organizationMemberId(),
+                PermissionCode.GUARDIAN_STATUS_READ);
+        PageRequest pageable = PageRequest.of(page - 1, size);
+        if (scope.isEmpty()) {
+            return new RecipientListResponse(new RecipientListResponse.Counts(0, 0, 0, 0, 0, 0),
+                    PagedResponse.from(Page.empty(pageable)));
+        }
+        Page<RecipientListResponse.Item> recipients = recipientRepository.findStatusBoard(
+                        scope.organizationId(), scope.organizationMemberId(), scope.organizationWide(),
+                        scope.includesAssigned(), scope.includesLinked(), null, null, null, null, pageable)
+                .map(row -> new RecipientListResponse.Item(row.recipientPublicId(), row.name(), row.birthDate(),
+                        null, null, null, null, null, null, null));
+        return new RecipientListResponse(
+                new RecipientListResponse.Counts(recipients.getTotalElements(), 0, 0, 0, 0, 0),
+                PagedResponse.from(recipients));
+    }
+
     private static RecipientListResponse.Item toItem(RecipientStatusRow row) {
         RecipientListResponse.Manager manager = row.managerAccountUuid() == null ? null
                 : new RecipientListResponse.Manager(row.managerAccountUuid(), row.managerName());
