@@ -27,13 +27,20 @@ public class ListWorkersUseCase {
     @Transactional(readOnly = true)
     public ManagerListResponse execute(BackofficeActor actor, ManagerStatusFilter status, String keyword,
                                        int page, int size) {
+        return execute(actor.organizationId(), status, keyword, page, size);
+    }
+
+    /** 기관 기준 조회(운영자 콘솔도 쓴다). */
+    @Transactional(readOnly = true)
+    public ManagerListResponse execute(Long organizationId, ManagerStatusFilter status, String keyword,
+                                       int page, int size) {
         String name = StringUtils.hasText(keyword) ? keyword.trim() : null;
-        var managers = memberRepository.findWorkers(actor.organizationId(), name, status.accountStatus(),
+        var managers = memberRepository.findWorkers(organizationId, name, status.accountStatus(),
                         PageRequest.of(page - 1, size))
-                .map(w -> new ManagerListResponse.Item(w.accountUuid(), w.name(), w.jobTitle(),
+                .map(w -> new ManagerListResponse.Item(w.accountUuid(), w.loginId(), w.name(), w.jobTitle(),
                         w.accountStatus() == BackofficeAccountStatus.ACTIVE, w.assignedCount()));
 
-        List<StatusCount> counts = memberRepository.countWorkersByStatus(actor.organizationId(), name);
+        List<StatusCount> counts = memberRepository.countWorkersByStatus(organizationId, name);
         long active = countOf(counts, BackofficeAccountStatus.ACTIVE);
         long total = counts.stream().mapToLong(StatusCount::count).sum();
         return new ManagerListResponse(new ManagerListResponse.Counts(total, active, total - active),

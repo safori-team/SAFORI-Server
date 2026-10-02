@@ -18,6 +18,7 @@ public record GuardianListResponse(
 
     public record Item(
             @Schema(description = "보호자 식별자 (계정 UUID)") String guardianId,
+            @Schema(description = "아이디", example = "guard01") String loginId,
             @Schema(description = "이름", example = "김희영") String name,
             @Schema(description = "계정 활성 여부", example = "true") boolean active,
             @Schema(description = "대상자 연결 여부", example = "true") boolean linked,

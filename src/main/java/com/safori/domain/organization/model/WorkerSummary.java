@@ -8,6 +8,7 @@ import com.safori.domain.account.entity.BackofficeAccountStatus;
  * @param assignedCount 현재(종료되지 않은) 배정 대상자 수
  */
 public record WorkerSummary(String accountUuid,
+                            String loginId,
                             String name,
                             String jobTitle,
                             BackofficeAccountStatus accountStatus,

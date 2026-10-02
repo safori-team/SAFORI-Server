@@ -26,6 +26,7 @@ public record RecipientListResponse(
     public record Item(
             @Schema(description = "대상자 식별자 (public_id)") String careRecipientId,
             @Schema(description = "이름", example = "홍길동") String name,
+            @Schema(description = "어르신 앱 아이디", example = "elder01") String loginId,
             @Schema(description = "생년월일. 없으면 null", example = "1960-03-12") LocalDate birthDate,
             @Schema(description = "상태 코드. null이면 표시 없음(X) — '현재 등록된 확인 사유가 없어요'") CareStatusCode statusCode,
             @Schema(description = "사유 문구. 상태 코드가 없으면 null", example = "담당자와의 연결을 요청했어요.") String reasonMessage,

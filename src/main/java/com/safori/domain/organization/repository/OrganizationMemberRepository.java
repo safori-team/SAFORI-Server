@@ -67,7 +67,7 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
      * 정렬은 이름 → 구성원 id(같은 이름끼리도 순서를 고정해 페이지가 어긋나지 않게).
      */
     @Query(value = "SELECT new com.safori.domain.organization.model.WorkerSummary("
-            + "a.accountUuid, a.name, m.jobTitle, a.status, "
+            + "a.accountUuid, a.loginId, a.name, m.jobTitle, a.status, "
             + "(SELECT COUNT(ca) FROM CareAssignment ca WHERE ca.worker = m AND ca.endedAt IS NULL)) "
             + WORKERS + "AND (:status IS NULL OR a.status = :status) ORDER BY a.name ASC, m.id ASC",
             countQuery = "SELECT COUNT(m) " + WORKERS + "AND (:status IS NULL OR a.status = :status)")
@@ -89,7 +89,7 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
      * @param linked null이면 연결 여부로 거르지 않는다
      */
     @Query(value = "SELECT new com.safori.domain.organization.model.GuardianSummary("
-            + "a.accountUuid, a.name, a.status, r.publicId, u.name, l.relation, l.relationText) "
+            + "a.accountUuid, a.loginId, a.name, a.status, r.publicId, u.name, l.relation, l.relationText) "
             + GUARDIANS + LINKED_FILTER + "ORDER BY a.name ASC, m.id ASC",
             countQuery = "SELECT COUNT(m) " + GUARDIANS + LINKED_FILTER)
     Page<GuardianSummary> findGuardians(@Param("organizationId") Long organizationId,

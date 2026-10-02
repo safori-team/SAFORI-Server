@@ -2,8 +2,11 @@ package com.safori.api.operator.service;
 
 import com.safori.api.common.dto.PagedResponse;
 import com.safori.api.guardian.dto.GuardianDetailResponse;
+import com.safori.api.guardian.dto.GuardianListResponse;
+import com.safori.api.guardian.dto.GuardianStatusFilter;
 import com.safori.api.guardian.dto.RegisterGuardianRequest;
 import com.safori.api.guardian.service.GuardianUseCase;
+import com.safori.api.operator.dto.ChangeRecipientStatusResponse;
 import com.safori.api.operator.dto.OrganizationDetailResponse;
 import com.safori.api.operator.dto.OrganizationSummaryResponse;
 import com.safori.api.operator.dto.ReplaceOrganizationAdminRequest;
@@ -15,8 +18,11 @@ import com.safori.api.recipient.service.ListRecipientsUseCase;
 import com.safori.api.recipient.service.OrganizationRecipients;
 import com.safori.api.user.dto.UserRegisterRequest;
 import com.safori.api.user.service.SignUpUseCase;
+import com.safori.api.worker.dto.ManagerListResponse;
+import com.safori.api.worker.dto.ManagerStatusFilter;
 import com.safori.api.worker.dto.RegisterWorkerRequest;
 import com.safori.api.worker.dto.RegisterWorkerResponse;
+import com.safori.api.worker.service.ListWorkersUseCase;
 import com.safori.api.worker.service.RegisterWorkerUseCase;
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.access.entity.RoleTemplateCode;
@@ -43,9 +49,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -75,6 +85,9 @@ public class OperatorOrganizationUseCase {
     private final ListRecipientsUseCase listRecipientsUseCase;
     private final OrganizationRecipients organizationRecipients;
     private final CareRecordDomainService recordDomainService;
+    private final ListWorkersUseCase listWorkersUseCase;
+    private final TaskScheduler taskScheduler;
+    private final TransactionTemplate transactionTemplate;
 
     @Transactional(readOnly = true)
     public PagedResponse<OrganizationSummaryResponse> list(String keyword, OrganizationStatus status, int page, int size) {
@@ -172,6 +185,48 @@ public class OperatorOrganizationUseCase {
                                             int page, int size) {
         return listRecipientsUseCase.forOperator(organizationOf(organizationPublicId).getId(), statusCode, keyword,
                 page, size);
+    }
+
+    /** 테스트·지원용: 기관의 담당자 계정 목록. */
+    @Transactional(readOnly = true)
+    public ManagerListResponse managers(String organizationPublicId, String keyword, int page, int size) {
+        return listWorkersUseCase.execute(organizationOf(organizationPublicId).getId(), ManagerStatusFilter.ALL,
+                keyword, page, size);
+    }
+
+    /** 테스트·지원용: 기관의 보호자 계정 목록. */
+    @Transactional(readOnly = true)
+    public GuardianListResponse guardians(String organizationPublicId, String keyword, int page, int size) {
+        return guardianUseCase.list(organizationOf(organizationPublicId).getId(), GuardianStatusFilter.ALL,
+                keyword, page, size);
+    }
+
+    /**
+     * 상태 코드 변경을 바로 하거나 {@code delayMinutes} 뒤로 예약한다(변화가 들어오는 순간을 테스트할 때).
+     * 대상자 확인은 지금 하고, 예약한 변경은 그 시각에 새 트랜잭션으로 적용한다.
+     */
+    public ChangeRecipientStatusResponse scheduleRecipientStatus(String organizationPublicId, String careRecipientId,
+                                                                 CareStatusCode statusCode, String reasonMessage,
+                                                                 int delayMinutes) {
+        if (delayMinutes <= 0) {
+            CareRecordResponse record = transactionTemplate.execute(status ->
+                    changeRecipientStatus(organizationPublicId, careRecipientId, statusCode, reasonMessage));
+            return new ChangeRecipientStatusResponse(LocalDateTime.now(), false, record);
+        }
+        transactionTemplate.executeWithoutResult(status ->
+                organizationRecipients.get(organizationOf(organizationPublicId).getId(), careRecipientId));
+        Instant appliesAt = Instant.now().plus(Duration.ofMinutes(delayMinutes));
+        // ponytail: 예약은 이 인스턴스의 메모리에만 있다. 그 사이 재배포·재시작하면 사라진다.
+        // 테스트용이라 두고, 꼭 실행돼야 하면 예약 테이블 + ShedLock 스케줄러로 바꾼다.
+        taskScheduler.schedule(() -> {
+            try {
+                transactionTemplate.executeWithoutResult(status ->
+                        changeRecipientStatus(organizationPublicId, careRecipientId, statusCode, reasonMessage));
+            } catch (Exception e) {
+                log.error("예약한 대상자 상태 변경 실패 — recipient={}", careRecipientId, e);
+            }
+        }, appliesAt);
+        return new ChangeRecipientStatusResponse(LocalDateTime.now().plusMinutes(delayMinutes), true, null);
     }
 
     /**
