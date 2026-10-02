@@ -26,7 +26,16 @@ public class SendPushNotificationUseCase {
     private final PushNotificationSender pushNotificationSender;
 
     public PushSendResult execute(Long userId, PushMessage message) {
-        List<String> tokens = deviceTokenAdaptor.queryTokensByUserId(userId).stream()
+        return send(deviceTokenAdaptor.queryTokensByUserId(userId), message, "userId=" + userId);
+    }
+
+    /** 백오피스 계정(관리자·담당자·보호자)의 모든 디바이스로 전송한다. */
+    public PushSendResult executeForAccount(Long accountId, PushMessage message) {
+        return send(deviceTokenAdaptor.queryTokensByAccountId(accountId), message, "accountId=" + accountId);
+    }
+
+    private PushSendResult send(List<DeviceToken> deviceTokens, PushMessage message, String owner) {
+        List<String> tokens = deviceTokens.stream()
                 .map(DeviceToken::getToken)
                 .toList();
         if (tokens.isEmpty()) {
@@ -37,7 +46,7 @@ public class SendPushNotificationUseCase {
 
         if (!result.invalidTokens().isEmpty()) {
             deviceTokenDomainService.deleteByTokens(result.invalidTokens());
-            log.info("무효 디바이스 토큰 {}건 삭제 (userId={})", result.invalidTokens().size(), userId);
+            log.info("무효 디바이스 토큰 {}건 삭제 ({})", result.invalidTokens().size(), owner);
         }
         return result;
     }

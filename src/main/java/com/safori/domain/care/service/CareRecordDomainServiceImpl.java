@@ -5,6 +5,9 @@ import com.safori.domain.care.entity.CareProcessingStatus;
 import com.safori.domain.care.entity.CareRecipient;
 import com.safori.domain.care.entity.CareRecord;
 import com.safori.domain.care.entity.CareReasonType;
+import com.safori.domain.care.entity.CareStatusCode;
+import com.safori.common.event.CareUrgentEnteredEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.safori.domain.care.repository.CareRecipientRepository;
 import com.safori.domain.care.repository.CareRecordRepository;
 import com.safori.domain.organization.entity.OrganizationMember;
@@ -24,6 +27,7 @@ public class CareRecordDomainServiceImpl implements CareRecordDomainService {
 
     private final CareRecipientRepository recipientRepository;
     private final CareRecordRepository recordRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public CareRecord raise(CareRecipient recipient, CareReasonType reasonType, String reasonMessage,
@@ -33,9 +37,13 @@ public class CareRecordDomainServiceImpl implements CareRecordDomainService {
         if (current != null && current.getReasonType() == reasonType && !reasonType.repeatable()) {
             return current;
         }
+        boolean alreadyUrgent = current != null && current.getStatusCode() == CareStatusCode.URGENT;
         CareRecord record = recordRepository.save(
                 CareRecord.detect(locked, reasonType, reasonMessage, detectedAt));
         locked.receive(record);
+        if (record.getStatusCode() == CareStatusCode.URGENT && !alreadyUrgent) {
+            eventPublisher.publishEvent(new CareUrgentEnteredEvent(record.getId()));
+        }
         return record;
     }
 
