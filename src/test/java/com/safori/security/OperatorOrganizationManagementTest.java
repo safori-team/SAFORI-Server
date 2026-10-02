@@ -152,6 +152,42 @@ class OperatorOrganizationManagementTest {
                 """).andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("테스트 상태 변경: 즉시 확인으로 올리고, 관심으로 내리고(덮어쓰기 규칙 우회), 표시 없음으로 바꾼다")
+    void changeRecipientStatus() throws Exception {
+        String recipient = json(operator(post(URL + "/" + happy + "/care-recipients"), """
+                {"name":"김영희","username":"elder001","password":"elderPass1","gender":"FEMALE"}
+                """)).at("/result/recipientPublicId").asText();
+        String status = URL + "/" + happy + "/care-recipients/" + recipient + "/status";
+        String list = URL + "/" + happy + "/care-recipients";
+
+        operator(get(list), null)
+                .andExpect(jsonPath("$.result.counts.total").value(1))
+                .andExpect(jsonPath("$.result.recipients.items[0].name").value("김영희"))
+                .andExpect(jsonPath("$.result.recipients.items[0].statusCode").doesNotExist());
+
+        operator(put(status), "{\"statusCode\":\"URGENT\"}")
+                .andExpect(jsonPath("$.result.statusCode").value("URGENT"))
+                .andExpect(jsonPath("$.result.reasonMessage").value("119에 SOS 요청을 했어요."))
+                .andExpect(jsonPath("$.result.processingStatus").value("UNCHECKED"));
+        operator(get(list), null).andExpect(jsonPath("$.result.counts.urgent").value(1));
+
+        operator(put(status), "{\"statusCode\":\"INTEREST\",\"reasonMessage\":\"테스트 문구\"}")
+                .andExpect(jsonPath("$.result.statusCode").value("INTEREST"))
+                .andExpect(jsonPath("$.result.reasonMessage").value("테스트 문구"))
+                .andExpect(jsonPath("$.result.current").value(true));
+        operator(get(list).param("statusCode", "INTEREST"), null)
+                .andExpect(jsonPath("$.result.recipients.totalElements").value(1));
+
+        operator(put(status), "{\"statusCode\":null}").andExpect(jsonPath("$.isSuccess").value(true));
+        operator(get(list), null)
+                .andExpect(jsonPath("$.result.counts.interest").value(0))
+                .andExpect(jsonPath("$.result.recipients.items[0].statusCode").doesNotExist());
+
+        operator(put(URL + "/" + happy + "/care-recipients/no-such/status"), "{\"statusCode\":\"URGENT\"}")
+                .andExpect(jsonPath("$.code").value(4454));
+    }
+
     private String create(String name, String adminLoginId) throws Exception {
         return json(operator(post(URL), """
                 {"organizationName":"%s","adminLoginId":"%s","adminPassword":"tempPass1234","adminName":"이관리","adminPhone":"010-1111-2222"}

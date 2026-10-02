@@ -4,6 +4,7 @@ import com.safori.api.common.dto.PagedResponse;
 import com.safori.api.recipient.dto.RecipientAssignmentFilter;
 import com.safori.api.recipient.dto.RecipientListResponse;
 import com.safori.common.annotation.UseCase;
+import com.safori.domain.access.entity.DataScope;
 import com.safori.domain.access.entity.PermissionCode;
 import com.safori.domain.access.policy.BackofficeAccessPolicy;
 import com.safori.domain.access.policy.BackofficeActor;
@@ -17,6 +18,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.Set;
 
 /**
  * 대상자 현황(상태 코드 탭)과 대상자 목록(배정 탭)이 같이 쓴다. 범위는 요청한 구성원의 권한 범위로 정해진다
@@ -33,7 +36,21 @@ public class ListRecipientsUseCase {
     public RecipientListResponse execute(BackofficeActor actor, CareStatusCode statusCode,
                                          RecipientAssignmentFilter assignment, String keyword, String managerId,
                                          int page, int size) {
-        RecipientAccessScope scope = accessPolicy.recipientScope(actor.organizationMemberId(), PermissionCode.RECIPIENT_READ);
+        return query(accessPolicy.recipientScope(actor.organizationMemberId(), PermissionCode.RECIPIENT_READ),
+                statusCode, assignment, keyword, managerId, page, size);
+    }
+
+    /** 운영자 콘솔: 기관의 대상자 전체(권한 범위 없이). 형식은 {@link #execute}와 같다. */
+    @Transactional(readOnly = true)
+    public RecipientListResponse forOperator(Long organizationId, CareStatusCode statusCode, String keyword,
+                                             int page, int size) {
+        return query(new RecipientAccessScope(organizationId, null, Set.of(DataScope.ORGANIZATION)),
+                statusCode, RecipientAssignmentFilter.ALL, keyword, null, page, size);
+    }
+
+    private RecipientListResponse query(RecipientAccessScope scope, CareStatusCode statusCode,
+                                        RecipientAssignmentFilter assignment, String keyword, String managerId,
+                                        int page, int size) {
         PageRequest pageable = PageRequest.of(page - 1, size);
         if (scope.isEmpty()) {
             return new RecipientListResponse(new RecipientListResponse.Counts(0, 0, 0, 0, 0, 0),
