@@ -85,15 +85,22 @@ public class GuardianUseCase {
     @Transactional(readOnly = true)
     public GuardianListResponse list(BackofficeActor actor, GuardianStatusFilter status, String keyword,
                                      int page, int size) {
+        return list(actor.organizationId(), status, keyword, page, size);
+    }
+
+    /** 기관 기준 조회(운영자 콘솔도 쓴다). */
+    @Transactional(readOnly = true)
+    public GuardianListResponse list(Long organizationId, GuardianStatusFilter status, String keyword,
+                                     int page, int size) {
         String name = StringUtils.hasText(keyword) ? keyword.trim() : null;
-        var guardians = memberRepository.findGuardians(actor.organizationId(), name, status.linked(),
+        var guardians = memberRepository.findGuardians(organizationId, name, status.linked(),
                         PageRequest.of(page - 1, size))
-                .map(g -> new GuardianListResponse.Item(g.accountUuid(), g.name(),
+                .map(g -> new GuardianListResponse.Item(g.accountUuid(), g.loginId(), g.name(),
                         g.accountStatus() == BackofficeAccountStatus.ACTIVE, g.recipientPublicId() != null,
                         g.relation(), GuardianRelation.labelOf(g.relation(), g.relationText()),
                         g.recipientPublicId() == null ? null
                                 : new GuardianListResponse.LinkedRecipient(g.recipientPublicId(), g.recipientName())));
-        GuardianCounts counts = memberRepository.countGuardians(actor.organizationId(), name);
+        GuardianCounts counts = memberRepository.countGuardians(organizationId, name);
         return new GuardianListResponse(
                 new GuardianListResponse.Counts(counts.total(), counts.linked(), counts.total() - counts.linked()),
                 PagedResponse.from(guardians));

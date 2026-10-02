@@ -141,6 +141,12 @@ class OperatorOrganizationManagementTest {
         mockMvc.perform(get("/v1/api/admin/care-recipients/" + recipient).header(HttpHeaders.AUTHORIZATION, adminToken))
                 .andExpect(jsonPath("$.result.name").value("김영희"))
                 .andExpect(jsonPath("$.result.guardians[0].name").value("김희영"));
+        operator(get(URL + "/" + happy + "/managers"), null)
+                .andExpect(jsonPath("$.result.counts.total").value(1))
+                .andExpect(jsonPath("$.result.managers.items[0].loginId").value("worker001"));
+        operator(get(URL + "/" + happy + "/guardians"), null)
+                .andExpect(jsonPath("$.result.guardians.items[0].loginId").value("guard001"))
+                .andExpect(jsonPath("$.result.guardians.items[0].careRecipient.name").value("김영희"));
         operator(get(URL + "/" + happy), null)
                 .andExpect(jsonPath("$.result.careWorkerCount").value(1))
                 .andExpect(jsonPath("$.result.guardianCount").value(1))
@@ -150,6 +156,53 @@ class OperatorOrganizationManagementTest {
                 {"name":"박지현","phone":"010-2222-3333","jobTitle":"사회복지사","active":true,
                  "loginId":"worker002","password":"workPass1234"}
                 """).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("테스트 상태 변경: 즉시 확인으로 올리고, 관심으로 내리고(덮어쓰기 규칙 우회), 표시 없음으로 바꾼다")
+    void changeRecipientStatus() throws Exception {
+        String recipient = json(operator(post(URL + "/" + happy + "/care-recipients"), """
+                {"name":"김영희","username":"elder001","password":"elderPass1","gender":"FEMALE"}
+                """)).at("/result/recipientPublicId").asText();
+        String status = URL + "/" + happy + "/care-recipients/" + recipient + "/status";
+        String list = URL + "/" + happy + "/care-recipients";
+
+        operator(get(list), null)
+                .andExpect(jsonPath("$.result.counts.total").value(1))
+                .andExpect(jsonPath("$.result.recipients.items[0].name").value("김영희"))
+                .andExpect(jsonPath("$.result.recipients.items[0].loginId").value("elder001"))
+                .andExpect(jsonPath("$.result.recipients.items[0].statusCode").doesNotExist());
+
+        operator(put(status), "{\"statusCode\":\"URGENT\"}")
+                .andExpect(jsonPath("$.result.scheduled").value(false))
+                .andExpect(jsonPath("$.result.record.statusCode").value("URGENT"))
+                .andExpect(jsonPath("$.result.record.reasonMessage").value("119에 SOS 요청을 했어요."))
+                .andExpect(jsonPath("$.result.record.processingStatus").value("UNCHECKED"));
+        operator(get(list), null).andExpect(jsonPath("$.result.counts.urgent").value(1));
+
+        operator(put(status), "{\"statusCode\":\"INTEREST\",\"reasonMessage\":\"테스트 문구\"}")
+                .andExpect(jsonPath("$.result.record.statusCode").value("INTEREST"))
+                .andExpect(jsonPath("$.result.record.reasonMessage").value("테스트 문구"))
+                .andExpect(jsonPath("$.result.record.current").value(true));
+
+        // 5분 뒤 변경은 예약만 되고 지금 상태는 그대로다
+        operator(put(status), "{\"statusCode\":\"URGENT\",\"delayMinutes\":5}")
+                .andExpect(jsonPath("$.result.scheduled").value(true))
+                .andExpect(jsonPath("$.result.appliesAt").exists())
+                .andExpect(jsonPath("$.result.record").doesNotExist());
+        operator(get(list), null).andExpect(jsonPath("$.result.counts.urgent").value(0));
+        operator(put(status), "{\"statusCode\":\"URGENT\",\"delayMinutes\":61}")
+                .andExpect(status().isBadRequest());
+        operator(get(list).param("statusCode", "INTEREST"), null)
+                .andExpect(jsonPath("$.result.recipients.totalElements").value(1));
+
+        operator(put(status), "{\"statusCode\":null}").andExpect(jsonPath("$.isSuccess").value(true));
+        operator(get(list), null)
+                .andExpect(jsonPath("$.result.counts.interest").value(0))
+                .andExpect(jsonPath("$.result.recipients.items[0].statusCode").doesNotExist());
+
+        operator(put(URL + "/" + happy + "/care-recipients/no-such/status"), "{\"statusCode\":\"URGENT\"}")
+                .andExpect(jsonPath("$.code").value(4454));
     }
 
     private String create(String name, String adminLoginId) throws Exception {

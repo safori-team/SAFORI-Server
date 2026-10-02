@@ -81,7 +81,7 @@ public interface CareRecipientRepository extends JpaRepository<CareRecipient, Lo
      * @param assigned null이면 배정 여부로 거르지 않는다
      */
     @Query(value = "SELECT new com.safori.domain.care.model.RecipientStatusRow("
-            + "r.publicId, u.name, u.birthDate, rec.publicId, rec.statusCode, rec.reasonMessage, "
+            + "r.publicId, u.name, u.username, u.birthDate, rec.publicId, rec.statusCode, rec.reasonMessage, "
             + "rec.processingStatus, rec.detectedAt, wa.accountUuid, wa.name, "
             + "(SELECT MAX(j.confirmedAt) FROM CareJournal j WHERE j.recipient = r)) "
             + STATUS_BOARD + STATUS_FILTERS

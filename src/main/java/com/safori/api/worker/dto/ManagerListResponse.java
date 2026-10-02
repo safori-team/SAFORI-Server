@@ -17,6 +17,7 @@ public record ManagerListResponse(
 
     public record Item(
             @Schema(description = "담당자 식별자 (계정 UUID)") String managerId,
+            @Schema(description = "아이디", example = "worker01") String loginId,
             @Schema(description = "이름", example = "김철수") String name,
             @Schema(description = "직종", example = "사회복지사") String jobTitle,
             @Schema(description = "계정 활성 여부", example = "true") boolean active,

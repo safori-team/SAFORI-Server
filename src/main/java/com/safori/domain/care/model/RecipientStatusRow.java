@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
  */
 public record RecipientStatusRow(String recipientPublicId,
                                  String name,
+                                 String loginId,
                                  LocalDate birthDate,
                                  String recordPublicId,
                                  CareStatusCode statusCode,

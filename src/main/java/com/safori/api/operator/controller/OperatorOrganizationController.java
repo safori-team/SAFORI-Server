@@ -3,8 +3,10 @@ package com.safori.api.operator.controller;
 import com.safori.api.common.dto.ApiResponseDto;
 import com.safori.api.common.dto.PagedResponse;
 import com.safori.api.guardian.dto.GuardianDetailResponse;
+import com.safori.api.guardian.dto.GuardianListResponse;
 import com.safori.api.guardian.dto.RegisterGuardianRequest;
 import com.safori.api.operator.dto.ChangeOrganizationStatusRequest;
+import com.safori.api.operator.dto.ChangeRecipientStatusResponse;
 import com.safori.api.operator.dto.CreateOrganizationRequest;
 import com.safori.api.operator.dto.CreateOrganizationResponse;
 import com.safori.api.operator.dto.OrganizationDetailResponse;
@@ -14,21 +16,26 @@ import com.safori.api.operator.dto.ReplaceOrganizationAdminRequest;
 import com.safori.api.operator.dto.ReplaceOrganizationAdminResponse;
 import com.safori.api.operator.service.CreateOrganizationUseCase;
 import com.safori.api.operator.service.OperatorOrganizationUseCase;
+import com.safori.api.recipient.dto.RecipientListResponse;
 import com.safori.api.recipient.dto.RegisterRecipientResponse;
 import com.safori.api.user.dto.UserRegisterRequest;
+import com.safori.api.worker.dto.ManagerListResponse;
 import com.safori.api.worker.dto.RegisterWorkerRequest;
 import com.safori.api.worker.dto.RegisterWorkerResponse;
+import com.safori.domain.care.entity.CareStatusCode;
 import com.safori.domain.organization.entity.OrganizationStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
 import io.swagger.v3.oas.annotations.extensions.Extension;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -207,5 +214,85 @@ public class OperatorOrganizationController {
             @Parameter(description = "기관 식별자 (public_id)") @PathVariable String organizationPublicId,
             @Valid @RequestBody UserRegisterRequest request) {
         return ApiResponseDto.onSuccess(operatorOrganizationUseCase.registerRecipient(organizationPublicId, request));
+    }
+
+    @Operation(operationId = "operatorListCareRecipients", summary = "기관 대상자 목록 (테스트·지원용)",
+            description = """
+                    기관의 대상자와 현재 상태 코드입니다. 형식은 관리자의 대상자 목록(`GET /v1/api/admin/care-recipients`)과 같습니다.
+                    상태 코드를 바꿀 대상자를 고르는 데 씁니다.
+                    """,
+            parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "404", description = "- `4308`: 존재하지 않는 기관입니다")
+    @GetMapping("/{organizationPublicId}/care-recipients")
+    public ApiResponseDto<RecipientListResponse> listCareRecipients(
+            @Parameter(description = "기관 식별자 (public_id)") @PathVariable String organizationPublicId,
+            @Parameter(description = "상태 코드 필터 (비우면 전체)") @RequestParam(required = false) CareStatusCode statusCode,
+            @Parameter(description = "대상자·담당자 이름 검색") @RequestParam(required = false) String keyword,
+            @Parameter(description = "페이지 (1부터)") @RequestParam(defaultValue = "1") @Min(1) int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return ApiResponseDto.onSuccess(operatorOrganizationUseCase.recipients(organizationPublicId, statusCode,
+                keyword, page, size));
+    }
+
+    @Operation(operationId = "operatorChangeCareRecipientStatus", summary = "대상자 상태 코드 변경 (테스트·지원용)",
+            description = """
+                    판정 조건(일기 감정 반복, 상담 연장, 긴급 전화)을 실제로 만들지 않고 대상자의 **현재 상태 코드**를 바로 바꿉니다.
+                    - `statusCode`: `URGENT`(즉시 확인) / `CAUTION`(주의) / `INTEREST`(관심) / `null`(표시 없음)
+                    - 현재 확인 사유가 있으면 운영(시스템) 완료로 닫고, 요청한 등급의 대표 사유를 **미확인** 상태로 새로 올립니다
+                      (즉시 확인=도움 요청, 주의=동일 감정 반복, 관심=추가 상담 반복 이용). 등급을 내리는 변경도 됩니다.
+                    - `reasonMessage`를 비우면 등급별 기본 문구를 씁니다.
+                    - `delayMinutes`(0~60)를 주면 그만큼 뒤에 바꿉니다(`scheduled=true`, `appliesAt`에 적용).
+                      예약은 서버 메모리에만 있어 그 사이 재배포하면 사라집니다.
+                    닫힌 사유는 완료 이력으로 남고, 그 사유의 판정 집계가 이 시점부터 다시 시작됩니다.
+                    """,
+            parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
+    @ApiResponse(responseCode = "200", description = "변경(또는 예약) 성공 — 바로 바꿨으면 record에 새 현재 기록 (표시 없음이면 null)")
+    @ApiResponse(responseCode = "400", description = "- `4454`: 존재하지 않는 대상자입니다 (다른 기관 대상자 포함)")
+    @ApiResponse(responseCode = "404", description = "- `4308`: 존재하지 않는 기관입니다")
+    @PutMapping("/{organizationPublicId}/care-recipients/{careRecipientId}/status")
+    public ApiResponseDto<ChangeRecipientStatusResponse> changeCareRecipientStatus(
+            @Parameter(description = "기관 식별자 (public_id)") @PathVariable String organizationPublicId,
+            @Parameter(description = "대상자 식별자 (public_id)") @PathVariable String careRecipientId,
+            @Valid @RequestBody ChangeRecipientStatusRequest request) {
+        return ApiResponseDto.onSuccess(operatorOrganizationUseCase.scheduleRecipientStatus(organizationPublicId,
+                careRecipientId, request.statusCode(), request.reasonMessage(),
+                request.delayMinutes() == null ? 0 : request.delayMinutes()));
+    }
+
+    public record ChangeRecipientStatusRequest(
+            @Schema(description = "바꿀 상태 코드. null이면 표시 없음(X)", example = "URGENT") CareStatusCode statusCode,
+            @Schema(description = "카드 사유 문구 (선택, 비우면 등급별 기본 문구)", example = "119에 SOS 요청을 했어요.")
+            @Size(max = 200) String reasonMessage,
+            @Schema(description = "몇 분 뒤에 바꿀지 (선택, 0~60). 비우거나 0이면 바로 바꾼다", example = "5")
+            @Min(0) @Max(60) Integer delayMinutes) {
+    }
+
+    @Operation(operationId = "operatorListManagers", summary = "기관 담당자 계정 목록 (테스트·지원용)",
+            description = "기관의 담당자 계정입니다. 형식은 관리자의 담당자 목록(`GET /v1/api/admin/managers`)과 같고 아이디를 포함합니다.",
+            parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "404", description = "- `4308`: 존재하지 않는 기관입니다")
+    @GetMapping("/{organizationPublicId}/managers")
+    public ApiResponseDto<ManagerListResponse> listManagers(
+            @Parameter(description = "기관 식별자 (public_id)") @PathVariable String organizationPublicId,
+            @Parameter(description = "이름 검색") @RequestParam(required = false) String keyword,
+            @Parameter(description = "페이지 (1부터)") @RequestParam(defaultValue = "1") @Min(1) int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return ApiResponseDto.onSuccess(operatorOrganizationUseCase.managers(organizationPublicId, keyword, page, size));
+    }
+
+    @Operation(operationId = "operatorListGuardians", summary = "기관 보호자 계정 목록 (테스트·지원용)",
+            description = "기관의 보호자 계정과 연결 대상자입니다. 형식은 관리자의 보호자 목록(`GET /v1/api/admin/guardians`)과 같고 아이디를 포함합니다.",
+            parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "404", description = "- `4308`: 존재하지 않는 기관입니다")
+    @GetMapping("/{organizationPublicId}/guardians")
+    public ApiResponseDto<GuardianListResponse> listGuardians(
+            @Parameter(description = "기관 식별자 (public_id)") @PathVariable String organizationPublicId,
+            @Parameter(description = "보호자·대상자 이름 검색") @RequestParam(required = false) String keyword,
+            @Parameter(description = "페이지 (1부터)") @RequestParam(defaultValue = "1") @Min(1) int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return ApiResponseDto.onSuccess(operatorOrganizationUseCase.guardians(organizationPublicId, keyword, page, size));
     }
 }
