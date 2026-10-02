@@ -45,4 +45,16 @@ public final class NotificationStaticValues {
     public static final String CHAT_REPLY_DONE_BODY = "도란이의 이야기가 준비됐어요. 확인해 보실래요?";
     public static final String CHAT_REPLY_FAILED_TITLE = "답변을 만들지 못했어요";
     public static final String CHAT_REPLY_FAILED_BODY = "도란이가 잠시 생각이 꼬였나 봐요. 다시 시도해 보실래요?";
+
+    // ── 복지관 알림 (관리자·담당자·보호자) ──────────────────────────
+    // 제목의 %s 는 대상자 이름.
+    public static final String TYPE_CARE_URGENT = "CARE_URGENT";
+    public static final String TYPE_CARE_CAUTION_UNCHECKED = "CARE_CAUTION_UNCHECKED";
+    public static final String KEY_CARE_RECIPIENT_ID = "careRecipientId";
+    public static final String KEY_RECORD_ID = "recordId";
+    public static final String CARE_URGENT_TITLE = "%s 어르신이 도움을 요청했어요";
+    public static final String CARE_URGENT_BODY = "지금 상태를 확인해 주세요.";
+    public static final String CARE_CAUTION_UNCHECKED_TITLE = "%s님의 상태 확인이 필요해요";
+    public static final String CARE_CAUTION_UNCHECKED_WORKER_BODY = "아직 상태가 확인되지 않았어요. 안부를 확인해 주세요.";
+    public static final String CARE_CAUTION_UNCHECKED_GUARDIAN_BODY = "아직 상태가 확인되지 않았어요.";
 }

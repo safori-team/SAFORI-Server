@@ -99,6 +99,9 @@ public class AdminApiAuthorizationRules {
                 // 내 정보 수정 — 본인 정보라 로그인만 (항목별 제한은 서비스가 검사)
                 .requestMatchers(antMatcher(HttpMethod.PUT, "/v1/api/admin/me"))
                 .access(authz.member())
+                // 푸시 알림 기기 등록·삭제 — 본인 기기라 로그인만
+                .requestMatchers(antMatcher("/v1/api/admin/device-tokens"))
+                .access(authz.member())
                 // [개발용] 기록 추가 — 운영에서는 컨트롤러가 없다
                 .requestMatchers(antMatcher(HttpMethod.POST, "/v1/api/admin/dev/care-recipients/{careRecipientId}/records"))
                 .access(authz.member());

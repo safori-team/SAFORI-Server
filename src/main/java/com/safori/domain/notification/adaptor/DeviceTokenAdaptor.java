@@ -6,4 +6,6 @@ import java.util.List;
 public interface DeviceTokenAdaptor {
 
     List<DeviceToken> queryTokensByUserId(Long userId);
+
+    List<DeviceToken> queryTokensByAccountId(Long accountId);
 }

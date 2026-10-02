@@ -54,6 +54,7 @@ create table if not exists device_token
     foreign key (user_id) references users (user_id)
     on delete cascade
     );
+-- 백오피스 계정(관리자·담당자·보호자) 소유 토큰은 user_id 대신 account_id 를 쓴다(파일 아래쪽 backoffice_account 뒤에서 추가).
 
 create table if not exists monthly_emotion_report
 (
@@ -772,6 +773,40 @@ create table if not exists care_journal_selection
     foreign key (journal_id) references care_journal (journal_id),
     constraint fk_cjs_option
     foreign key (option_code) references journal_option (code)
+    );
+
+-- -----------------------------------------------------------------------------
+-- device_token.account_id : 백오피스 계정(관리자·담당자·보호자)의 FCM 토큰. 어르신 앱 토큰은 user_id 를 쓴다(둘 중 하나).
+-- -----------------------------------------------------------------------------
+alter table device_token
+    add column account_id bigint null,
+    add constraint fk_dt_account foreign key (account_id) references backoffice_account (account_id)
+        on delete cascade;
+
+-- -----------------------------------------------------------------------------
+-- care_notification : 복지관 알림(푸시) 발송 이력. 받는 계정마다 한 행, 보낸 시각은 created_date.
+--   type: URGENT_ENTERED(즉시 확인 진입), CAUTION_UNCHECKED_48H(주의 48시간 미확인).
+--   같은 기록·종류·계정으로는 한 번만 보낸다. success_count·failure_count 가 모두 0이면 등록된 기기가 없었다.
+-- -----------------------------------------------------------------------------
+create table if not exists care_notification
+(
+    notification_id    bigint auto_increment
+    primary key,
+    created_date       datetime(6)  null,
+    last_modified_date datetime(6)  null,
+    record_id          bigint       not null,
+    type               varchar(32)  not null,
+    account_id         bigint       not null,
+    title              varchar(255) not null,
+    body               varchar(255) not null,
+    success_count      int          not null,
+    failure_count      int          not null,
+    constraint uq_cn_record_type_account
+    unique (record_id, type, account_id),
+    constraint fk_cn_record
+    foreign key (record_id) references care_record (record_id),
+    constraint fk_cn_account
+    foreign key (account_id) references backoffice_account (account_id)
     );
 
 -- -----------------------------------------------------------------------------
