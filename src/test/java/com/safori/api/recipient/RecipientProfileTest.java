@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safori.api.operator.dto.CreateOrganizationRequest;
 import com.safori.api.operator.service.CreateOrganizationUseCase;
+import com.safori.domain.access.entity.PermissionCode;
+import com.safori.domain.access.service.AccessRoleDomainService;
+import com.safori.domain.access.repository.AccessRoleRepository;
+import com.safori.domain.organization.repository.OrganizationRepository;
 import com.safori.domain.user.entity.Gender;
 import com.safori.domain.user.service.UserDomainService;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
 /**
@@ -42,17 +47,21 @@ class RecipientProfileTest {
     @Autowired ObjectMapper objectMapper;
     @Autowired CreateOrganizationUseCase createOrganizationUseCase;
     @Autowired UserDomainService userDomainService;
+    @Autowired OrganizationRepository organizationRepository;
+    @Autowired AccessRoleRepository accessRoleRepository;
+    @Autowired AccessRoleDomainService accessRoleDomainService;
 
     private MockMvc mockMvc;
     private String token;
     private String recipient;
+    private String organizationPublicId;
 
     @BeforeEach
     void setUp() throws Exception {
         mockMvc = webAppContextSetup(context).addFilters(springSecurityFilterChain).build();
-        createOrganizationUseCase.execute(CreateOrganizationRequest.builder()
+        organizationPublicId = createOrganizationUseCase.execute(CreateOrganizationRequest.builder()
                 .organizationName("행복복지관").adminLoginId("orgadmin01").adminPassword("tempPass1234")
-                .adminName("이관리").adminPhone("01011112222").build());
+                .adminName("이관리").adminPhone("01011112222").build()).organizationPublicId();
         token = "Bearer " + signIn("orgadmin01", "tempPass1234").at("/result/accessToken").asText();
         userDomainService.registerUser("elder001", "elderPass1", "김영희", Gender.FEMALE,
                 LocalDate.of(1960, 3, 12), "01012345678", null);
@@ -115,6 +124,37 @@ class RecipientProfileTest {
                 {"name":"김영희","active":true,"loginId":"orgadmin01"}
                 """)
                 .andExpect(jsonPath("$.code").value(4050));
+
+        perform(put(RECIPIENTS + "/" + recipient), """
+                {"name":"김영희","active":true,"loginId":"elder001"}
+                """).andExpect(jsonPath("$.result.active").value(true));
+    }
+
+    @Test
+    @DisplayName("등록 권한이 있어도 수정 권한이 없으면 대상자 수정은 거부한다")
+    void updateRequiresDedicatedPermission() throws Exception {
+        var organization = organizationRepository.findByPublicId(organizationPublicId).orElseThrow();
+        var adminRole = accessRoleRepository.findByOrganizationAndCode(organization, "ORG_ADMIN").orElseThrow();
+        accessRoleDomainService.revokePermission(adminRole, PermissionCode.RECIPIENT_UPDATE);
+
+        perform(put(RECIPIENTS + "/" + recipient), """
+                {"name":"김영희2","active":true,"loginId":"elder001"}
+                """).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("다른 기관의 관리자는 수정 권한이 있어도 대상자를 수정할 수 없다")
+    void updateRejectsForeignOrganization() throws Exception {
+        createOrganizationUseCase.execute(CreateOrganizationRequest.builder()
+                .organizationName("다른복지관").adminLoginId("foreignadmin").adminPassword("tempPass1234")
+                .adminName("타기관 관리자").adminPhone("01099998888").build());
+        String foreignToken = "Bearer " + signIn("foreignadmin", "tempPass1234").at("/result/accessToken").asText();
+
+        mockMvc.perform(put(RECIPIENTS + "/" + recipient)
+                        .header(HttpHeaders.AUTHORIZATION, foreignToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"김영희2\",\"active\":true,\"loginId\":\"elder001\"}"))
+                .andExpect(status().isForbidden());
     }
 
     private JsonNode signIn(String loginId, String password) throws Exception {

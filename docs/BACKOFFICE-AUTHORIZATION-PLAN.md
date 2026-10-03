@@ -71,7 +71,7 @@ caring-back 참고 지점:
 | RECIPIENT_GUARDIAN_READ | 관리자, 담당자 | 관리자 기관 전체 / 담당자 현재 배정 대상; 이름·관계·연락처 필드 |
 | WORK_LOG_READ | 관리자, 담당자 | 담당자는 현 배정 기간 내 생성된 기록; 이전 기록은 별도 승인 |
 | WORK_LOG_WRITE, CARE_TASK_COMPLETE | 관리자, 담당자 | 기관 전체 / 현재 배정; 작성자를 서버에서 기록 |
-| RECIPIENT_CREATE, ASSIGNMENT_MANAGE | 관리자 | 기관 내부만; 타 기관 담당자 배정 거부 |
+| RECIPIENT_CREATE, RECIPIENT_UPDATE, ASSIGNMENT_MANAGE | 관리자 | 등록과 정보 수정을 분리한다. 수정은 비활성 대상자의 재활성화를 허용하되 소속 기관 범위를 검사한다; 타 기관 담당자 배정 거부 |
 | GUARDIAN_LINK_MANAGE, MEMBER_MANAGE | 관리자 | 기관 내부만; 임의 관리자 승격은 초기 공개 API에서 제외 |
 | WORK_LOG_HISTORY_READ | 관리자, 담당자 | 담당자는 활성 열람 승인과 현재 배정이 추가로 필요 |
 | WORK_LOG_HISTORY_APPROVE | 관리자 | 동일 기관, 요청자와 승인자 분리, 허용 범위·만료 필수 |
@@ -95,6 +95,12 @@ caring-back 참고 지점:
 `WORK_LOG_HISTORY_READ`가 담당자 Role에 포함됐다는 사실만으로 이전 기록을 허용하면 안 된다. 현재 `BackofficeAccessPolicy.canAccessRecipient(...)`와 URL의 `recipient(...)` 검사는 활성 배정만 확인하므로 열람 승인까지 표현하지 못한다. 승인 모델이 연결되기 전에는 담당자의 이전 기록을 거부하고, 연결 후에는 Permission·현재 배정·활성 승인을 모두 만족하는 전용 정책을 UseCase와 목록 쿼리에 적용한다.
 
 `ORG_ADMIN`과 `CARE_WORKER` 기본 템플릿은 이번 매핑 변경으로 version 2가 된다. 새 기관은 version 2를 기준으로 생성한다. 기존 기관 Role은 기관별 커스텀을 보존하기 위해 자동 변경하지 않는다. 운영 반영 시 Permission 카탈로그와 version 2 템플릿을 먼저 동기화하고, 기관 관리자가 차이를 확인한 뒤 새 Permission을 기존 Role에 선택적으로 부여한다.
+
+### 대상자 정보 수정 권한 후속 적용 (#153)
+
+`RECIPIENT_UPDATE`를 `RECIPIENT_CREATE`와 분리한다. `ORG_ADMIN` 기본 템플릿은 version 3부터 이 권한을 갖고, `CARE_WORKER` 기본 템플릿에는 넣지 않는다. 수정 API는 `RECIPIENT_UPDATE`의 대상 범위와 상세 응답에 필요한 조회 권한을 확인한다. 비활성 대상자 재활성화를 위해 수정 권한의 범위 검사에서만 비활성 상태를 허용한다.
+
+기존 기관 역할은 자동 갱신되지 않는다. 배포 시 카탈로그 동기화로 새 권한을 등록한 뒤, 기관별 기존 `ORG_ADMIN` 역할의 권한 구성을 확인하고 `RECIPIENT_UPDATE`를 명시적으로 부여해야 수정 API가 계속 작동한다. 기관이 직접 만든 역할에는 운영 정책을 확인한 뒤 선택적으로 부여한다. 부여 전에는 수정 API가 403을 반환한다.
 
 ## 4. DB 추가 설계
 

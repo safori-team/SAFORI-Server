@@ -18,6 +18,7 @@ import static com.safori.domain.access.entity.PermissionCode.MEMBER_MANAGE;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_CREATE;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_READ;
+import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_UPDATE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_APPROVE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_READ;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_READ;
@@ -50,7 +51,7 @@ import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_WRITE;
 @Getter
 public enum RoleTemplateCode {
 
-    ORG_ADMIN("기관 관리자", 2, DataScope.ORGANIZATION, EnumSet.of(
+    ORG_ADMIN("기관 관리자", 3, DataScope.ORGANIZATION, EnumSet.of(
             RECIPIENT_READ,
             ASSIGNMENT_READ,
             CARE_STATUS_READ,
@@ -63,6 +64,7 @@ public enum RoleTemplateCode {
             WORK_LOG_WRITE,
             CARE_TASK_COMPLETE,
             RECIPIENT_CREATE,
+            RECIPIENT_UPDATE,
             ASSIGNMENT_MANAGE,
             GUARDIAN_LINK_MANAGE,
             MEMBER_MANAGE)),
