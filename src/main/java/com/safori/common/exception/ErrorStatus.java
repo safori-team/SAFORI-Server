@@ -98,6 +98,7 @@ public enum ErrorStatus implements BaseErrorCode {
     @ExplainError("organization_assignable=false 권한(예: RAW_CONTENT_READ 원문 열람)을 기관 역할에 넣으려 한 경우.")
     ACCESS_PERMISSION_NOT_ASSIGNABLE(BAD_REQUEST, 4401, "기관에서 부여할 수 없는 권한입니다."),
     ACCESS_INVALID_ROLE_EXPIRY(BAD_REQUEST, 4402, "역할 만료 시각은 현재 이후여야 합니다."),
+    ACCESS_ROLE_NOT_FOUND(NOT_FOUND, 4403, "존재하지 않는 기관 역할입니다."),
 
     // 돌봄 대상·배정 오류 (4450번대)
     @ExplainError("어르신은 한 기관에만 등록된다. 같은 앱 계정(user_id)이 이미 어느 기관에든 등록된 경우.")

@@ -100,7 +100,7 @@ caring-back 참고 지점:
 
 `RECIPIENT_UPDATE`를 `RECIPIENT_CREATE`와 분리한다. `ORG_ADMIN` 기본 템플릿은 version 3부터 이 권한을 갖고, `CARE_WORKER` 기본 템플릿에는 넣지 않는다. 수정 API는 `RECIPIENT_UPDATE`의 대상 범위와 상세 응답에 필요한 조회 권한을 확인한다. 비활성 대상자 재활성화를 위해 수정 권한의 범위 검사에서만 비활성 상태를 허용한다.
 
-기존 기관 역할은 자동 갱신되지 않는다. 배포 시 카탈로그 동기화로 새 권한을 등록한 뒤, 기관별 기존 `ORG_ADMIN` 역할의 권한 구성을 확인하고 `RECIPIENT_UPDATE`를 명시적으로 부여해야 수정 API가 계속 작동한다. 기관이 직접 만든 역할에는 운영 정책을 확인한 뒤 선택적으로 부여한다. 부여 전에는 수정 API가 403을 반환한다.
+기존 기관 역할은 자동 갱신되지 않는다. 배포 시 카탈로그 동기화로 새 권한을 등록한 뒤, 운영자 키로 `GET /v1/api/operator/organizations/{organizationPublicId}/roles/ORG_ADMIN/permissions`를 호출해 현재 구성을 확인한다. 기존 기관 관리자에게 수정 기능을 계속 제공하려면 `PUT /v1/api/operator/organizations/{organizationPublicId}/roles/ORG_ADMIN/permissions/RECIPIENT_UPDATE`로 명시적으로 부여한다. 이미 부여된 경우에도 같은 응답을 돌려준다. 기관이 직접 만든 역할에는 운영 정책을 확인한 뒤 선택적으로 부여한다. 필요하면 같은 경로의 `DELETE`로 회수할 수 있으며 변경은 다음 요청부터 반영된다. 운영자 키가 없는 요청은 401, 기관에 속하지 않는 역할 코드는 404다. 부여 전에는 수정 API가 403을 반환한다.
 
 ## 4. DB 추가 설계
 

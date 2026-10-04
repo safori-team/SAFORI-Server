@@ -10,12 +10,14 @@ import com.safori.api.operator.dto.ChangeRecipientStatusResponse;
 import com.safori.api.operator.dto.CreateOrganizationRequest;
 import com.safori.api.operator.dto.CreateOrganizationResponse;
 import com.safori.api.operator.dto.OrganizationDetailResponse;
+import com.safori.api.operator.dto.OrganizationRolePermissionsResponse;
 import com.safori.api.operator.dto.OrganizationSummaryResponse;
 import com.safori.api.operator.dto.RenameOrganizationRequest;
 import com.safori.api.operator.dto.ReplaceOrganizationAdminRequest;
 import com.safori.api.operator.dto.ReplaceOrganizationAdminResponse;
 import com.safori.api.operator.service.CreateOrganizationUseCase;
 import com.safori.api.operator.service.OperatorOrganizationUseCase;
+import com.safori.api.operator.service.OperatorRolePermissionsUseCase;
 import com.safori.api.recipient.dto.RecipientListResponse;
 import com.safori.api.recipient.dto.RegisterRecipientResponse;
 import com.safori.api.user.dto.UserRegisterRequest;
@@ -23,6 +25,7 @@ import com.safori.api.worker.dto.ManagerListResponse;
 import com.safori.api.worker.dto.RegisterWorkerRequest;
 import com.safori.api.worker.dto.RegisterWorkerResponse;
 import com.safori.domain.care.entity.CareStatusCode;
+import com.safori.domain.access.entity.PermissionCode;
 import com.safori.domain.organization.entity.OrganizationStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
@@ -39,6 +42,7 @@ import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -61,6 +65,41 @@ public class OperatorOrganizationController {
 
     private final CreateOrganizationUseCase createOrganizationUseCase;
     private final OperatorOrganizationUseCase operatorOrganizationUseCase;
+    private final OperatorRolePermissionsUseCase operatorRolePermissionsUseCase;
+
+    @Operation(operationId = "getOrganizationRolePermissions", summary = "기관 역할 권한 조회",
+            description = "기존 기관 역할의 현재 권한을 조회합니다. 역할 코드는 예를 들어 ORG_ADMIN입니다.",
+            parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
+    @GetMapping("/{organizationPublicId}/roles/{roleCode}/permissions")
+    public ApiResponseDto<OrganizationRolePermissionsResponse> getRolePermissions(
+            @PathVariable String organizationPublicId, @PathVariable String roleCode) {
+        return ApiResponseDto.onSuccess(operatorRolePermissionsUseCase.get(organizationPublicId, roleCode));
+    }
+
+    @Operation(operationId = "grantOrganizationRolePermission", summary = "기관 역할에 권한 부여",
+            description = "해당 기관 역할에 권한을 추가합니다. 이미 있으면 그대로 둡니다. 기존 기관 ORG_ADMIN에 RECIPIENT_UPDATE를 적용할 때 사용합니다. 다음 요청부터 반영됩니다.",
+            parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
+    @ApiResponse(responseCode = "400", description = "4401: 기관에 부여할 수 없는 권한")
+    @ApiResponse(responseCode = "404", description = "4308: 기관 없음 / 4403: 해당 기관의 역할 없음")
+    @PutMapping("/{organizationPublicId}/roles/{roleCode}/permissions/{permissionCode}")
+    public ApiResponseDto<OrganizationRolePermissionsResponse> grantRolePermission(
+            @PathVariable String organizationPublicId, @PathVariable String roleCode,
+            @PathVariable PermissionCode permissionCode) {
+        return ApiResponseDto.onSuccess(operatorRolePermissionsUseCase.grant(
+                organizationPublicId, roleCode, permissionCode));
+    }
+
+    @Operation(operationId = "revokeOrganizationRolePermission", summary = "기관 역할 권한 회수",
+            description = "해당 기관 역할에서 권한을 제거합니다. 없는 권한이면 그대로 둡니다. 다음 요청부터 반영됩니다.",
+            parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
+    @ApiResponse(responseCode = "404", description = "4308: 기관 없음 / 4403: 해당 기관의 역할 없음")
+    @DeleteMapping("/{organizationPublicId}/roles/{roleCode}/permissions/{permissionCode}")
+    public ApiResponseDto<OrganizationRolePermissionsResponse> revokeRolePermission(
+            @PathVariable String organizationPublicId, @PathVariable String roleCode,
+            @PathVariable PermissionCode permissionCode) {
+        return ApiResponseDto.onSuccess(operatorRolePermissionsUseCase.revoke(
+                organizationPublicId, roleCode, permissionCode));
+    }
 
     @Operation(operationId = "create", summary = "기관 + 최초 기관 관리자 생성",
             description = """
