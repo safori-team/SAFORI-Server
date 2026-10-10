@@ -18,6 +18,7 @@ import com.safori.domain.chatbot.service.ChatbotMessageMapper;
 import com.safori.domain.emotion.entity.EmotionType;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
+import com.safori.domain.voice.exception.VoiceHandler;
 import com.safori.infra.ai.gemini.GeminiChatbotClient;
 import com.safori.infra.ai.gemini.GeminiEmotionMapper;
 import com.safori.infra.ai.gemini.GeminiVoiceAnalyzer;
@@ -66,7 +67,7 @@ class SendVoiceReframingMessageUseCaseTest {
     @InjectMocks SendVoiceReframingMessageUseCase useCase;
 
     private final VoiceReframingRequest request =
-            new VoiceReframingRequest(SESSION_ID, "voices/2026/07/a.m4a");
+            new VoiceReframingRequest(SESSION_ID, "voices/tester/a.m4a");
 
     private void givenSession() throws Exception {
         given(userAdaptor.queryUserByUsername(USERNAME)).willReturn(user);
@@ -88,6 +89,16 @@ class SendVoiceReframingMessageUseCaseTest {
                 .willReturn(101L);
         // 기본은 가드레일에 걸리지 않는 정상 대화
         given(crisisPolicy.screen(anyString())).willReturn(CrisisVerdict.none());
+    }
+
+    @Test
+    @DisplayName("남의 voiceKey면 STT(Flash)조차 호출하지 않는다 — 전사가 응답으로 새지 않게")
+    void rejectsForeignVoiceKeyBeforeStt() {
+        assertThatThrownBy(() -> useCase.execute(USERNAME,
+                new VoiceReframingRequest(SESSION_ID, "voices/other/a.m4a")))
+                .isSameAs(VoiceHandler.NO_PERMISSION);
+
+        verifyNoInteractions(geminiVoiceAnalyzer, chatbotDomainService);
     }
 
     @Test

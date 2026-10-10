@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class UploadVoiceFileUseCaseTest {
@@ -80,10 +81,20 @@ class UploadVoiceFileUseCaseTest {
                 .willReturn(List.of(voice));
 
         assertThatThrownBy(() ->
-                useCase().execute(username, QuestionCategory.EMOTION, 0, "voices/u/uuid.m4a"))
-                .isInstanceOf(VoiceHandler.class);
+                useCase().execute(username, QuestionCategory.EMOTION, 0, "voices/testUser/uuid.m4a"))
+                .isSameAs(VoiceHandler.ALREADY_EXISTS_TODAY);
 
         verify(userAdaptor, never()).queryUserByUsername(username);
         verify(voiceDomainService, never()).uploadVoiceFile(any(), any());
+    }
+
+    @Test
+    @DisplayName("남의 voiceKey - NO_PERMISSION, 조회·저장·분석 안 함")
+    void execute_foreignVoiceKey_throws() {
+        assertThatThrownBy(() ->
+                useCase().execute("testUser", QuestionCategory.EMOTION, 0, "voices/other/uuid.m4a"))
+                .isSameAs(VoiceHandler.NO_PERMISSION);
+
+        verifyNoInteractions(voiceAdaptor, voiceDomainService, geminiVoiceAnalyzer);
     }
 }

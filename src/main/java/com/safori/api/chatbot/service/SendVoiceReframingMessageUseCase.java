@@ -19,6 +19,7 @@ import com.safori.domain.chatbot.service.ChatbotMessageMapper;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.UserHonorific;
 import com.safori.domain.user.entity.User;
+import com.safori.domain.voice.VoiceKey;
 import com.safori.infra.ai.gemini.GeminiChatbotClient;
 import com.safori.infra.ai.gemini.GeminiEmotionMapper;
 import com.safori.infra.ai.gemini.GeminiVoiceAnalyzer;
@@ -64,7 +65,8 @@ public class SendVoiceReframingMessageUseCase {
     private final GeminiEmotionMapper emotionMapper;
 
     public VoiceReframingResponse execute(String username, VoiceReframingRequest request) {
-        // 1) 권한 검증
+        // 1) 권한 검증 — 남의 키를 보내면 그 음성의 전사가 응답으로 나가므로 STT 전에 막는다
+        VoiceKey.verifyOwnedBy(username, request.voiceKey());
         User user = userAdaptor.queryUserByUsername(username);
         ChatSession session = chatSessionAdaptor.queryById(request.sessionId());
         chatbotDomainService.verifyOwnership(session, user);
