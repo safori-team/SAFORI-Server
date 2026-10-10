@@ -14,6 +14,7 @@ import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_STATUS_READ;
 import static com.safori.domain.access.entity.PermissionCode.RAW_CONTENT_READ;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_GUARDIAN_READ;
+import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_UPDATE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_APPROVE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_READ;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_READ;
@@ -68,6 +69,14 @@ class RoleTemplateCodeTest {
     void guardianDirectoryIsAdminOnly() {
         assertThat(ORG_ADMIN.getDefaultPermissions()).contains(GUARDIAN_READ);
         assertThat(CARE_WORKER.getDefaultPermissions()).doesNotContain(GUARDIAN_READ);
+    }
+
+    @Test
+    @DisplayName("대상자 수정 권한은 기본 기관 관리자에게만 부여한다")
+    void recipientUpdateIsAdminOnly() {
+        assertThat(ORG_ADMIN.getDefaultPermissions()).contains(RECIPIENT_UPDATE);
+        assertThat(CARE_WORKER.getDefaultPermissions()).doesNotContain(RECIPIENT_UPDATE);
+        assertThat(GUARDIAN.getDefaultPermissions()).doesNotContain(RECIPIENT_UPDATE);
     }
 
     @Test

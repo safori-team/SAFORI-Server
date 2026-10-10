@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -40,6 +41,40 @@ class OperatorOrganizationManagementTest {
 
     private MockMvc mockMvc;
     private String happy;
+
+    @Test
+    @DisplayName("기존 기관 역할에 대상자 수정 권한을 회수·재부여하면 PUT 인가에 즉시 반영된다")
+    void manageRecipientUpdatePermission() throws Exception {
+        String permissions = URL + "/" + happy + "/roles/ORG_ADMIN/permissions";
+        String updatePermission = permissions + "/RECIPIENT_UPDATE";
+        String adminToken = signIn("orgadmin01", "tempPass1234");
+        String recipient = json(operator(post(URL + "/" + happy + "/care-recipients"), """
+                {"name":"김영희","username":"elder001","password":"elderPass1","gender":"FEMALE","birthDate":"1960-03-12"}
+                """)).at("/result/recipientPublicId").asText();
+        String updateUrl = "/v1/api/admin/care-recipients/" + recipient;
+        String updateBody = "{\"name\":\"김영희\",\"active\":true,\"loginId\":\"elder001\"}";
+
+        operator(get(permissions), null)
+                .andExpect(jsonPath("$.result.permissions").isArray());
+        mockMvc.perform(delete(updatePermission)).andExpect(status().isUnauthorized());
+        operator(delete(updatePermission), null)
+                .andExpect(jsonPath("$.result.permissions[?(@ == 'RECIPIENT_UPDATE')]").isEmpty());
+        mockMvc.perform(put(updateUrl).header(HttpHeaders.AUTHORIZATION, adminToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(updateBody))
+                .andExpect(status().isForbidden());
+
+        operator(put(updatePermission), null)
+                .andExpect(jsonPath("$.result.permissions[?(@ == 'RECIPIENT_UPDATE')]").isNotEmpty());
+        operator(put(updatePermission), null).andExpect(status().isOk());
+        mockMvc.perform(put(updateUrl).header(HttpHeaders.AUTHORIZATION, adminToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(updateBody))
+                .andExpect(status().isOk());
+        operator(put(URL + "/" + happy + "/roles/CARE_WORKER/permissions/RAW_CONTENT_READ"), null)
+                .andExpect(jsonPath("$.code").value(4401));
+        operator(put(URL + "/" + happy + "/roles/NO_SUCH_ROLE/permissions/RECIPIENT_UPDATE"), null)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(4403));
+    }
 
     @BeforeEach
     void setUp() throws Exception {

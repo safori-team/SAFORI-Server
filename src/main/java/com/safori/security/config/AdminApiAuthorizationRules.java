@@ -15,10 +15,12 @@ import static com.safori.domain.access.entity.PermissionCode.MEMBER_MANAGE;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_CREATE;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_READ;
+import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_UPDATE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_READ;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_READ;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_WRITE;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
+import static org.springframework.security.authorization.AuthorizationManagers.allOf;
 
 /**
  * 백오피스 API({@code /v1/api/admin/**}) 권한 규칙. 노션 API 표의 권한 열을 따르며, 한 API에 적힌 권한은 모두 필요하다.
@@ -43,11 +45,12 @@ public class AdminApiAuthorizationRules {
                 .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients/lookup"),
                         antMatcher(HttpMethod.POST, "/v1/api/admin/care-recipients"))
                 .access(authz.permission(RECIPIENT_CREATE))
-                // 대상자 정보 수정 (노션의 RECIPIENT_UPDATE 는 아직 없는 권한이라 RECIPIENT_CREATE 로 대신한다).
-                // 비활성 대상자를 다시 활성화해야 하므로 대상자 범위(활성 대상자만) 대신 권한만 본다 — 기관은 서비스가 확인
+                // 수정 권한은 대상 범위까지 검사한다. 비활성 대상자 재활성화도 허용한다.
+                // 상세 응답에 필요한 조회 권한 조건은 유지한다.
                 .requestMatchers(antMatcher(HttpMethod.PUT, RECIPIENT))
-                .access(authz.allOf(RECIPIENT_CREATE, RECIPIENT_READ, CARE_STATUS_READ, CARE_REASON_READ,
-                        RECIPIENT_GUARDIAN_READ, WORK_LOG_READ, WORK_LOG_HISTORY_READ))
+                .access(allOf(authz.allOf(RECIPIENT_READ, CARE_STATUS_READ, CARE_REASON_READ,
+                                RECIPIENT_GUARDIAN_READ, WORK_LOG_READ, WORK_LOG_HISTORY_READ),
+                        authz.recipient(RECIPIENT_UPDATE, ID)))
                 // 대상자 리스트 (범위는 서비스가 권한 범위로 거른다) / 상세
                 .requestMatchers(antMatcher(HttpMethod.GET, "/v1/api/admin/care-recipients"))
                 .access(authz.allOf(RECIPIENT_READ, CARE_STATUS_READ, CARE_REASON_READ))
