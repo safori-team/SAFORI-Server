@@ -3,7 +3,7 @@ package com.safori.api.chatbot.service;
 import com.safori.api.chatbot.dto.VoicePlaybackResponse;
 import com.safori.common.annotation.UseCase;
 import com.safori.common.service.S3PresignService;
-import com.safori.domain.voice.exception.VoiceHandler;
+import com.safori.domain.voice.VoiceKey;
 
 import java.util.Optional;
 
@@ -26,19 +26,11 @@ public class GetChatVoicePlaybackUrlUseCase {
     }
 
     public VoicePlaybackResponse execute(String username, String voiceKey) {
-        verifyOwnership(username, voiceKey);
+        VoiceKey.verifyOwnedBy(username, voiceKey);
         S3PresignService service = s3PresignService
                 .orElseThrow(() -> new IllegalStateException("S3가 구성되지 않았습니다. AWS 설정을 확인해주세요."));
 
         String url = service.generateGetUrl(voiceKey);
         return new VoicePlaybackResponse(url, URL_EXPIRES_IN_SECONDS);
-    }
-
-    /** 본인 네임스페이스의 키만 허용 (IDOR 방지). 경로 travers('..') 차단. */
-    private void verifyOwnership(String username, String voiceKey) {
-        String ownerPrefix = "voices/" + username + "/";
-        if (voiceKey == null || !voiceKey.startsWith(ownerPrefix) || voiceKey.contains("..")) {
-            throw VoiceHandler.NO_PERMISSION;
-        }
     }
 }
