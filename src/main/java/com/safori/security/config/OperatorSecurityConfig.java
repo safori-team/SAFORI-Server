@@ -1,6 +1,6 @@
 package com.safori.security.config;
 
-import com.safori.security.exception.BackofficeSecurityErrorResponder;
+import com.safori.security.exception.SecurityErrorResponder;
 import com.safori.security.filter.OperatorKeyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +25,7 @@ public class OperatorSecurityConfig {
 
     public static final String OPERATOR_API_PATTERN = "/v1/api/operator/**";
 
-    private final BackofficeSecurityErrorResponder errorResponder;
+    private final SecurityErrorResponder errorResponder;
 
     @Bean
     @Order(0)

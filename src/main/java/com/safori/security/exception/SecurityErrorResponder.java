@@ -17,11 +17,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * 백오피스 체인의 필터 단 거부 응답. 인증 실패는 401, 권한·범위 부족은 403을 API 공통 응답 형식으로 내려준다.
+ * 필터 단 거부 응답. 인증 실패(토큰 없음·만료·위조)는 401, 권한·범위 부족은 403을 API 공통 응답 형식으로 내려준다.
+ * 어르신 앱·백오피스·운영자 체인이 같이 쓴다 — 앱은 401을 보고 토큰을 재발급하므로 만료 토큰이 403으로 나가면 안 된다.
  */
 @Component
 @RequiredArgsConstructor
-public class BackofficeSecurityErrorResponder implements AuthenticationEntryPoint, AccessDeniedHandler {
+public class SecurityErrorResponder implements AuthenticationEntryPoint, AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
 
