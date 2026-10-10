@@ -1,7 +1,7 @@
 package com.safori.security.config;
 
 import com.safori.domain.access.policy.BackofficeActorResolver;
-import com.safori.security.exception.BackofficeSecurityErrorResponder;
+import com.safori.security.exception.SecurityErrorResponder;
 import com.safori.security.filter.BackofficeAuthenticationFilter;
 import com.safori.security.service.BackofficeTokenService;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +40,7 @@ public class BackofficeSecurityConfig {
 
     private final BackofficeTokenService backofficeTokenService;
     private final BackofficeActorResolver backofficeActorResolver;
-    private final BackofficeSecurityErrorResponder backofficeSecurityErrorResponder;
+    private final SecurityErrorResponder securityErrorResponder;
 
     @Bean
     @Order(1)
@@ -58,8 +58,8 @@ public class BackofficeSecurityConfig {
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(backofficeSecurityErrorResponder)
-                        .accessDeniedHandler(backofficeSecurityErrorResponder))
+                        .authenticationEntryPoint(securityErrorResponder)
+                        .accessDeniedHandler(securityErrorResponder))
                 .authorizeHttpRequests(registry -> {
                     authorizationRules.orderedStream().forEach(rules -> rules.configure(registry));
                     // 규칙이 없는 경로는 닫는다. 토큰이 없으면 401, 있으면 403.

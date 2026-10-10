@@ -1,6 +1,7 @@
 package com.safori.security.config;
 
 import com.safori.domain.access.policy.BackofficeActorResolver;
+import com.safori.security.exception.SecurityErrorResponder;
 import com.safori.security.filter.BackofficeAuthenticationFilter;
 import com.safori.security.filter.JwtAuthenticationFilter;
 import com.safori.security.service.BackofficeTokenService;
@@ -30,6 +31,7 @@ public class SecurityConfig {
     public static final String USER_INFO_PATH = "/v1/api/users";
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SecurityErrorResponder securityErrorResponder;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -40,6 +42,10 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 진입점이 없으면 Spring 기본값이 인증 실패도 403으로 내려 앱이 토큰 만료를 알아채지 못한다
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(securityErrorResponder)
+                        .accessDeniedHandler(securityErrorResponder))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/.well-known/**", "/*.ico", "/error", "/images/**").permitAll()
                         .requestMatchers(permitAllRequests()).permitAll()
@@ -67,6 +73,9 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(securityErrorResponder)
+                        .accessDeniedHandler(securityErrorResponder))
                 .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
                 .addFilterBefore(new BackofficeAuthenticationFilter(backofficeTokenService, backofficeActorResolver),
                         UsernamePasswordAuthenticationFilter.class)
