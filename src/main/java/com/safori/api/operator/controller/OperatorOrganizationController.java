@@ -77,7 +77,7 @@ public class OperatorOrganizationController {
     }
 
     @Operation(operationId = "grantOrganizationRolePermission", summary = "기관 역할에 권한 부여",
-            description = "해당 기관 역할에 권한을 추가합니다. 이미 있으면 그대로 둡니다. 기존 기관 ORG_ADMIN에 RECIPIENT_UPDATE를 적용할 때 사용합니다. 다음 요청부터 반영됩니다.",
+            description = "해당 기관 역할에 권한을 추가합니다. 이미 있으면 그대로 둡니다. 기본 템플릿에 추가된 권한은 서버 기동 시 기존 기관 역할에 자동으로 들어가므로, 기관별로 예외적으로 조정할 때 사용합니다. 다음 요청부터 반영됩니다.",
             parameters = @Parameter(name = HEADER, in = ParameterIn.HEADER, required = true, description = "운영자 키"))
     @ApiResponse(responseCode = "400", description = "4401: 기관에 부여할 수 없는 권한")
     @ApiResponse(responseCode = "404", description = "4308: 기관 없음 / 4403: 해당 기관의 역할 없음")

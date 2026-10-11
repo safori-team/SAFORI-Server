@@ -87,6 +87,14 @@ public class AccessRole extends BaseTimeEntity {
                 .build();
     }
 
+    /** 같은 템플릿의 새 버전을 생성 기준으로 삼는다. 새 버전에서 추가된 권한은 호출하는 쪽이 넣는다. */
+    public void upgradeTemplate(AccessRoleTemplate template) {
+        if (sourceTemplate == null || !sourceTemplate.getCode().equals(template.getCode())) {
+            throw new IllegalArgumentException("같은 템플릿에서 만든 역할만 올릴 수 있다: " + template.getCode());
+        }
+        this.sourceTemplate = template;
+    }
+
     public boolean isActive() {
         return this.status == AccessStatus.ACTIVE;
     }
