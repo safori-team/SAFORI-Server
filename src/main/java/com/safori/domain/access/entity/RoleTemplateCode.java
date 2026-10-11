@@ -4,6 +4,7 @@ import lombok.Getter;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 
 import static com.safori.domain.access.entity.PermissionCode.ASSIGNMENT_MANAGE;
@@ -45,53 +46,96 @@ import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_WRITE;
  * </pre>
  *
  * <p>기관 생성 시 템플릿마다 기관 소유 역할과 같은 이름의 기본 그룹을 만든다. 이후 기관은 자기 역할의
- * 권한을 바꿀 수 있고, 템플릿이 바뀌어도 기존 기관 역할을 자동으로 덮어쓰지 않는다. 기본 권한 구성을
- * 바꿀 때는 {@link #version}을 올린다.
+ * 권한을 바꿀 수 있다.
+ *
+ * <p>기본 권한은 버전별로 추가된 것만 {@link Revision}으로 쌓는다. 현재 기본 권한은 모든 revision의 합이고,
+ * 현재 버전은 마지막 revision 번호다. 기본 권한을 늘릴 때는 기존 revision을 고치지 말고 다음 번호의 revision을
+ * 덧붙인다. 기동 시 옛 버전으로 만들어진 기관 역할에는 그 뒤 revision에서 추가된 권한만 넣으므로
+ * ({@code AccessProvisioningDomainService#upgradeTemplateRoles}), 기관이 직접 뺀 권한은 되살아나지 않는다.
+ * revision은 추가만 표현한다. 기본 권한을 빼야 하면 기존 기관 역할에서 자동으로 빼지 않도록 별도로 설계한다.
  */
 @Getter
 public enum RoleTemplateCode {
 
-    ORG_ADMIN("기관 관리자", 3, DataScope.ORGANIZATION, EnumSet.of(
-            RECIPIENT_READ,
-            ASSIGNMENT_READ,
-            CARE_STATUS_READ,
-            CARE_REASON_READ,
-            GUARDIAN_READ,
-            RECIPIENT_GUARDIAN_READ,
-            WORK_LOG_READ,
-            WORK_LOG_HISTORY_READ,
-            WORK_LOG_HISTORY_APPROVE,
-            WORK_LOG_WRITE,
-            CARE_TASK_COMPLETE,
-            RECIPIENT_CREATE,
-            RECIPIENT_UPDATE,
-            ASSIGNMENT_MANAGE,
-            GUARDIAN_LINK_MANAGE,
-            MEMBER_MANAGE)),
+    ORG_ADMIN("기관 관리자", DataScope.ORGANIZATION, List.of(
+            revision(1,
+                    RECIPIENT_READ,
+                    ASSIGNMENT_READ,
+                    CARE_STATUS_READ,
+                    CARE_REASON_READ,
+                    WORK_LOG_WRITE,
+                    CARE_TASK_COMPLETE,
+                    RECIPIENT_CREATE,
+                    ASSIGNMENT_MANAGE,
+                    GUARDIAN_LINK_MANAGE,
+                    MEMBER_MANAGE),
+            revision(2,
+                    GUARDIAN_READ,
+                    RECIPIENT_GUARDIAN_READ,
+                    WORK_LOG_READ,
+                    WORK_LOG_HISTORY_READ,
+                    WORK_LOG_HISTORY_APPROVE),
+            revision(3,
+                    RECIPIENT_UPDATE))),
 
-    CARE_WORKER("담당자", 2, DataScope.ASSIGNED_RECIPIENT, EnumSet.of(
-            RECIPIENT_READ,
-            CARE_STATUS_READ,
-            CARE_REASON_READ,
-            RECIPIENT_GUARDIAN_READ,
-            WORK_LOG_READ,
-            WORK_LOG_HISTORY_READ,
-            WORK_LOG_WRITE,
-            CARE_TASK_COMPLETE)),
+    CARE_WORKER("담당자", DataScope.ASSIGNED_RECIPIENT, List.of(
+            revision(1,
+                    RECIPIENT_READ,
+                    CARE_STATUS_READ,
+                    CARE_REASON_READ,
+                    WORK_LOG_WRITE,
+                    CARE_TASK_COMPLETE),
+            revision(2,
+                    RECIPIENT_GUARDIAN_READ,
+                    WORK_LOG_READ,
+                    WORK_LOG_HISTORY_READ))),
 
-    GUARDIAN("보호자", 1, DataScope.LINKED_RECIPIENT, EnumSet.of(
-            RECIPIENT_READ,
-            GUARDIAN_STATUS_READ));
+    GUARDIAN("보호자", DataScope.LINKED_RECIPIENT, List.of(
+            revision(1,
+                    RECIPIENT_READ,
+                    GUARDIAN_STATUS_READ)));
 
     private final String displayName;
     private final long version;
     private final DataScope dataScope;
+    private final List<Revision> revisions;
     private final Set<PermissionCode> defaultPermissions;
 
-    RoleTemplateCode(String displayName, long version, DataScope dataScope, EnumSet<PermissionCode> defaultPermissions) {
+    RoleTemplateCode(String displayName, DataScope dataScope, List<Revision> revisions) {
+        EnumSet<PermissionCode> permissions = EnumSet.noneOf(PermissionCode.class);
+        for (int i = 0; i < revisions.size(); i++) {
+            Revision revision = revisions.get(i);
+            if (revision.version() != i + 1) {
+                throw new IllegalArgumentException(name() + " revision은 1부터 빠짐없이 이어져야 한다: " + revision.version());
+            }
+            for (PermissionCode permission : revision.added()) {
+                if (!permissions.add(permission)) {
+                    throw new IllegalArgumentException(name() + " revision " + revision.version()
+                            + "이 이미 있는 권한을 다시 추가한다: " + permission);
+                }
+            }
+        }
         this.displayName = displayName;
-        this.version = version;
+        this.version = revisions.size();
         this.dataScope = dataScope;
-        this.defaultPermissions = Collections.unmodifiableSet(defaultPermissions);
+        this.revisions = List.copyOf(revisions);
+        this.defaultPermissions = Collections.unmodifiableSet(permissions);
+    }
+
+    /** 주어진 버전 뒤의 revision에서 추가된 기본 권한. 현재 버전 이상이면 비어 있다. */
+    public Set<PermissionCode> permissionsAddedAfter(long version) {
+        EnumSet<PermissionCode> added = EnumSet.noneOf(PermissionCode.class);
+        revisions.stream()
+                .filter(revision -> revision.version() > version)
+                .forEach(revision -> added.addAll(revision.added()));
+        return Collections.unmodifiableSet(added);
+    }
+
+    private static Revision revision(long version, PermissionCode first, PermissionCode... rest) {
+        return new Revision(version, Collections.unmodifiableSet(EnumSet.of(first, rest)));
+    }
+
+    /** 한 버전에서 기본 권한에 추가된 것. */
+    public record Revision(long version, Set<PermissionCode> added) {
     }
 }
