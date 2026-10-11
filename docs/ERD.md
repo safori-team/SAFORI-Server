@@ -211,7 +211,7 @@ erDiagram
 | `CARE_WORKER` 템플릿 v2 | RECIPIENT_READ, CARE_STATUS_READ, CARE_REASON_READ, RECIPIENT_GUARDIAN_READ, WORK_LOG_READ, WORK_LOG_HISTORY_READ, WORK_LOG_WRITE, CARE_TASK_COMPLETE |
 | `GUARDIAN` 템플릿 | RECIPIENT_READ, GUARDIAN_STATUS_READ |
 
-`RAW_CONTENT_READ` 는 `organization_assignable=false` 라 기관 Role에 넣을 수 없음 (원문 비공개 정책). 유효 권한 = 직접 Role(`access_member_role`, 미만료·미회수) ∪ Group 상속 Role(`access_group_role`). 단, 담당자의 `WORK_LOG_HISTORY_READ`는 유효한 열람 승인을 추가로 만족해야 한다. 템플릿 갱신은 기존 기관 Role을 자동으로 덮어쓰지 않는다. 상세 설계는 [BACKOFFICE-AUTHORIZATION-PLAN.md](BACKOFFICE-AUTHORIZATION-PLAN.md), [AUTHORIZATION-ERD-COMPARISON.md](AUTHORIZATION-ERD-COMPARISON.md).
+`RAW_CONTENT_READ` 는 `organization_assignable=false` 라 기관 Role에 넣을 수 없음 (원문 비공개 정책). 유효 권한 = 직접 Role(`access_member_role`, 미만료·미회수) ∪ Group 상속 Role(`access_group_role`). 단, 담당자의 `WORK_LOG_HISTORY_READ`는 유효한 열람 승인을 추가로 만족해야 한다. 템플릿 버전이 오르면 서버 기동 시 옛 버전으로 만든 기관 Role에 새 버전에서 추가된 권한만 넣고 `source_template_id`를 옮긴다(기관이 뺀 권한은 되살리지 않고, 덮어쓰지 않음). 상세 설계는 [BACKOFFICE-AUTHORIZATION-PLAN.md](BACKOFFICE-AUTHORIZATION-PLAN.md), [AUTHORIZATION-ERD-COMPARISON.md](AUTHORIZATION-ERD-COMPARISON.md).
 
 ## 2. 앱 영역 (어르신 사용자 · 음성 · 감정 · 챗봇)
 
