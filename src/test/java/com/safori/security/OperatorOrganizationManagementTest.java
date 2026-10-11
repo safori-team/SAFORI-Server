@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.List;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -74,6 +76,27 @@ class OperatorOrganizationManagementTest {
         operator(put(URL + "/" + happy + "/roles/NO_SUCH_ROLE/permissions/RECIPIENT_UPDATE"), null)
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(4403));
+    }
+
+    @Test
+    @DisplayName("역할 권한 조회·부여·회수는 운영자 체인에 걸린다 — 키가 없거나 틀리거나 기관 관리자 토큰이면 401이고 바뀌지 않는다")
+    void rolePermissionEndpointsRequireOperatorKey() throws Exception {
+        String permissions = URL + "/" + happy + "/roles/ORG_ADMIN/permissions";
+        String updatePermission = permissions + "/RECIPIENT_UPDATE";
+        String adminToken = signIn("orgadmin01", "tempPass1234");
+
+        for (MockHttpServletRequestBuilder request : List.of(get(permissions), put(updatePermission), delete(updatePermission))) {
+            mockMvc.perform(request).andExpect(status().isUnauthorized());
+        }
+        for (MockHttpServletRequestBuilder request : List.of(get(permissions), put(updatePermission), delete(updatePermission))) {
+            mockMvc.perform(request.header("X-Operator-Key", "wrong")).andExpect(status().isUnauthorized());
+        }
+        for (MockHttpServletRequestBuilder request : List.of(get(permissions), put(updatePermission), delete(updatePermission))) {
+            mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, adminToken)).andExpect(status().isUnauthorized());
+        }
+
+        operator(get(permissions), null)
+                .andExpect(jsonPath("$.result.permissions[?(@ == 'RECIPIENT_UPDATE')]").isNotEmpty());
     }
 
     @BeforeEach
