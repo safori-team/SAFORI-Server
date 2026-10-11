@@ -127,7 +127,8 @@ public class BackofficeAccessPolicy {
     private boolean isAccessible(OrganizationMember member, PermissionCode permission, CareRecipient recipient) {
         boolean sameOrganization = Objects.equals(
                 recipient.getOrganization().getId(), member.getOrganization().getId());
-        if (!sameOrganization || !recipient.isActive()) {
+        // 정보 수정 권한자는 이용 종료된 대상자를 다시 활성화할 수 있어야 한다.
+        if (!sameOrganization || (!recipient.isActive() && permission != PermissionCode.RECIPIENT_UPDATE)) {
             return false;
         }
         Set<DataScope> scopes = permissionResolver.resolve(member).scopesOf(permission);

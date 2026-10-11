@@ -26,6 +26,7 @@ import static com.safori.domain.access.entity.PermissionCode.MEMBER_MANAGE;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_CREATE;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_READ;
+import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_UPDATE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_APPROVE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_READ;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_READ;
@@ -73,6 +74,7 @@ public final class PhotoPermissionMatrix {
                     entry(WORK_LOG_WRITE, ORGANIZATION),        // 업무일지 작성
                     entry(CARE_TASK_COMPLETE, ORGANIZATION),    // 업무 완료
                     entry(RECIPIENT_CREATE, ORGANIZATION),      // 대상자 등록
+                    entry(RECIPIENT_UPDATE, ORGANIZATION),      // 대상자 정보 수정
                     entry(ASSIGNMENT_MANAGE, ORGANIZATION),     // 담당자 배정/변경/해제
                     entry(GUARDIAN_LINK_MANAGE, ORGANIZATION),  // 보호자 연결·해제
                     entry(MEMBER_MANAGE, ORGANIZATION)),        // (권한표 밖) 구성원 초대·승인

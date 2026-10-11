@@ -55,6 +55,25 @@ public class AccessProvisioningDomainServiceImpl implements AccessProvisioningDo
     }
 
     @Override
+    public int upgradeTemplateRoles() {
+        AccessCatalog catalog = synchronizeCatalog();
+        int upgraded = 0;
+        for (RoleTemplateCode template : RoleTemplateCode.values()) {
+            for (AccessRole role : roleRepository.findAllBySourceTemplateOlderThan(template.name(), template.getVersion())) {
+                for (PermissionCode code : template.permissionsAddedAfter(role.getSourceTemplate().getVersion())) {
+                    AccessPermission permission = catalog.permission(code);
+                    if (!rolePermissionRepository.existsByRoleAndPermission(role, permission)) {
+                        rolePermissionRepository.save(AccessRolePermission.of(role, permission));
+                    }
+                }
+                role.upgradeTemplate(catalog.template(template));
+                upgraded++;
+            }
+        }
+        return upgraded;
+    }
+
+    @Override
     public void provisionDefaults(Organization organization) {
         AccessCatalog catalog = synchronizeCatalog();
         for (RoleTemplateCode template : RoleTemplateCode.values()) {

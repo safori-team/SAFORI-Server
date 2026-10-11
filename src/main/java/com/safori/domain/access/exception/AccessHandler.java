@@ -12,6 +12,8 @@ public class AccessHandler extends GeneralException {
             new AccessHandler(ErrorStatus.ACCESS_PERMISSION_NOT_ASSIGNABLE);
     public static final GeneralException INVALID_ROLE_EXPIRY =
             new AccessHandler(ErrorStatus.ACCESS_INVALID_ROLE_EXPIRY);
+    public static final GeneralException ROLE_NOT_FOUND =
+            new AccessHandler(ErrorStatus.ACCESS_ROLE_NOT_FOUND);
 
     public AccessHandler(BaseErrorCode code) {
         super(code);

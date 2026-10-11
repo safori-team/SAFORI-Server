@@ -44,6 +44,9 @@ public enum PermissionCode {
     /** 대상자 등록. */
     RECIPIENT_CREATE("대상자 등록", true),
 
+    /** 대상자 기본 정보·앱 계정·기관 이용 상태 수정. */
+    RECIPIENT_UPDATE("대상자 정보 수정", true),
+
     /** 담당자 배정·변경·해제. */
     ASSIGNMENT_MANAGE("담당자 배정·변경·해제", true),
 

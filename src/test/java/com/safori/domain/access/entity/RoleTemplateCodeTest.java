@@ -14,6 +14,7 @@ import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_READ;
 import static com.safori.domain.access.entity.PermissionCode.GUARDIAN_STATUS_READ;
 import static com.safori.domain.access.entity.PermissionCode.RAW_CONTENT_READ;
 import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_GUARDIAN_READ;
+import static com.safori.domain.access.entity.PermissionCode.RECIPIENT_UPDATE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_APPROVE;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_HISTORY_READ;
 import static com.safori.domain.access.entity.PermissionCode.WORK_LOG_READ;
@@ -71,11 +72,43 @@ class RoleTemplateCodeTest {
     }
 
     @Test
+    @DisplayName("대상자 수정 권한은 기본 기관 관리자에게만 부여한다")
+    void recipientUpdateIsAdminOnly() {
+        assertThat(ORG_ADMIN.getDefaultPermissions()).contains(RECIPIENT_UPDATE);
+        assertThat(CARE_WORKER.getDefaultPermissions()).doesNotContain(RECIPIENT_UPDATE);
+        assertThat(GUARDIAN.getDefaultPermissions()).doesNotContain(RECIPIENT_UPDATE);
+    }
+
+    @Test
     @DisplayName("담당자는 배정 대상의 연결 보호자와 업무일지를 조회할 수 있다")
     void workerReadsAssignedRecipientGuardiansAndWorkLogs() {
         assertThat(CARE_WORKER.getDefaultPermissions())
                 .contains(RECIPIENT_GUARDIAN_READ, WORK_LOG_READ, WORK_LOG_HISTORY_READ)
                 .doesNotContain(WORK_LOG_HISTORY_APPROVE);
+    }
+
+    @Test
+    @DisplayName("현재 버전은 마지막 revision 번호다 — 이미 배포된 템플릿 버전과 같다")
+    void versionIsLastRevision() {
+        assertThat(ORG_ADMIN.getVersion()).isEqualTo(3);
+        assertThat(CARE_WORKER.getVersion()).isEqualTo(2);
+        assertThat(GUARDIAN.getVersion()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("옛 버전 뒤에 추가된 권한만 돌려준다 — 현재 버전이면 비어 있고, 0이면 기본 권한 전체다")
+    void permissionsAddedAfterVersion() {
+        assertThat(ORG_ADMIN.permissionsAddedAfter(2)).containsExactly(RECIPIENT_UPDATE);
+        assertThat(ORG_ADMIN.permissionsAddedAfter(1))
+                .containsExactlyInAnyOrder(GUARDIAN_READ, RECIPIENT_GUARDIAN_READ, WORK_LOG_READ,
+                        WORK_LOG_HISTORY_READ, WORK_LOG_HISTORY_APPROVE, RECIPIENT_UPDATE);
+        assertThat(CARE_WORKER.permissionsAddedAfter(1))
+                .containsExactlyInAnyOrder(RECIPIENT_GUARDIAN_READ, WORK_LOG_READ, WORK_LOG_HISTORY_READ);
+        for (RoleTemplateCode role : RoleTemplateCode.values()) {
+            assertThat(role.permissionsAddedAfter(role.getVersion())).as(role.name()).isEmpty();
+            assertThat(role.permissionsAddedAfter(0)).as(role.name())
+                    .containsExactlyInAnyOrderElementsOf(role.getDefaultPermissions());
+        }
     }
 
     @Test
