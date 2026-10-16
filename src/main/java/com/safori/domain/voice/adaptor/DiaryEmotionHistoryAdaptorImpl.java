@@ -31,6 +31,11 @@ public class DiaryEmotionHistoryAdaptorImpl implements DiaryEmotionHistoryPort {
     }
 
     @Override
+    public List<Long> findUntriggeredVoiceIdsOfUser(Long userId, int limit) {
+        return repository.findUntriggeredVoiceIdsOfUser(userId, PageRequest.of(0, limit));
+    }
+
+    @Override
     public List<DailyDiaryEmotion> findDailyEmotions(Long userId, LocalDate from, LocalDate to) {
         List<Object[]> rows = repository.findEmotionRows(
                 userId, from.atStartOfDay(), to.plusDays(1).atStartOfDay());
