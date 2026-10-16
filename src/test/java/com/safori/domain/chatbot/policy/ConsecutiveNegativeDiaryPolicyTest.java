@@ -216,6 +216,11 @@ class ConsecutiveNegativeDiaryPolicyTest {
         }
 
         @Override
+        public List<Long> findUntriggeredVoiceIdsOfUser(Long userId, int limit) {
+            throw new UnsupportedOperationException("정책 판단에서 쓰지 않는다");
+        }
+
+        @Override
         public List<DailyDiaryEmotion> findDailyEmotions(Long userId, LocalDate from, LocalDate to) {
             queryCount++;
             List<DailyDiaryEmotion> result = new ArrayList<>();
