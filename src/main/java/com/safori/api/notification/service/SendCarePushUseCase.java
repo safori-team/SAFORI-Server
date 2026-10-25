@@ -26,6 +26,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 복지관 알림(역할별 발송 조건 표)을 보내고 이력을 남긴다.
@@ -34,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>즉시 확인 진입: 기관 관리자 · 현재 담당자 · 연결 보호자</li>
  *   <li>주의 48시간 미확인: 현재 담당자 · 연결 보호자</li>
  * </ul>
- * 이용 중인 계정에만 보낸다. 받는 계정마다 이력 행을 먼저 만들고(유니크 제약) 전송한 뒤 결과를 적는다.
+ * 이용 중인 계정에만 보낸다. 받는 계정마다 이력 행을 먼저 만들어 커밋하고(유니크 제약) 전송한 뒤 결과를 적는다.
  */
 @Slf4j
 @UseCase
@@ -50,6 +51,7 @@ public class SendCarePushUseCase {
     private final CareNotificationRepository notificationRepository;
     private final UserAdaptor userAdaptor;
     private final SendPushNotificationUseCase sendPushNotificationUseCase;
+    private final TransactionTemplate transactionTemplate;
 
     /** 48시간 미확인 알림을 보낼 기록들. */
     @Transactional(readOnly = true)
@@ -57,12 +59,36 @@ public class SendCarePushUseCase {
         return notificationRepository.findCautionUncheckedRecordIds(now.minus(CAUTION_UNCHECKED_AFTER));
     }
 
-    @Transactional
+    /**
+     * 받을 계정과 이력 행은 짧은 트랜잭션에서 만들어 커밋하고, FCM 전송은 트랜잭션 밖에서 한다.
+     * 전송 결과는 알림마다 다시 짧은 트랜잭션으로 적는다 — 외부 호출 동안 DB 커넥션을 잡지 않는다.
+     */
     public void execute(Long recordId, CareNotificationType type) {
+        List<PendingPush> pushes = transactionTemplate.execute(status -> prepare(recordId, type));
+        if (pushes == null) {
+            return;
+        }
+        for (PendingPush push : pushes) {
+            try {
+                PushSendResult result = sendPushNotificationUseCase.executeForAccount(push.accountId(), push.message());
+                transactionTemplate.executeWithoutResult(status -> notificationRepository.findById(push.notificationId())
+                        .ifPresent(notification -> notification.sent(result.successCount(), result.failureCount())));
+            } catch (Exception e) {
+                // 한 명 실패해도 나머지는 보낸다. 이력은 0건 성공으로 남는다.
+                log.error("복지관 알림 전송 실패 — type={}, recordId={}, accountId={}",
+                        type, recordId, push.accountId(), e);
+            }
+        }
+    }
+
+    private record PendingPush(Long notificationId, Long accountId, PushMessage message) {}
+
+    /** @return 보낼 알림. 보낼 대상 기록이 아니면 null */
+    private List<PendingPush> prepare(Long recordId, CareNotificationType type) {
         CareRecord record = recordRepository.findById(recordId).orElse(null);
         if (record == null || !record.getRecipient().isActive()
                 || !record.getRecipient().getOrganization().isActive()) {
-            return;
+            return null;
         }
         CareRecipient recipient = record.getRecipient();
         String name = recipient.getUserId() == null ? "대상자" : userAdaptor.queryUserById(recipient.getUserId()).getName();
@@ -95,18 +121,10 @@ public class SendCarePushUseCase {
         // 다른 서버가 같은 알림을 먼저 잡았으면 여기서 유니크 제약으로 실패해 아무것도 보내지 않는다.
         notificationRepository.flush();
 
-        for (CareNotification notification : notifications) {
-            try {
-                PushSendResult result = sendPushNotificationUseCase.executeForAccount(
-                        notification.getAccount().getId(),
-                        new PushMessage(notification.getTitle(), notification.getBody(), data));
-                notification.sent(result.successCount(), result.failureCount());
-            } catch (Exception e) {
-                // 한 명 실패해도 나머지는 보낸다. 이력은 0건 성공으로 남는다.
-                log.error("복지관 알림 전송 실패 — type={}, recordId={}, accountId={}",
-                        type, recordId, notification.getAccount().getId(), e);
-            }
-        }
+        return notifications.stream()
+                .map(notification -> new PendingPush(notification.getId(), notification.getAccount().getId(),
+                        new PushMessage(notification.getTitle(), notification.getBody(), data)))
+                .toList();
     }
 
     private static void add(Map<BackofficeAccount, Boolean> audience, OrganizationMember member, boolean guardian) {
