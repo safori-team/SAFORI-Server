@@ -8,7 +8,7 @@ import com.safori.api.journal.dto.JournalSummary;
 import com.safori.api.journal.dto.WriteJournalRequest;
 import com.safori.api.recipient.dto.RecipientDetailResponse;
 import com.safori.api.recipient.service.OrganizationRecipients;
-import com.safori.api.worker.service.OrganizationWorkers;
+import com.safori.api.common.service.OrganizationMembers;
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.access.entity.DataScope;
 import com.safori.domain.access.entity.PermissionCode;
@@ -61,7 +61,7 @@ public class CareJournalUseCase {
     static final int DEFAULT_PERIOD_DAYS = 30;
 
     private final OrganizationRecipients organizationRecipients;
-    private final OrganizationWorkers organizationWorkers;
+    private final OrganizationMembers organizationMembers;
     private final CareJournalDomainService journalDomainService;
     private final CareJournalRepository journalRepository;
     private final CareJournalSelectionRepository selectionRepository;
@@ -83,7 +83,7 @@ public class CareJournalUseCase {
     @Transactional
     public JournalDetailResponse write(BackofficeActor actor, String careRecipientId, WriteJournalRequest request) {
         CareRecipient recipient = organizationRecipients.getForCurrentWorker(actor, careRecipientId);
-        CareJournal journal = journalDomainService.write(recipient, organizationWorkers.actorOf(actor),
+        CareJournal journal = journalDomainService.write(recipient, organizationMembers.actorOf(actor),
                 request.confirmedAt(),
                 request.selections().stream().map(s -> new JournalSelectionInput(s.optionCode(), s.text())).toList(),
                 request.memo(), request.guardianVisible());

@@ -1,5 +1,6 @@
 package com.safori.api.worker.service;
 
+import com.safori.api.common.service.OrganizationMembers;
 import com.safori.api.worker.dto.UpdateWorkerRequest;
 import com.safori.api.worker.dto.WorkerProfileResponse;
 import com.safori.common.annotation.UseCase;
@@ -17,12 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UpdateWorkerUseCase {
 
-    private final OrganizationWorkers organizationWorkers;
+    private final OrganizationMembers organizationMembers;
     private final BackofficeAccountDomainService accountDomainService;
 
     @Transactional
     public WorkerProfileResponse execute(BackofficeActor actor, String managerId, UpdateWorkerRequest request) {
-        OrganizationMember worker = organizationWorkers.get(actor, managerId);
+        OrganizationMember worker = organizationMembers.worker(actor, managerId);
 
         BackofficeAccount account = accountDomainService.changeProfile(worker.getAccount(), request.name(), request.phone());
         worker.changeJobTitle(request.jobTitle());

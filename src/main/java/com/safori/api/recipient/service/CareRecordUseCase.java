@@ -1,7 +1,7 @@
 package com.safori.api.recipient.service;
 
 import com.safori.api.recipient.dto.CareRecordResponse;
-import com.safori.api.worker.service.OrganizationWorkers;
+import com.safori.api.common.service.OrganizationMembers;
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.access.policy.BackofficeActor;
 import com.safori.domain.care.entity.CareProcessingStatus;
@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 public class CareRecordUseCase {
 
     private final OrganizationRecipients organizationRecipients;
-    private final OrganizationWorkers organizationWorkers;
+    private final OrganizationMembers organizationMembers;
     private final CareRecordRepository recordRepository;
     private final CareRecordDomainService recordDomainService;
 
@@ -40,7 +40,7 @@ public class CareRecordUseCase {
                                                      CareProcessingStatus status) {
         CareRecipient recipient = organizationRecipients.getForCurrentWorker(actor, careRecipientId);
         return CareRecordResponse.of(
-                recordDomainService.process(recipient, recordId, status, organizationWorkers.actorOf(actor)));
+                recordDomainService.process(recipient, recordId, status, organizationMembers.actorOf(actor)));
     }
 
     @Transactional
