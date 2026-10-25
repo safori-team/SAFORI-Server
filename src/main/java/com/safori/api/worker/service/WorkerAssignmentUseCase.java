@@ -1,5 +1,6 @@
 package com.safori.api.worker.service;
 
+import com.safori.api.common.service.OrganizationMembers;
 import com.safori.api.recipient.service.OrganizationRecipients;
 import com.safori.api.worker.dto.AssignmentResponse;
 import com.safori.api.worker.dto.ManagerRecipientsResponse;
@@ -25,7 +26,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class WorkerAssignmentUseCase {
 
-    private final OrganizationWorkers organizationWorkers;
+    private final OrganizationMembers organizationMembers;
     private final OrganizationRecipients organizationRecipients;
     private final CareRelationDomainService careRelationDomainService;
     private final CareAssignmentRepository assignmentRepository;
@@ -34,8 +35,8 @@ public class WorkerAssignmentUseCase {
     @Transactional
     public AssignmentResponse assign(BackofficeActor actor, String careRecipientId, String managerId) {
         CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
-        OrganizationMember worker = organizationWorkers.get(actor, managerId);
-        careRelationDomainService.assignWorker(recipient, worker, organizationWorkers.actorOf(actor), null);
+        OrganizationMember worker = organizationMembers.worker(actor, managerId);
+        careRelationDomainService.assignWorker(recipient, worker, organizationMembers.actorOf(actor), null);
         return new AssignmentResponse(recipient.getPublicId(), managerId);
     }
 
@@ -43,7 +44,7 @@ public class WorkerAssignmentUseCase {
     @Transactional
     public AssignmentResponse unassign(BackofficeActor actor, String careRecipientId) {
         CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
-        careRelationDomainService.endAssignment(recipient, organizationWorkers.actorOf(actor));
+        careRelationDomainService.endAssignment(recipient, organizationMembers.actorOf(actor));
         return new AssignmentResponse(recipient.getPublicId(), null);
     }
 
@@ -53,8 +54,8 @@ public class WorkerAssignmentUseCase {
      */
     @Transactional
     public ManagerRecipientsResponse replace(BackofficeActor actor, String managerId, List<String> careRecipientIds) {
-        OrganizationMember worker = organizationWorkers.get(actor, managerId);
-        OrganizationMember actorMember = organizationWorkers.actorOf(actor);
+        OrganizationMember worker = organizationMembers.worker(actor, managerId);
+        OrganizationMember actorMember = organizationMembers.actorOf(actor);
         Set<String> wanted = new LinkedHashSet<>(careRecipientIds);
         // 대상자 확인을 먼저 끝내 잘못된 식별자가 섞이면 아무것도 바꾸지 않는다.
         List<CareRecipient> targets = wanted.stream().map(id -> organizationRecipients.get(actor, id)).toList();

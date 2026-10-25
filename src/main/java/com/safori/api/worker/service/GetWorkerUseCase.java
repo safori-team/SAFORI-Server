@@ -1,5 +1,6 @@
 package com.safori.api.worker.service;
 
+import com.safori.api.common.service.OrganizationMembers;
 import com.safori.api.worker.dto.ManagerDetailResponse;
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.access.entity.RoleTemplateCode;
@@ -28,13 +29,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class GetWorkerUseCase {
 
-    private final OrganizationWorkers organizationWorkers;
+    private final OrganizationMembers organizationMembers;
     private final CareAssignmentRepository assignmentRepository;
     private final UserAdaptor userAdaptor;
 
     @Transactional(readOnly = true)
     public ManagerDetailResponse execute(BackofficeActor actor, String managerId) {
-        OrganizationMember worker = organizationWorkers.get(actor, managerId);
+        OrganizationMember worker = organizationMembers.worker(actor, managerId);
         BackofficeAccount account = worker.getAccount();
 
         List<CareRecipient> recipients = assignmentRepository.findCurrentByWorker(worker).stream()

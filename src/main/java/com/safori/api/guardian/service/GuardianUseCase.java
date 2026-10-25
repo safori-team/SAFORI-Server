@@ -1,6 +1,7 @@
 package com.safori.api.guardian.service;
 
 import com.safori.api.common.dto.PagedResponse;
+import com.safori.api.common.service.OrganizationMembers;
 import com.safori.api.guardian.dto.GuardianDetailResponse;
 import com.safori.api.guardian.dto.GuardianListResponse;
 import com.safori.api.guardian.dto.GuardianStatusFilter;
@@ -11,10 +12,8 @@ import com.safori.api.recipient.service.OrganizationRecipients;
 import com.safori.common.annotation.UseCase;
 import com.safori.domain.access.entity.RoleTemplateCode;
 import com.safori.domain.access.policy.BackofficeActor;
-import com.safori.domain.access.service.AccessGroupDomainService;
 import com.safori.domain.account.entity.BackofficeAccount;
 import com.safori.domain.account.entity.BackofficeAccountStatus;
-import com.safori.domain.account.repository.BackofficeAccountRepository;
 import com.safori.domain.account.service.BackofficeAccountDomainService;
 import com.safori.domain.care.entity.CareRecipient;
 import com.safori.domain.care.entity.GuardianRecipientLink;
@@ -22,7 +21,6 @@ import com.safori.domain.care.entity.GuardianRelation;
 import com.safori.domain.care.repository.GuardianRecipientLinkRepository;
 import com.safori.domain.care.service.CareRelationDomainService;
 import com.safori.domain.organization.entity.OrganizationMember;
-import com.safori.domain.organization.exception.OrganizationHandler;
 import com.safori.domain.organization.model.GuardianCounts;
 import com.safori.domain.organization.repository.OrganizationMemberRepository;
 import com.safori.domain.organization.repository.OrganizationRepository;
@@ -45,18 +43,17 @@ public class GuardianUseCase {
     private final BackofficeAccountDomainService accountDomainService;
     private final OrganizationMemberDomainService memberDomainService;
     private final CareRelationDomainService careRelationDomainService;
-    private final AccessGroupDomainService accessGroupDomainService;
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository memberRepository;
-    private final BackofficeAccountRepository accountRepository;
     private final GuardianRecipientLinkRepository linkRepository;
     private final OrganizationRecipients organizationRecipients;
+    private final OrganizationMembers organizationMembers;
     private final UserAdaptor userAdaptor;
 
     /** 계정을 만들어 기관에 바로 소속시키고, 대상자를 골랐으면 연결까지 한 번에 한다. 중간에 실패하면 모두 되돌린다. */
     @Transactional
     public GuardianDetailResponse register(BackofficeActor actor, RegisterGuardianRequest request) {
-        return register(actor.organizationId(), actorOf(actor), request);
+        return register(actor.organizationId(), organizationMembers.actorOf(actor), request);
     }
 
     /** @param registeredBy 등록한 구성원. null이면 SAFORI 운영자가 등록했다(연결자도 운영). */
@@ -108,12 +105,12 @@ public class GuardianUseCase {
 
     @Transactional(readOnly = true)
     public GuardianDetailResponse get(BackofficeActor actor, String guardianId) {
-        return detail(guardianOf(actor, guardianId));
+        return detail(organizationMembers.guardian(actor, guardianId));
     }
 
     @Transactional
     public GuardianDetailResponse update(BackofficeActor actor, String guardianId, UpdateGuardianRequest request) {
-        OrganizationMember guardian = guardianOf(actor, guardianId);
+        OrganizationMember guardian = organizationMembers.guardian(actor, guardianId);
         BackofficeAccount account = accountDomainService.changeProfile(guardian.getAccount(), request.name(),
                 request.phone());
         // 상태가 바뀔 때만 전환한다(정지는 발급된 토큰도 끊으므로 이미 정지된 계정에 다시 걸지 않는다).
@@ -129,8 +126,8 @@ public class GuardianUseCase {
     @Transactional
     public GuardianDetailResponse link(BackofficeActor actor, String careRecipientId, LinkGuardianRequest request) {
         CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
-        OrganizationMember guardian = guardianOf(actor, request.guardianId());
-        link(recipient, guardian, actorOf(actor), request.relation(), request.relationText());
+        OrganizationMember guardian = organizationMembers.guardian(actor, request.guardianId());
+        link(recipient, guardian, organizationMembers.actorOf(actor), request.relation(), request.relationText());
         return detail(guardian);
     }
 
@@ -138,8 +135,8 @@ public class GuardianUseCase {
     @Transactional
     public GuardianDetailResponse unlink(BackofficeActor actor, String careRecipientId, String guardianId) {
         CareRecipient recipient = organizationRecipients.get(actor, careRecipientId);
-        OrganizationMember guardian = guardianOf(actor, guardianId);
-        careRelationDomainService.unlinkGuardian(recipient, guardian, actorOf(actor));
+        OrganizationMember guardian = organizationMembers.guardian(actor, guardianId);
+        careRelationDomainService.unlinkGuardian(recipient, guardian, organizationMembers.actorOf(actor));
         return detail(guardian);
     }
 
@@ -165,18 +162,5 @@ public class GuardianUseCase {
         return new GuardianDetailResponse.LinkedRecipient(recipient.getPublicId(),
                 user == null ? null : user.getName(), user == null ? null : user.getBirthDate(),
                 link.getRelation(), link.getRelationText(), link.relationLabel(), link.getStartedAt());
-    }
-
-    private OrganizationMember guardianOf(BackofficeActor actor, String guardianId) {
-        return accountRepository.findByAccountUuid(guardianId)
-                .flatMap(memberRepository::findCurrentByAccount)
-                .filter(member -> member.getOrganization().getId().equals(actor.organizationId()))
-                .filter(member -> accessGroupDomainService.primaryTemplateOf(member)
-                        .filter(RoleTemplateCode.GUARDIAN::equals).isPresent())
-                .orElseThrow(() -> OrganizationHandler.MEMBER_NOT_FOUND);
-    }
-
-    private OrganizationMember actorOf(BackofficeActor actor) {
-        return memberRepository.getReferenceById(actor.organizationMemberId());
     }
 }
