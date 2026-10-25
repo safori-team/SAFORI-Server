@@ -37,7 +37,7 @@ public class VoiceEmotionLabelAdaptorImpl implements VoiceEmotionLabelAdaptor {
     @Override
     @Transactional
     public void deleteByVoiceId(Long voiceId) {
-        voiceEmotionLabelRepository.deleteByVoice_Id(voiceId);
+        voiceEmotionLabelRepository.deleteAllByVoiceIdInBulk(voiceId);
     }
 
     @Override

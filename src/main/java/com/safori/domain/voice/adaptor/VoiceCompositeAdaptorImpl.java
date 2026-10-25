@@ -52,6 +52,6 @@ public class VoiceCompositeAdaptorImpl implements VoiceCompositeAdaptor {
     @Override
     @Transactional
     public void deleteByVoiceId(Long voiceId) {
-        voiceCompositeRepository.deleteByVoice_Id(voiceId);
+        voiceCompositeRepository.deleteAllByVoiceIdInBulk(voiceId);
     }
 }
