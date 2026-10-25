@@ -3,14 +3,8 @@ package com.safori.infra.ai.gemini;
 import com.safori.common.event.VoiceAnalysisCompletedEvent;
 import com.safori.common.event.VoiceReanalyzedEvent;
 import com.safori.domain.emotion.entity.EmotionType;
-import com.safori.domain.voice.adaptor.VoiceAdaptor;
-import com.safori.domain.voice.adaptor.VoiceCompositeAdaptor;
-import com.safori.domain.voice.adaptor.VoiceContentAdaptor;
-import com.safori.domain.voice.adaptor.VoiceEmotionLabelAdaptor;
 import com.safori.domain.voice.entity.Voice;
-import com.safori.domain.voice.entity.VoiceComposite;
-import com.safori.domain.voice.entity.VoiceContent;
-import com.safori.domain.voice.entity.VoiceEmotionLabel;
+import com.safori.infra.ai.gemini.VoiceAnalysisResultWriter.SavedAnalysis;
 import com.safori.infra.ai.gemini.dto.GeminiAnalysisResult;
 import com.safori.infra.sqs.EmotionAnalysisRequestSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,13 +68,9 @@ public class GeminiVoiceAnalyzer {
     private final Optional<Client> geminiClient;
     private final String modelName;
     private final Optional<S3Client> s3Client;
-    private final VoiceAdaptor voiceAdaptor;
-    private final VoiceCompositeAdaptor voiceCompositeAdaptor;
-    private final VoiceContentAdaptor voiceContentAdaptor;
-    private final VoiceEmotionLabelAdaptor voiceEmotionLabelAdaptor;
-    private final GeminiEmotionMapper emotionMapper;
     private final String s3Bucket;
     private final ObjectMapper objectMapper;
+    private final VoiceAnalysisResultWriter resultWriter;
     private final ApplicationEventPublisher eventPublisher;
     private final EmotionAnalysisRequestSender minorAnalysisRequestSender;
 
@@ -88,25 +78,17 @@ public class GeminiVoiceAnalyzer {
             Optional<Client> geminiClient,
             @Value("${gemini.model:gemini-2.5-flash}") String modelName,
             Optional<S3Client> s3Client,
-            VoiceAdaptor voiceAdaptor,
-            VoiceCompositeAdaptor voiceCompositeAdaptor,
-            VoiceContentAdaptor voiceContentAdaptor,
-            VoiceEmotionLabelAdaptor voiceEmotionLabelAdaptor,
-            GeminiEmotionMapper emotionMapper,
             @Value("${spring.cloud.aws.s3.bucket:}") String s3Bucket,
             ObjectMapper objectMapper,
+            VoiceAnalysisResultWriter resultWriter,
             ApplicationEventPublisher eventPublisher,
             EmotionAnalysisRequestSender minorAnalysisRequestSender) {
         this.geminiClient = geminiClient;
         this.modelName = modelName;
         this.s3Client = s3Client;
-        this.voiceAdaptor = voiceAdaptor;
-        this.voiceCompositeAdaptor = voiceCompositeAdaptor;
-        this.voiceContentAdaptor = voiceContentAdaptor;
-        this.voiceEmotionLabelAdaptor = voiceEmotionLabelAdaptor;
-        this.emotionMapper = emotionMapper;
         this.s3Bucket = s3Bucket;
         this.objectMapper = objectMapper;
+        this.resultWriter = resultWriter;
         this.eventPublisher = eventPublisher;
         this.minorAnalysisRequestSender = minorAnalysisRequestSender;
     }
@@ -145,52 +127,30 @@ public class GeminiVoiceAnalyzer {
             return false;
         }
         try {
-            Voice voice = voiceAdaptor.queryById(voiceId);
-            voice.markAnalysisProcessing();
-            voiceAdaptor.save(voice);
+            resultWriter.markProcessing(voiceId);
 
+            // S3·Gemini 호출은 오래 걸리므로 트랜잭션 밖에서 한다. 저장만 짧은 트랜잭션으로 묶는다.
             byte[] audioBytes = downloadFromS3(voiceKey);
             String analysisJson = analyzeWithGemini(audioBytes, voiceKey, PROMPT);
             GeminiAnalysisResult result = objectMapper.readValue(analysisJson, GeminiAnalysisResult.class);
-            VoiceComposite composite = emotionMapper.toVoiceComposite(result, voice);
-            voiceCompositeAdaptor.save(composite);
-
-            // 세부 감정 레이블 저장 (버블차트용)
-            List<VoiceEmotionLabel> labels = emotionMapper.toEmotionLabels(result, voice);
-            if (!labels.isEmpty()) {
-                voiceEmotionLabelAdaptor.saveAll(labels);
-            }
-
-            // transcript → voice_content 저장 (null-safe)
-            if (result.transcript() != null && !result.transcript().isBlank()) {
-                voiceContentAdaptor.save(VoiceContent.builder()
-                        .voice(voice)
-                        .content(result.transcript())
-                        .locale("ko-KR")
-                        .provider("gemini")
-                        .modelVersion(modelName)
-                        .build());
-            }
+            SavedAnalysis saved = resultWriter.save(voiceId, result);
             log.info("Gemini analysis saved for voiceId={}, topEmotion={}, labels={}, transcript={}chars",
-                    voiceId, composite.getTopEmotion(), labels.size(),
+                    voiceId, saved.composite().getTopEmotion(), saved.labelCount(),
                     result.transcript() != null ? result.transcript().length() : 0);
 
             // 소분류 판정을 외부 파이프라인에 위임한 경우, 분석 완료 처리는 응답을 받은 뒤에 한다.
             // 전송이 안 되면(비활성·실패) 여기서 Gemini 소분류로 그대로 마감한다.
             if (handOffMinorAnalysis
-                    && minorAnalysisRequestSender.handOff(voice, result, composite.getTopEmotion())) {
+                    && minorAnalysisRequestSender.handOff(saved.voice(), result, saved.composite().getTopEmotion())) {
                 return false;
             }
 
-            voice.markAnalysisCompleted();
-            voiceAdaptor.save(voice);
+            resultWriter.markCompleted(voiceId);
             return true;
         } catch (Exception e) {
             log.error("Gemini analysis failed for voiceId={}, voiceKey={}", voiceId, voiceKey, e);
             try {
-                Voice voice = voiceAdaptor.queryById(voiceId);
-                voice.markAnalysisFailed();
-                voiceAdaptor.save(voice);
+                resultWriter.markFailed(voiceId);
             } catch (Exception ex) {
                 log.error("Failed to update analysisStatus to FAILED for voiceId={}", voiceId, ex);
             }
@@ -201,8 +161,8 @@ public class GeminiVoiceAnalyzer {
     /**
      * 사용자 감정 신고 반영 재분석.
      * <p>정정 신고({@code reportedEmotion} + {@code message})를 프롬프트에 주입해 다시 분석하고,
-     * <b>성공 시에만</b> 기존 분석 결과(composite/content/label)를 삭제 후 새 결과로 덮어쓴다.
-     * Gemini 호출이 실패하면 삭제 이전이므로 기존 분석 결과가 보존된다.
+     * <b>성공 시에만</b> 기존 분석 결과(composite/content/label)를 새 결과로 덮어쓴다.
+     * Gemini 호출이 실패하면 덮어쓰기 이전이고, 덮어쓰기는 한 트랜잭션이라 DB 오류에도 기존 결과가 보존된다.
      * <p>최초 분석과 달리 {@link VoiceAnalysisCompletedEvent}는 발행하지 않는다(이미 발행됨).
      */
     @Async
@@ -213,34 +173,13 @@ public class GeminiVoiceAnalyzer {
         }
 
         try {
-            Voice voice = voiceAdaptor.queryById(voiceId);
-
-            // Gemini 호출 먼저 — 실패 시 아래 삭제/저장에 도달하지 않아 기존 결과 보존
+            // Gemini 호출 먼저 — 실패 시 아래 덮어쓰기에 도달하지 않아 기존 결과 보존
             byte[] audioBytes = downloadFromS3(voiceKey);
             String analysisJson = analyzeWithGemini(audioBytes, voiceKey, buildReanalysisPrompt(reportedEmotion, message));
             GeminiAnalysisResult result = objectMapper.readValue(analysisJson, GeminiAnalysisResult.class);
 
-            // 덮어쓰기: 기존 분석 결과 제거 후 재저장
-            voiceCompositeAdaptor.deleteByVoiceId(voiceId);
-            voiceEmotionLabelAdaptor.deleteByVoiceId(voiceId);
-            voiceContentAdaptor.deleteByVoiceId(voiceId);
-
-            voiceCompositeAdaptor.save(emotionMapper.toVoiceComposite(result, voice));
-            List<VoiceEmotionLabel> labels = emotionMapper.toEmotionLabels(result, voice);
-            if (!labels.isEmpty()) {
-                voiceEmotionLabelAdaptor.saveAll(labels);
-            }
-            if (result.transcript() != null && !result.transcript().isBlank()) {
-                voiceContentAdaptor.save(VoiceContent.builder()
-                        .voice(voice)
-                        .content(result.transcript())
-                        .locale("ko-KR")
-                        .provider("gemini")
-                        .modelVersion(modelName)
-                        .build());
-            }
-            voice.markAnalysisCompleted();
-            voiceAdaptor.save(voice);
+            // 삭제·재저장은 한 트랜잭션 — DB 오류가 나도 기존 결과가 남는다
+            Voice voice = resultWriter.replace(voiceId, result).voice();
             log.info("Gemini reanalysis saved for voiceId={}, reportedEmotion={}", voiceId, reportedEmotion);
 
             // 감정이 바뀌었을 수 있으므로 상담 제안/0턴 세션 재평가를 트리거한다.
