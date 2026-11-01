@@ -4,6 +4,7 @@
 #   ecr.tf      이미지 리포지토리
 #   docs.tf     API 문서 버킷
 #   github.tf   GitHub Actions OIDC
+#   qa.tf       QA 콘솔 (Lambda + S3)
 # 환경 스택은 여기 리소스를 이름/태그로 찾는다(data source).
 
 terraform {
@@ -13,6 +14,10 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 6.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
     }
   }
 

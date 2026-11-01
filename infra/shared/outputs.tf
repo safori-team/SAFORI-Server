@@ -22,3 +22,15 @@ output "docs_bucket" {
 output "docs_website_endpoint" {
   value = aws_s3_bucket_website_configuration.docs.website_endpoint
 }
+
+output "qa_bucket" {
+  value = aws_s3_bucket.qa.bucket
+}
+
+output "qa_console_url" {
+  value = aws_lambda_function_url.qa.function_url
+}
+
+output "qa_ci_role_arn" {
+  value = aws_iam_role.qa_ci.arn
+}
