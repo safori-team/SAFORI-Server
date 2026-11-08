@@ -149,7 +149,8 @@ data "aws_iam_policy_document" "qa_ci_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:safori-team/safori-qa:ref:refs/heads/main"]
+      # 새 레포는 이름 대신 고정 ID 가 들어간 sub 를 쓴다 (레포를 지우고 같은 이름으로 다시 만들어도 이 role 을 못 쓴다)
+      values = ["repo:safori-team@183119563/safori-qa@1441451233:ref:refs/heads/main"]
     }
   }
 }
