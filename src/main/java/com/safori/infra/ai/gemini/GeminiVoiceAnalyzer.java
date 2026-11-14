@@ -15,6 +15,8 @@ import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
+import com.google.genai.types.ThinkingConfig;
+import com.google.genai.types.ThinkingLevel;
 import com.google.genai.types.Type;
 import com.google.genai.types.UploadFileConfig;
 import lombok.extern.slf4j.Slf4j;
@@ -76,7 +78,7 @@ public class GeminiVoiceAnalyzer {
 
     public GeminiVoiceAnalyzer(
             Optional<Client> geminiClient,
-            @Value("${gemini.model:gemini-2.5-flash}") String modelName,
+            @Value("${gemini.model:gemini-3.5-flash-lite}") String modelName,
             Optional<S3Client> s3Client,
             @Value("${spring.cloud.aws.s3.bucket:}") String s3Bucket,
             ObjectMapper objectMapper,
@@ -255,6 +257,8 @@ public class GeminiVoiceAnalyzer {
                             ))
                             .build(),
                     GenerateContentConfig.builder()
+                            // 전사·감정 분류는 깊은 추론이 필요 없다. thinking 토큰은 출력 단가로 과금되므로 LOW로 묶는다.
+                            .thinkingConfig(ThinkingConfig.builder().thinkingLevel(ThinkingLevel.Known.LOW).build())
                             .responseMimeType("application/json")
                             .responseSchema(buildResponseSchema())
                             .build()

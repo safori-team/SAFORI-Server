@@ -38,7 +38,7 @@ public class VoiceAnalysisResultWriter {
             VoiceContentAdaptor voiceContentAdaptor,
             VoiceEmotionLabelAdaptor voiceEmotionLabelAdaptor,
             GeminiEmotionMapper emotionMapper,
-            @Value("${gemini.model:gemini-2.5-flash}") String modelName) {
+            @Value("${gemini.model:gemini-3.5-flash-lite}") String modelName) {
         this.voiceAdaptor = voiceAdaptor;
         this.voiceCompositeAdaptor = voiceCompositeAdaptor;
         this.voiceContentAdaptor = voiceContentAdaptor;
