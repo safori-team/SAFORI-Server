@@ -34,7 +34,7 @@ import java.util.List;
  * 음성 채팅 — 단일 호출로 전체 파이프라인을 처리한다.
  *
  * <pre>
- *   voiceKey ─▶ Gemini Flash(STT + 감정 분석) ─▶ Gemini Pro(상담) ─▶ 메시지 저장 ─▶ 응답
+ *   voiceKey ─▶ Gemini 음성 분석(STT + 감정 분석) ─▶ Gemini 상담(상담 응답) ─▶ 메시지 저장 ─▶ 응답
  * </pre>
  *
  * <p>마음일기 Voice와 분리된 경량 경로 — {@code VoiceAnalysisCompletedEvent}를 발행하지 않으므로
@@ -79,11 +79,11 @@ public class SendVoiceReframingMessageUseCase {
         // 위기로 닫힌 세션은 턴이 남아 있어도 열리지 않는다 — 턴 검증보다 먼저
         crisisPolicy.verifyNotCrisisClosed(session);
 
-        // 2) 턴 검증 — STT보다 먼저. 종료된 세션에 Flash/Pro 호출을 쓰지 않는다.
+        // 2) 턴 검증 — STT보다 먼저. 종료된 세션에 음성 분석·상담 호출을 쓰지 않는다.
         long turnCount = turnPolicy.verifyCanSendAndGetTurn(session);
         boolean finalTurn = turnPolicy.isFinalTurn(session, turnCount);
 
-        // 3) Flash — STT + 감정 분석. 음성이 유일 입력이므로 실패 시 폴백 없이 에러.
+        // 3) 음성 분석 — STT + 감정 분석. 음성이 유일 입력이므로 실패 시 폴백 없이 에러.
         GeminiAnalysisResult analysis;
         try {
             analysis = geminiVoiceAnalyzer.transcribeAndAnalyze(request.voiceKey());
@@ -129,7 +129,7 @@ public class SendVoiceReframingMessageUseCase {
                 turnPolicy.maxUserTurns(), finalTurn, session.isExtended());
 
         // 4) PROCESSING 행 선(先) 커밋 — 이때부터 조회 API에 "처리 중"으로 노출된다.
-        //    STT가 끝나야 userInput이 정해지므로 Flash 구간은 덮지 못하고 Pro 구간만 덮는다.
+        //    STT가 끝나야 userInput이 정해지므로 음성 분석 구간은 덮지 못하고 상담 구간만 덮는다.
         Long messageId = chatbotDomainService.beginMessage(
                 session.getId(), userInput, MessageOrigin.USER_VOICE, request.voiceKey());
 

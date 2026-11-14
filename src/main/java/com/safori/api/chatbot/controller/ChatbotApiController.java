@@ -277,7 +277,7 @@ public class ChatbotApiController {
     @Operation(operationId = "reframing", 
             summary = "텍스트 채팅 (도란이 동기 응답)",
             description = """
-                    텍스트로 도란이와 대화. 서버가 LLM(Gemini 2.5 Pro)을 동기로 호출하므로
+                    텍스트로 도란이와 대화. 서버가 LLM(Gemini 상담 모델)을 동기로 호출하므로
                     응답까지 보통 3~10초 소요됨. 클라이언트 타임아웃은 30초 이상 권장.
 
                     body:
@@ -327,7 +327,7 @@ public class ChatbotApiController {
             summary = "음성 채팅 (STT + 감정분석 + 상담을 한 번에)",
             description = """
                     음성 입력으로 도란이와 대화. 한 번의 호출로 서버가 전체 파이프라인을 처리한다:
-                      voiceKey → Gemini Flash(STT + 감정분석) → Gemini Pro(상담) → 메시지 저장 → 응답
+                      voiceKey → Gemini 음성 분석 모델(STT + 감정분석) → Gemini 상담 모델(상담) → 메시지 저장 → 응답
 
                     선행 단계 (마음일기와 동일하게 재사용):
                       1) GET /v1/api/voices/presigned-url?extension=m4a → presignedUrl·voiceKey
@@ -336,7 +336,7 @@ public class ChatbotApiController {
                     마음일기 등록 API와 분리된 경로로, VoiceAnalysisCompletedEvent를 발행하지 않아
                     의도치 않은 채팅 세션 자동 생성 부수효과가 없다.
 
-                    Flash + Pro 2단계를 동기로 호출하므로 보통 6~20초 소요됨.
+                    음성 분석 + 상담 2단계를 동기로 호출하므로 보통 6~20초 소요됨.
                     클라이언트 타임아웃은 30초 이상 권장. (UI는 '전송 중...' 후 응답 도착 시
                     사용자 발화 말풍선(content)과 도란이 답변을 함께 렌더)
 
@@ -353,13 +353,13 @@ public class ChatbotApiController {
 
                     위기 가드레일:
                       텍스트 경로(POST /reframing)와 동일하게 동작한다. 다만 사전 스크리닝이
-                      STT 이후에 돌기 때문에, 걸리면 Flash는 이미 쓰였고 Pro 호출만 건너뛴다.
+                      STT 이후에 돌기 때문에, 걸리면 음성 분석은 이미 쓰였고 상담 호출만 건너뛴다.
                       content(STT 전사 텍스트)는 정상적으로 채워지므로 사용자 발화 말풍선은 그대로 그린다.
 
-                    Pro 호출 실패 시 폴백 응답("죄송해요, 잠시 생각이 꼬였나 봐요...") 반환.
+                    상담 호출 실패 시 폴백 응답("죄송해요, 잠시 생각이 꼬였나 봐요...") 반환.
 
                     오류:
-                      • 4205 CHAT_VOICE_STT_FAILED       - STT/감정 분석(Flash) 실패
+                      • 4205 CHAT_VOICE_STT_FAILED       - STT/감정 분석 실패
                       • 4212 CHAT_SESSION_CRISIS_CLOSED  - 위기 가드레일로 종료된 세션
                     """)
     public ApiResponseDto<VoiceReframingResponse> voiceReframing(

@@ -34,10 +34,10 @@ class GeminiVoiceAnalyzerTest {
     private GeminiVoiceAnalyzer analyzerWithoutClient() {
         // Gemini/S3 미설정(Optional.empty) 상태
         return new GeminiVoiceAnalyzer(
-                Optional.empty(), "gemini-2.5-flash", Optional.empty(),
+                Optional.empty(), "gemini-3.5-flash-lite", Optional.empty(),
                 "test-bucket", new ObjectMapper(),
                 new VoiceAnalysisResultWriter(voiceAdaptor, voiceCompositeAdaptor, voiceContentAdaptor,
-                        voiceEmotionLabelAdaptor, emotionMapper, "gemini-2.5-flash"),
+                        voiceEmotionLabelAdaptor, emotionMapper, "gemini-3.5-flash-lite"),
                 eventPublisher, minorAnalysisRequestSender);
     }
 

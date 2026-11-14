@@ -70,8 +70,9 @@ operator:
 # Gemini (음성 분석 어댑터). api-key 비우면 분석 비활성화(서버는 정상 기동)
 gemini:
   api-key: ${GEMINI_API_KEY:}
-  model: ${GEMINI_MODEL:gemini-2.5-flash}
-  crisis-classifier-model: ${GEMINI_CRISIS_CLASSIFIER_MODEL:gemini-2.5-flash}
+  model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+  crisis-classifier-model: ${GEMINI_CRISIS_CLASSIFIER_MODEL:gemini-3.8-flash}
+  chatbot-model: ${GEMINI_CHATBOT_MODEL:gemini-3.8-flash}
 
   # CBT 상담 응답 생성에 적용할 안전 필터 임계값.
   # https://ai.google.dev/gemini-api/docs/safety-settings
