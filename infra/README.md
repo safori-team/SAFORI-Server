@@ -187,6 +187,8 @@ git -C /opt/safori/env-repo config core.sshCommand "ssh -i /root/.ssh/env-repo-k
   실코드 배포 후 모듈 변수 `emotion_pipeline_enabled = true` 로 켠다.
 - 분석 함수는 이미지가 있어야 만들 수 있다. `safori-emotion-native` 에 push 후
   `-var emotion_analysis_image_uri=<이미지 URI>` 로 apply.
+  - prod 는 `envs/prod/main.tf` 에 이미지 digest 를 고정해 두어 `-var` 없이 apply 한다
+    (빈 값으로 apply 하면 함수가 삭제된다). 다른 이미지로 새로 만들 때만 `-var emotion_analysis_image_digest=sha256:...`.
 - 코드·이미지·환경변수는 테라폼이 되돌리지 않는다(`ignore_changes`).
 
 ### Cloudflare Tunnel

@@ -40,9 +40,17 @@ provider "aws" {
   }
 }
 
-variable "emotion_analysis_image_uri" {
+# 분석 Lambda 이미지. 비워 두면 apply 때 함수가 삭제되므로 digest 를 고정한다.
+# URI 는 ECR 저장소 URL(계정 ID 포함)을 data source 로 읽어 조합한다 — 계정 ID 를 커밋하지 않기 위해.
+# 이미지 교체는 Lambda 레포 배포가 하고 테라폼은 image_uri 를 되돌리지 않는다(ignore_changes).
+# 이 값은 함수를 새로 만들 때만 쓰인다.
+variable "emotion_analysis_image_digest" {
   type    = string
-  default = ""
+  default = "sha256:02c363026f869351170750dd9e95082ec473ccd82b9058965e471bae8559ac2b"
+}
+
+data "aws_ecr_repository" "emotion" {
+  name = "safori-emotion-native"
 }
 
 module "safori" {
@@ -55,7 +63,7 @@ module "safori" {
   auto_recovery           = true
   auto_recovery_suspended = true
 
-  emotion_analysis_image_uri = var.emotion_analysis_image_uri
+  emotion_analysis_image_uri = "${data.aws_ecr_repository.emotion.repository_url}@${var.emotion_analysis_image_digest}"
 }
 
 output "safori" {
