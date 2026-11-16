@@ -92,7 +92,7 @@ class GetWeeklyEmotionReportUseCaseTest {
     }
 
     @Test
-    @DisplayName("캐시 있지만 최신 composite id 다름 - AI 재생성 후 update(신규 저장 아님)")
+    @DisplayName("캐시 있지만 최신 composite id 다름 - AI 재생성 후 update(기존 행 save, 신규 저장 아님)")
     void execute_cacheStale_regeneratesAndUpdates() {
         VoiceComposite vc = mock(VoiceComposite.class);
         given(vc.getId()).willReturn(200L);
@@ -105,12 +105,13 @@ class GetWeeklyEmotionReportUseCaseTest {
         given(weeklyEmotionReportRepository.findByUser_IdAndReportMonthAndReportWeek(1L, "2024-01", 3))
                 .willReturn(Optional.of(cached));
         given(openAiWeeklyReportClient.generateWeeklyReport(eq("홍길동"), any(), any())).willReturn("새 리포트");
+        given(weeklyEmotionReportRepository.save(cached)).willReturn(cached);
 
         String msg = useCase.execute("user01", "2024-01", 3, List.of(), List.of(vc));
 
         assertThat(msg).isEqualTo("새 리포트");
         verify(cached).update(200L, "새 리포트");
-        verify(weeklyEmotionReportRepository, never()).save(any());
+        verify(weeklyEmotionReportRepository).save(cached);
     }
 
     @Test

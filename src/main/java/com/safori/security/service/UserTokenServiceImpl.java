@@ -1,12 +1,12 @@
 package com.safori.security.service;
 
-import com.safori.common.service.RedisService;
+import com.safori.common.service.RefreshTokenService;
+import com.safori.security.dto.AccountRole;
 import com.safori.security.dto.JwtToken;
 import com.safori.security.exception.AuthHandler;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -40,17 +40,17 @@ public class UserTokenServiceImpl implements UserTokenService {
     private final Key key;
     private final PasswordEncoder passwordEncoder;
     private final UserAdaptor userAdaptor;
-    private final RedisService redisService;
+    private final RefreshTokenService refreshTokenService;
 
     public UserTokenServiceImpl(Environment environment,
                                PasswordEncoder passwordEncoder,
                                UserAdaptor userAdaptor,
-                               RedisService redisService) {
+                               RefreshTokenService refreshTokenService) {
         byte[] keyBytes = Decoders.BASE64.decode(environment.getProperty("token.secret-user"));
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.passwordEncoder = passwordEncoder;
         this.userAdaptor = userAdaptor;
-        this.redisService = redisService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Override
@@ -66,17 +66,16 @@ public class UserTokenServiceImpl implements UserTokenService {
 
     @Override
     public JwtToken reissueToken(String refreshToken) {
-        // 1. Refresh Token 유효성 검사 (Redis 화이트리스트 존재 여부)
-        if (!existsRefreshToken(refreshToken)) {
+        // 1. Refresh Token 유효성 검사 (화이트리스트 존재·만료 여부). 주인은 화이트리스트 행에서 읽는다.
+        String username = refreshTokenService.getValue(refreshToken);
+        if (username == null) {
             throw AuthHandler.INVALID_REFRESH_TOKEN;
         }
 
         // 2. 회전: 이전 리프레시 토큰 삭제
-        redisService.deleteValue(refreshToken);
+        refreshTokenService.deleteValue(refreshToken);
 
         // 3. 새 Authentication 생성 후 재발급
-        Claims claims = parseClaims(refreshToken);
-        String username = claims.getSubject();
         User user = userAdaptor.queryUserByUsername(username);
         Authentication authentication = new UsernamePasswordAuthenticationToken(user, "",
                 user.getAuthorities());
@@ -98,6 +97,7 @@ public class UserTokenServiceImpl implements UserTokenService {
         String accessToken = Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
+                .claim("role", AccountRole.ELDER.name())
                 .setIssuedAt(new Date(now))
                 .setExpiration(accessTokenExpiresIn)
                 .setId(UUID.randomUUID().toString())
@@ -113,13 +113,14 @@ public class UserTokenServiceImpl implements UserTokenService {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        // 새 리프레시 토큰을 Redis 화이트리스트에 저장
-        redisService.setValue(refreshToken, authentication.getName());
+        // 새 리프레시 토큰을 화이트리스트에 저장
+        refreshTokenService.setValue(refreshToken, authentication.getName());
 
         return JwtToken.builder()
                 .grantType("Bearer")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .role(AccountRole.ELDER)
                 .build();
     }
 
@@ -145,24 +146,21 @@ public class UserTokenServiceImpl implements UserTokenService {
 
     @Override
     public boolean logout(String refreshToken) {
-        redisService.deleteValue(refreshToken);
+        refreshTokenService.deleteValue(refreshToken);
         return true;
     }
 
     @Override
     public boolean existsRefreshToken(String refreshToken) {
-        return redisService.getValue(refreshToken) != null;
+        return refreshTokenService.getValue(refreshToken) != null;
     }
 
+    /** 서명·만료를 검증한다. 만료된 토큰은 {@code ExpiredJwtException}으로 거부된다. */
     private Claims parseClaims(String token) {
-        try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-        } catch (ExpiredJwtException e) {
-            return e.getClaims();
-        }
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

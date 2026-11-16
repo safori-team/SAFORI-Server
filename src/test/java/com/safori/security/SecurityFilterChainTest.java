@@ -4,8 +4,11 @@ import com.safori.api.user.dto.UserInfoResponse;
 import com.safori.api.user.service.GetUserInfoUseCase;
 import com.safori.api.user.service.SignUpUseCase;
 import com.safori.security.service.UserTokenService;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -16,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.security.web.FilterChainProxy;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,11 +49,25 @@ class SecurityFilterChainTest {
         mockMvc = webAppContextSetup(context).addFilters(springSecurityFilterChain).build();
     }
 
-    @Test
-    @DisplayName("보호 엔드포인트 - 토큰 없이 접근 시 거부(4xx)")
-    void protectedEndpoint_withoutToken_denied() throws Exception {
-        mockMvc.perform(get("/v1/api/users"))
-                .andExpect(status().is4xxClientError());
+    @ParameterizedTest
+    @ValueSource(strings = {"/v1/api/users", "/v1/api/users/voices"})
+    @DisplayName("보호 엔드포인트 - 토큰 없이 접근하면 401(4001)")
+    void protectedEndpoint_withoutToken_unauthorized(String path) throws Exception {
+        mockMvc.perform(get(path))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(4001));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/v1/api/users", "/v1/api/users/voices"})
+    @DisplayName("보호 엔드포인트 - 만료·위조 토큰이면 403이 아니라 401(4001) — 앱이 401을 보고 토큰을 재발급한다")
+    void protectedEndpoint_withExpiredToken_unauthorized(String path) throws Exception {
+        given(userTokenService.getAuthentication(anyString()))
+                .willThrow(new ExpiredJwtException(null, null, "JWT expired"));
+
+        mockMvc.perform(get(path).header("Authorization", "Bearer expired-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(4001));
     }
 
     @Test
@@ -58,7 +77,7 @@ class SecurityFilterChainTest {
                 new User("user01", "", List.of(new SimpleGrantedAuthority("ROLE_USER"))),
                 "", List.of(new SimpleGrantedAuthority("ROLE_USER")));
         given(userTokenService.getAuthentication(anyString())).willReturn(authentication);
-        given(getUserInfoUseCase.execute("user01"))
+        given(getUserInfoUseCase.execute(any(Authentication.class)))
                 .willReturn(UserInfoResponse.builder().username("user01").name("홍길동").build());
 
         mockMvc.perform(get("/v1/api/users").header("Authorization", "Bearer valid-token"))

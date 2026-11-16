@@ -15,6 +15,8 @@ import com.safori.api.emotion.service.GetMonthlyEmotionBubbleUseCase;
 import com.safori.api.voice.service.GetMonthlyEmotionAnalysisUseCase;
 import com.safori.api.voice.service.GetWeeklyEmotionAnalysisUseCase;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.extensions.Extension;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +25,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "[감정 분석]", description = """
+@Tag(name = "emotion",
+     extensions = @Extension(properties = @ExtensionProperty(name = "x-displayName", value = "[감정 분석]")),
+     description = """
         월간 · 주간 감정 분석 집계 API.
 
         마음일기들의 감정 데이터를 기간별로 집계하여 통계를 제공합니다.
@@ -39,7 +43,7 @@ public class EmotionAnalysisApiController {
     private final GetMonthlyEmotionBubbleUseCase getMonthlyEmotionBubbleUseCase;
     private final GetEmotionLabelDiaryListUseCase getEmotionLabelDiaryListUseCase;
 
-    @Operation(summary = "월간 감정 분석 조회",
+    @Operation(operationId = "getCareEmotionMonthly", summary = "월간 감정 분석 조회",
             description = """
                     특정 월의 감정별 일기 수, 대표 감정, 총 일기 수, AI 리포트 메시지를 반환합니다.
                     `yearMonth`(`yyyy-MM`)를 전달합니다. 생략하면 현재 월로 처리합니다.
@@ -53,7 +57,7 @@ public class EmotionAnalysisApiController {
                 getMonthlyEmotionAnalysisUseCase.execute(username, resolveYearMonth(yearMonth)));
     }
 
-    @Operation(summary = "이번 주 일별 감정 조회 (홈화면용)",
+    @Operation(operationId = "getCurrentWeekEmotions", summary = "이번 주 일별 감정 조회 (홈화면용)",
             description = "이번 주(일~토) 각 날짜의 감정과 voiceId를 반환합니다. AI 리포트는 포함되지 않습니다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
     @GetMapping("/weekly/current")
@@ -61,7 +65,7 @@ public class EmotionAnalysisApiController {
         return ApiResponseDto.onSuccess(getWeeklyEmotionAnalysisUseCase.executeCurrentWeek(username));
     }
 
-    @Operation(summary = "주간 감정 분석 조회",
+    @Operation(operationId = "getCareEmotionWeekly", summary = "주간 감정 분석 조회",
             description = """
                     특정 월의 특정 주차(week) 일별 감정·voiceId와 AI 리포트를 반환합니다.
                     `week`는 해당 월의 주차 번호입니다 (1부터 시작).
@@ -78,7 +82,7 @@ public class EmotionAnalysisApiController {
                 getWeeklyEmotionAnalysisUseCase.execute(username, resolveYearMonth(yearMonth), week));
     }
 
-    @Operation(summary = "월간 감정 버블차트 데이터 조회",
+    @Operation(operationId = "getMonthlyEmotionBubble", summary = "월간 감정 버블차트 데이터 조회",
             description = "특정 월에 등장한 세부 감정 레이블별 일기 수와 강도를 반환합니다. 버블차트 렌더링에 사용합니다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
     @GetMapping("/bubble")
@@ -88,7 +92,7 @@ public class EmotionAnalysisApiController {
         return ApiResponseDto.onSuccess(getMonthlyEmotionBubbleUseCase.execute(username, yearMonth));
     }
 
-    @Operation(summary = "감정 레이블별 일기 목록 조회",
+    @Operation(operationId = "getEmotionLabelDiaries", summary = "감정 레이블별 일기 목록 조회",
             description = """
                     특정 월에 특정 세부 감정(label)이 기록된 일기 목록을 반환합니다.
                     `label`은 Gemini 세부 감정 레이블입니다 (예: joy, anxiety, frustration).

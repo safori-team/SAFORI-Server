@@ -2,6 +2,7 @@ package com.safori.domain.chatbot.service;
 
 import com.safori.common.annotation.DomainService;
 import com.safori.common.event.ChatReplySettledEvent;
+import com.safori.common.event.CounselExtendedEvent;
 import com.safori.common.event.MindDiaryOfferedEvent;
 import com.safori.domain.chatbot.adaptor.ChatMessageAdaptor;
 import com.safori.domain.chatbot.adaptor.ChatSessionAdaptor;
@@ -153,6 +154,8 @@ public class ChatbotDomainServiceImpl implements ChatbotDomainService {
         ChatSession session = chatSessionAdaptor.queryById(sessionId);
         session.extend();
         chatSessionAdaptor.save(session);
+        // 대상자 판정(추가 상담 반복 이용). 커밋 이후에만 소비된다(@TransactionalEventListener AFTER_COMMIT).
+        eventPublisher.publishEvent(new CounselExtendedEvent(session.getUser().getId()));
     }
 
     @Override

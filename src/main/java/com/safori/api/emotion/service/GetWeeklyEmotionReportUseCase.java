@@ -11,15 +11,17 @@ import com.safori.domain.voice.repository.WeeklyEmotionReportRepository;
 import com.safori.infra.openai.OpenAiWeeklyReportClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * 클래스 단위 트랜잭션을 두지 않는다. OpenAI 호출(수 초)은 트랜잭션 밖에서 하고,
+ * 조회·저장은 각 저장소 메서드의 짧은 트랜잭션으로 끝낸다.
+ */
 @Slf4j
 @UseCase
-@Transactional
 @RequiredArgsConstructor
 public class GetWeeklyEmotionReportUseCase {
 
@@ -79,7 +81,7 @@ public class GetWeeklyEmotionReportUseCase {
                                              String reportMessage) {
         if (cached != null) {
             cached.update(latestVoiceCompositeId, reportMessage);
-            return cached;
+            return weeklyEmotionReportRepository.save(cached);
         }
 
         WeeklyEmotionReport created = WeeklyEmotionReport.builder()

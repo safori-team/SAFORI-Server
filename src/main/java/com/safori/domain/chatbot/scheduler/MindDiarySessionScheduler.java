@@ -7,6 +7,7 @@ import com.safori.domain.chatbot.policy.SessionTriggerProperties;
 import com.safori.domain.chatbot.service.ChatbotDomainService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -45,6 +46,7 @@ public class MindDiarySessionScheduler {
     private final MindDiaryTriggerEvaluator evaluator;
     private final ChatbotDomainService chatbotDomainService;
 
+    @SchedulerLock(name = "mindDiarySessionScan", lockAtMostFor = "PT9M")
     @Scheduled(
             initialDelayString = "${safori.chatbot.session-trigger.interval:PT10M}",
             fixedDelayString = "${safori.chatbot.session-trigger.interval:PT10M}")

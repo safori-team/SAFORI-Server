@@ -6,6 +6,7 @@ import com.safori.domain.question.entity.QuestionCategory;
 import com.safori.domain.question.exception.QuestionHandler;
 import com.safori.domain.user.adaptor.UserAdaptor;
 import com.safori.domain.user.entity.User;
+import com.safori.domain.voice.VoiceKey;
 import com.safori.domain.voice.adaptor.VoiceAdaptor;
 import com.safori.domain.voice.entity.Voice;
 import com.safori.domain.voice.exception.VoiceHandler;
@@ -28,6 +29,8 @@ public class UploadVoiceFileUseCase {
     public Long execute(String username, QuestionCategory questionCategory, int questionIndex,
                         String voiceKey) {
         validateQuestion(questionCategory, questionIndex);
+        // 남의 키를 일기로 등록하면 그 음성의 전사·재생 URL이 내 일기로 노출된다
+        VoiceKey.verifyOwnedBy(username, voiceKey);
         // 1일 1일기 제약 — 오늘 작성한 일기가 이미 있으면 거부 (삭제 후 재작성은 허용)
         if (!voiceAdaptor.queryByUsernameAndCreatedAt(username, LocalDate.now()).isEmpty()) {
             throw VoiceHandler.ALREADY_EXISTS_TODAY;

@@ -2,6 +2,7 @@ package com.safori.domain.user.adaptor;
 
 import com.safori.domain.user.entity.User;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface UserAdaptor {
@@ -15,4 +16,6 @@ public interface UserAdaptor {
     User queryUserByUserUuid(String userUuid);
 
     boolean existsByUsername(String username);
+
+    List<User> queryUsersByIds(Collection<Long> userIds);
 }

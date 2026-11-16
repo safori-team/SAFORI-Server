@@ -6,6 +6,8 @@ import com.safori.api.tts.dto.TtsSynthesisResponse;
 import com.safori.api.tts.service.SynthesizeSpeechUseCase;
 import com.safori.common.annotation.UserCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.extensions.Extension;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "[TTS]",
+@Tag(name = "tts",
+     extensions = @Extension(properties = @ExtensionProperty(name = "x-displayName", value = "[TTS]")),
      description = """
              화면 낭독용 음성 합성 API. GCP Cloud Text-to-Speech(Chirp3-HD)로 합성한 MP3의
              presigned GET URL을 반환한다.
@@ -33,7 +36,7 @@ public class TtsApiController {
 
     private final SynthesizeSpeechUseCase synthesizeSpeechUseCase;
 
-    @Operation(summary = "텍스트 음성 합성",
+    @Operation(operationId = "synthesize", summary = "텍스트 음성 합성",
             description = """
                     평문을 MP3로 합성하고 재생용 presigned GET URL(유효시간 1시간)을 반환한다.
                     text는 1~500자의 평문이며 SSML은 지원하지 않는다.

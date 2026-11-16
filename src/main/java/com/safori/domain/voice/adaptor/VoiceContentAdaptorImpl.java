@@ -21,6 +21,6 @@ public class VoiceContentAdaptorImpl implements VoiceContentAdaptor {
     @Override
     @Transactional
     public void deleteByVoiceId(Long voiceId) {
-        voiceContentRepository.deleteByVoice_Id(voiceId);
+        voiceContentRepository.deleteAllByVoiceIdInBulk(voiceId);
     }
 }

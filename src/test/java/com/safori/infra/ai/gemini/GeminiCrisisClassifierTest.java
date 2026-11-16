@@ -16,7 +16,7 @@ class GeminiCrisisClassifierTest {
     @DisplayName("Gemini 클라이언트가 없으면 상담을 막지 않는 UNKNOWN 판정을 반환한다")
     void noClientFailsOpen() {
         GeminiCrisisClassifier classifier =
-                new GeminiCrisisClassifier(Optional.empty(), "gemini-2.5-flash", new ObjectMapper());
+                new GeminiCrisisClassifier(Optional.empty(), "gemini-3.8-flash", new ObjectMapper());
 
         CrisisAssessment result = classifier.classify("모호한 발화");
 
@@ -28,7 +28,7 @@ class GeminiCrisisClassifierTest {
     @DisplayName("모델 신뢰도는 서버가 허용하는 0~1 범위로 보정한다")
     void clampsConfidence() {
         GeminiCrisisClassifier classifier =
-                new GeminiCrisisClassifier(Optional.empty(), "gemini-2.5-flash", new ObjectMapper());
+                new GeminiCrisisClassifier(Optional.empty(), "gemini-3.8-flash", new ObjectMapper());
 
         CrisisAssessment result = classifier.sanitize(new CrisisAssessment(
                 CrisisLevel.IMMINENT, true, true, true, 1.4, null));

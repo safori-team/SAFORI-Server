@@ -8,6 +8,7 @@ import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
 import com.google.genai.types.ThinkingConfig;
+import com.google.genai.types.ThinkingLevel;
 import com.google.genai.types.Type;
 import com.safori.domain.chatbot.model.CrisisAssessment;
 import com.safori.domain.chatbot.service.CrisisClassifier;
@@ -60,7 +61,7 @@ public class GeminiCrisisClassifier implements CrisisClassifier {
 
     public GeminiCrisisClassifier(
             Optional<Client> geminiClient,
-            @Value("${gemini.crisis-classifier-model:gemini-2.5-flash}") String modelName,
+            @Value("${gemini.crisis-classifier-model:gemini-3.8-flash}") String modelName,
             ObjectMapper objectMapper
     ) {
         this.geminiClient = geminiClient;
@@ -77,8 +78,11 @@ public class GeminiCrisisClassifier implements CrisisClassifier {
         try {
             GenerateContentConfig config = GenerateContentConfig.builder()
                     .temperature(0.0f)
-                    .maxOutputTokens(512)
-                    .thinkingConfig(ThinkingConfig.builder().thinkingBudget(0).build())
+                    // 3.x는 thinking을 끌 수 없고(MINIMAL은 모델에 따라 거부됨) thinking 토큰이 출력 한도에
+                    // 포함된다. 한도가 모자라 JSON이 잘리면 fail-open으로 위기 판정이 조용히 빠지므로
+                    // thinking은 LOW로 묶고 출력 한도에 여유를 둔다.
+                    .maxOutputTokens(2048)
+                    .thinkingConfig(ThinkingConfig.builder().thinkingLevel(ThinkingLevel.Known.LOW).build())
                     .responseMimeType("application/json")
                     .responseSchema(responseSchema())
                     .build();

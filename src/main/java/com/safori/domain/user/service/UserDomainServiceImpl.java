@@ -1,6 +1,8 @@
 package com.safori.domain.user.service;
 
 import com.safori.common.annotation.DomainService;
+import com.safori.common.util.PhoneNumber;
+import com.safori.domain.account.repository.BackofficeAccountRepository;
 import com.safori.domain.user.entity.Gender;
 import com.safori.domain.user.entity.Role;
 import com.safori.domain.user.entity.User;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static com.safori.domain.user.exception.UserHandler.USERNAME_ALREADY_EXISTS;
@@ -19,11 +22,14 @@ import static com.safori.domain.user.exception.UserHandler.USERNAME_ALREADY_EXIS
 public class UserDomainServiceImpl implements UserDomainService {
 
     private final UserRepository userRepository;
+    private final BackofficeAccountRepository backofficeAccountRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public User registerUser(String username, String password, String name, Gender gender, String nickname) {
-        if (userRepository.existsByUsername(username)) {
+    public User registerUser(String username, String password, String name, Gender gender, LocalDate birthDate,
+                      String phone, String nickname) {
+        // 로그인 엔드포인트가 하나라 아이디는 백오피스 계정과도 겹치면 안 된다.
+        if (userRepository.existsByUsername(username) || backofficeAccountRepository.existsByLoginId(username)) {
             throw USERNAME_ALREADY_EXISTS;
         }
         User user = User.builder()
@@ -31,10 +37,44 @@ public class UserDomainServiceImpl implements UserDomainService {
                 .password(passwordEncoder.encode(password))
                 .name(name)
                 .gender(gender)
+                .birthDate(birthDate)
+                .phone(PhoneNumber.normalize(phone))
                 .nickname(nickname)
                 .role(Role.USER)
                 .userUuid(UUID.randomUUID().toString())
                 .build();
         return userRepository.save(user);
+    }
+
+    @Override
+    public User changeProfile(User user, String name, String phone, LocalDate birthDate) {
+        User current = reload(user);
+        current.changeProfile(name, PhoneNumber.normalize(phone), birthDate);
+        return current;
+    }
+
+    @Override
+    public User changeUsername(User user, String username) {
+        User current = reload(user);
+        if (current.getUsername().equals(username)) {
+            return current;
+        }
+        if (userRepository.existsByUsername(username) || backofficeAccountRepository.existsByLoginId(username)) {
+            throw USERNAME_ALREADY_EXISTS;
+        }
+        current.changeUsername(username);
+        return current;
+    }
+
+    @Override
+    public User changePassword(User user, String rawPassword) {
+        User current = reload(user);
+        current.changePassword(passwordEncoder.encode(rawPassword));
+        return current;
+    }
+
+    private User reload(User user) {
+        return userRepository.findById(user.getId())
+                .orElseThrow(() -> new IllegalStateException("존재하지 않는 유저입니다: " + user.getId()));
     }
 }

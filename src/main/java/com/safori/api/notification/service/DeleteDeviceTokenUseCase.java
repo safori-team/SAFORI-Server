@@ -17,4 +17,9 @@ public class DeleteDeviceTokenUseCase {
         User user = userAdaptor.queryUserByUsername(username);
         deviceTokenDomainService.deleteToken(user, token);
     }
+
+    /** 백오피스 계정(관리자·담당자·보호자)의 토큰 삭제. */
+    public void executeForAccount(Long accountId, String token) {
+        deviceTokenDomainService.deleteAccountToken(accountId, token);
+    }
 }

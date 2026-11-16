@@ -1,0 +1,18 @@
+# state 에는 RDS 비밀번호 등 비밀값이 평문으로 들어간다. 절대 커밋 금지 (public 레포).
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl.bak
+.build/
+crash.log
+crash.*.log
+*.tfplan
+tfplan
+
+# 비밀값을 담은 로컬 변수 파일
+*.secret.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

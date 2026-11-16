@@ -18,6 +18,12 @@ public interface DeviceTokenDomainService {
      */
     void deleteToken(User user, String token);
 
+    /** 백오피스 계정(관리자·담당자·보호자)의 토큰 등록 (upsert). 어르신 소유였던 토큰이면 계정 소유로 바꾼다. */
+    DeviceToken registerAccountToken(Long accountId, String token);
+
+    /** 백오피스 계정의 토큰 삭제. 본인 소유만 삭제하며, 없거나 타인 소유면 무시한다 (멱등). */
+    void deleteAccountToken(Long accountId, String token);
+
     /**
      * 무효 토큰(UNREGISTERED 등) 일괄 삭제. 빈 목록이면 no-op.
      */

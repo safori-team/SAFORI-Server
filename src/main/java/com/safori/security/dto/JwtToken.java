@@ -18,4 +18,6 @@ public class JwtToken {
     private String accessToken;
     @Schema(description = "Access Token 갱신에 사용할 Refresh Token", example = "eyJhbGciOiJIUzI1NiJ9...")
     private String refreshToken;
+    @Schema(description = "로그인한 주체의 역할. 클라이언트가 화면을 고르는 데 쓴다.", example = "ELDER")
+    private AccountRole role;
 }

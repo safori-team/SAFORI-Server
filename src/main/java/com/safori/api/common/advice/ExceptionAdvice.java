@@ -14,6 +14,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +24,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -39,7 +42,12 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("ConstraintViolationException 추출 도중 에러 발생"));
 
-        return handleExceptionInternalConstraint(e, ErrorStatus.valueOf(errorMessage), HttpHeaders.EMPTY, request);
+        // message에 ErrorStatus 이름을 쓴 제약만 그 코드로, 기본 메시지(@NotBlank, @Min 등)는 400 _BAD_REQUEST로 응답한다.
+        ErrorStatus status = Arrays.stream(ErrorStatus.values())
+                .filter(errorStatus -> errorStatus.name().equals(errorMessage))
+                .findFirst()
+                .orElse(ErrorStatus._BAD_REQUEST);
+        return handleExceptionInternalConstraint(e, status, HttpHeaders.EMPTY, request);
     }
 
     @Override
@@ -63,6 +71,20 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> badRequest(DateTimeParseException e, WebRequest request) {
         return handleExceptionInternalFalse(e, ErrorStatus._BAD_REQUEST, HttpHeaders.EMPTY,
                 HttpStatus.BAD_REQUEST, request, "날짜 형식이 올바르지 않습니다.");
+    }
+
+    /** 메서드 보안(@PreAuthorize) 거부. 아래 Exception 핸들러로 떨어져 500이 되지 않게 403으로 돌려준다. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Object> accessDenied(AccessDeniedException e, WebRequest request) {
+        return handleExceptionInternalFalse(e, ErrorStatus._FORBIDDEN, HttpHeaders.EMPTY,
+                HttpStatus.FORBIDDEN, request, null);
+    }
+
+    /** 메서드 보안에서 인증 정보가 없을 때. */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Object> unauthenticated(AuthenticationException e, WebRequest request) {
+        return handleExceptionInternalFalse(e, ErrorStatus._UNAUTHORIZED, HttpHeaders.EMPTY,
+                HttpStatus.UNAUTHORIZED, request, null);
     }
 
     @ExceptionHandler

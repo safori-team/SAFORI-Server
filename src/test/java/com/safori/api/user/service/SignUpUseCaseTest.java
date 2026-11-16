@@ -12,12 +12,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class SignUpUseCaseTest {
+
+    private static final LocalDate BIRTH = LocalDate.of(1960, 3, 12);
 
     @Mock UserDomainService userDomainService;
     @Mock UserValidator userValidator;
@@ -32,9 +36,10 @@ class SignUpUseCaseTest {
                 .password("myPass1234")
                 .name("홍길동")
                 .gender(Gender.MALE)
+                .birthDate(BIRTH)
                 .nickname("길동이")
                 .build();
-        given(userDomainService.registerUser("user01", "myPass1234", "홍길동", Gender.MALE, "길동이")).willReturn(user);
+        given(userDomainService.registerUser("user01", "myPass1234", "홍길동", Gender.MALE, BIRTH, null, "길동이")).willReturn(user);
         given(user.getId()).willReturn(7L);
 
         Long userId = signUpUseCase.execute(request);
@@ -43,7 +48,7 @@ class SignUpUseCaseTest {
         verify(userValidator).validateUsername("user01");
         verify(userValidator).validatePassword("myPass1234");
         verify(userValidator).validateName("홍길동");
-        verify(userDomainService).registerUser("user01", "myPass1234", "홍길동", Gender.MALE, "길동이");
+        verify(userDomainService).registerUser("user01", "myPass1234", "홍길동", Gender.MALE, BIRTH, null, "길동이");
     }
 
     @Test
@@ -54,13 +59,14 @@ class SignUpUseCaseTest {
                 .password("myPass1234")
                 .name("김영희")
                 .gender(Gender.FEMALE)
+                .birthDate(BIRTH)
                 .build();
-        given(userDomainService.registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, null)).willReturn(user);
+        given(userDomainService.registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, BIRTH, null, null)).willReturn(user);
         given(user.getId()).willReturn(8L);
 
         Long userId = signUpUseCase.execute(request);
 
         assertThat(userId).isEqualTo(8L);
-        verify(userDomainService).registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, null);
+        verify(userDomainService).registerUser("user02", "myPass1234", "김영희", Gender.FEMALE, BIRTH, null, null);
     }
 }

@@ -3,6 +3,7 @@ package com.safori.api.auth.service;
 import com.safori.api.auth.dto.TokenReissueRequest;
 import com.safori.common.annotation.UseCase;
 import com.safori.security.dto.JwtToken;
+import com.safori.security.service.BackofficeLoginService;
 import com.safori.security.service.UserTokenService;
 import lombok.RequiredArgsConstructor;
 
@@ -10,9 +11,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ReissueTokenUseCase {
 
+    private final BackofficeLoginService backofficeLoginService;
     private final UserTokenService userTokenService;
 
     public JwtToken execute(TokenReissueRequest tokenReissueRequest) {
-        return userTokenService.reissueToken(tokenReissueRequest.getRefreshToken());
+        String refreshToken = tokenReissueRequest.getRefreshToken();
+        return backofficeLoginService.reissue(refreshToken)
+                .orElseGet(() -> userTokenService.reissueToken(refreshToken));
     }
 }

@@ -16,6 +16,7 @@ import com.google.genai.types.SafetyRating;
 import com.google.genai.types.SafetySetting;
 import com.google.genai.types.Schema;
 import com.google.genai.types.ThinkingConfig;
+import com.google.genai.types.ThinkingLevel;
 import com.google.genai.types.Type;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -60,7 +61,7 @@ public class GeminiChatbotClient {
 
     public GeminiChatbotClient(
             Optional<Client> geminiClient,
-            @Value("${gemini.chatbot-model:gemini-2.5-pro}") String modelName,
+            @Value("${gemini.chatbot-model:gemini-3.8-flash}") String modelName,
             ObjectMapper objectMapper,
             GeminiSafetyProperties safetyProperties
     ) {
@@ -85,11 +86,12 @@ public class GeminiChatbotClient {
         try {
             GenerateContentConfig.Builder config = GenerateContentConfig.builder()
                     .temperature(0.7f)
-                    // gemini-2.5-pro는 thinking 모델 — thinking 토큰이 maxOutputTokens에 포함된다.
-                    // 2048로는 thinking 후 JSON 출력이 잘려(JsonEOFException) 폴백으로 빠지므로,
-                    // 출력 한도를 넉넉히 주고 thinking 예산을 캡해 실제 응답 토큰을 확보한다.
+                    // Gemini 3.x는 thinking 모델 — thinking 토큰이 maxOutputTokens에 포함된다.
+                    // 한도가 작으면 thinking 후 JSON 출력이 잘려(JsonEOFException) 폴백으로 빠지므로,
+                    // 출력 한도를 넉넉히 주고 thinking 수준을 MEDIUM으로 제한해 실제 응답 토큰을 확보한다.
+                    // 3.x는 thinkingBudget 대신 thinkingLevel로 조절한다.
                     .maxOutputTokens(8192)
-                    .thinkingConfig(ThinkingConfig.builder().thinkingBudget(2048).build())
+                    .thinkingConfig(ThinkingConfig.builder().thinkingLevel(ThinkingLevel.Known.MEDIUM).build())
                     .responseMimeType("application/json")
                     .responseSchema(buildResponseSchema());
 

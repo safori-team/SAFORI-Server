@@ -5,6 +5,7 @@ import com.safori.domain.user.entity.User;
 import com.safori.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
+import java.util.Collection;
 import java.util.List;
 
 import static com.safori.domain.user.exception.UserHandler.NOT_FOUND;
@@ -41,5 +42,10 @@ public class UserAdaptorImpl implements UserAdaptor {
     @Override
     public boolean existsByUsername(String username) {
         return userRepository.existsByUsername(username);
+    }
+
+    @Override
+    public List<User> queryUsersByIds(Collection<Long> userIds) {
+        return userRepository.findAllById(userIds);
     }
 }

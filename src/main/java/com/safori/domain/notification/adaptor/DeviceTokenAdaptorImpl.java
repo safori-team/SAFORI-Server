@@ -16,4 +16,9 @@ public class DeviceTokenAdaptorImpl implements DeviceTokenAdaptor {
     public List<DeviceToken> queryTokensByUserId(Long userId) {
         return deviceTokenRepository.findAllByUser_Id(userId);
     }
+
+    @Override
+    public List<DeviceToken> queryTokensByAccountId(Long accountId) {
+        return deviceTokenRepository.findAllByAccount_Id(accountId);
+    }
 }
