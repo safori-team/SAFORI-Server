@@ -86,7 +86,7 @@ cp "${ENV_REPO}/otel-collector-config.yaml" "${APP_DIR}/otel-collector-config.ya
 # 깨진 collector 설정(.env 키 누락 등)이면 기존 collector 를 지우기 전에 멈춘다
 mkdir -p "${APP_DIR}/otelcol-storage"
 chown -R 10001:10001 "${APP_DIR}/otelcol-storage"
-if ! docker run --rm --env-file "${APP_DIR}/.env" -e APP_CONTAINER_NAME="${CONTAINER_NAME}" \
+if ! docker run --rm --env-file "${APP_DIR}/.env" -e APP_CONTAINER_NAME="${CONTAINER_NAME}" -e SPRING_PROFILE="${SPRING_PROFILE}" \
   -v "${APP_DIR}/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro" \
   -v "${APP_DIR}/otelcol-storage:/var/lib/otelcol/storage" \
   "${OTEL_IMAGE}" validate --config /etc/otelcol-contrib/config.yaml; then
@@ -112,7 +112,7 @@ remove_container "${NEW_APP}"
 remove_container otel-collector
 docker run -d --name otel-collector --restart unless-stopped --memory=192m \
   --network "${DOCKER_NETWORK}" \
-  --env-file "${APP_DIR}/.env" -e APP_CONTAINER_NAME="${CONTAINER_NAME}" \
+  --env-file "${APP_DIR}/.env" -e APP_CONTAINER_NAME="${CONTAINER_NAME}" -e SPRING_PROFILE="${SPRING_PROFILE}" \
   -v "${APP_DIR}/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro" \
   -v "${APP_DIR}/otelcol-storage:/var/lib/otelcol/storage" \
   "${OTEL_IMAGE}" --config /etc/otelcol-contrib/config.yaml

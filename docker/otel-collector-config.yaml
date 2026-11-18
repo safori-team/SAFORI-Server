@@ -1,5 +1,5 @@
 # 트레이스·로그: 앱 OTLP push / 메트릭: blue·green 앱 scrape → Grafana Cloud
-# env: GRAFANA_OTLP_ENDPOINT, GRAFANA_OTLP_AUTH, APP_CONTAINER_NAME(배포 스크립트), OTEL_LOG_MIN_SEVERITY(기본 9=INFO)
+# env: GRAFANA_OTLP_ENDPOINT, GRAFANA_OTLP_AUTH, APP_CONTAINER_NAME·SPRING_PROFILE(배포 스크립트), OTEL_LOG_MIN_SEVERITY(기본 9=INFO)
 
 extensions:
   file_storage/otlp:
@@ -22,6 +22,9 @@ receivers:
             - targets:
                 - ${env:APP_CONTAINER_NAME:-safori-server}-blue:9082
                 - ${env:APP_CONTAINER_NAME:-safori-server}-green:9082
+              # alpha/prod 컨테이너명이 같아 env 로 구분한다 (up 포함 모든 시리즈)
+              labels:
+                env: ${env:SPRING_PROFILE:-local}
 
 processors:
   memory_limiter:

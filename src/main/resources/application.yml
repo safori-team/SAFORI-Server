@@ -187,8 +187,7 @@ management:
     health:
       show-details: never
   metrics:
-    tags:
-      env: ${spring.profiles.active:local}
+    # env 라벨은 collector scrape 설정이 붙인다
     # Grafana Free 10k series 예산: 시리즈만 많고 안 보는 것
     enable:
       spring.data.repository: false
