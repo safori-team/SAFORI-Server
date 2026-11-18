@@ -1,4 +1,5 @@
-# 트레이스 사이드카: 앱(OTLP) → collector → Sentry. env: SENTRY_OTLP_TRACES_ENDPOINT, SENTRY_OTLP_AUTH_HEADER
+# 트레이스·로그: 앱 OTLP push / 메트릭: blue·green 앱 scrape → Grafana Cloud
+# env: GRAFANA_OTLP_ENDPOINT, GRAFANA_OTLP_AUTH, APP_CONTAINER_NAME(배포 스크립트), OTEL_LOG_MIN_SEVERITY(기본 9=INFO)
 
 extensions:
   file_storage/otlp:
@@ -11,6 +12,16 @@ receivers:
         endpoint: 0.0.0.0:4318
       grpc:
         endpoint: 0.0.0.0:4317
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: safori
+          scrape_interval: 60s
+          metrics_path: /actuator/prometheus
+          static_configs:
+            - targets:
+                - ${env:APP_CONTAINER_NAME:-safori-server}-blue:9082
+                - ${env:APP_CONTAINER_NAME:-safori-server}-green:9082
 
 processors:
   memory_limiter:
@@ -20,12 +31,17 @@ processors:
   batch:
     send_batch_size: 512
     timeout: 5s
+  filter/log_severity:
+    error_mode: ignore
+    logs:
+      log_record:
+        - severity_number < ${env:OTEL_LOG_MIN_SEVERITY:-9}
 
 exporters:
-  otlp_http/sentry:
-    traces_endpoint: ${env:SENTRY_OTLP_TRACES_ENDPOINT}
+  otlphttp/grafana:
+    endpoint: ${env:GRAFANA_OTLP_ENDPOINT}
     headers:
-      x-sentry-auth: ${env:SENTRY_OTLP_AUTH_HEADER}
+      Authorization: ${env:GRAFANA_OTLP_AUTH}
     compression: gzip
     encoding: proto
     sending_queue:
@@ -40,7 +56,15 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlp_http/sentry]
+      exporters: [otlphttp/grafana]
+    metrics:
+      receivers: [prometheus]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/grafana]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/log_severity, batch]
+      exporters: [otlphttp/grafana]
   telemetry:
     logs:
       level: warn

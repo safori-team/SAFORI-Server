@@ -95,7 +95,7 @@ public class EmotionAnalysisResponsePoller implements SmartLifecycle {
     /**
      * 수신 실패가 이어질 때(큐에 네트워크가 닿지 않는 경우) 로그를 솎아낸다.
      *
-     * <p>5초마다 ERROR를 남기면 장애 한 번에 Sentry Issue가 수천 건 쌓이고, 로그 적재 자체가
+     * <p>5초마다 ERROR를 남기면 장애 한 번에 에러 로그·알림이 수천 건 쌓이고, 로그 적재 자체가
      * 서버를 흔든다. 첫 실패와 이후 5분 간격만 ERROR로 올리고 나머지는 DEBUG로 떨어뜨린다.
      */
     private void logReceiveFailure(Exception e) {

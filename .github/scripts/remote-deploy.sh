@@ -82,6 +82,18 @@ docker pull "${CLOUDFLARED_IMAGE}"
 
 cp "${ENV_REPO}/${SPRING_PROFILE}.env" "${APP_DIR}/.env"
 cp "${ENV_REPO}/otel-collector-config.yaml" "${APP_DIR}/otel-collector-config.yaml"
+
+# 깨진 collector 설정(.env 키 누락 등)이면 기존 collector 를 지우기 전에 멈춘다
+mkdir -p "${APP_DIR}/otelcol-storage"
+chown -R 10001:10001 "${APP_DIR}/otelcol-storage"
+if ! docker run --rm --env-file "${APP_DIR}/.env" -e APP_CONTAINER_NAME="${CONTAINER_NAME}" \
+  -v "${APP_DIR}/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+  -v "${APP_DIR}/otelcol-storage:/var/lib/otelcol/storage" \
+  "${OTEL_IMAGE}" validate --config /etc/otelcol-contrib/config.yaml; then
+  echo "Invalid otel-collector config (env-repo otel-collector-config.yaml / ${SPRING_PROFILE}.env 확인)"
+  exit 1
+fi
+
 for net in "${DOCKER_NETWORK}" safori-blue safori-green; do
   docker network create "$net" 2>/dev/null || true
 done
@@ -96,13 +108,11 @@ echo "active=${OLD:-none} → deploying ${NEW}"
 remove_container "${NEW_TUNNEL}"
 remove_container "${NEW_APP}"
 
-# ── 2. otel-collector (트레이스 → Sentry). 재시작 동안의 스팬 몇 개는 유실될 수 있다 ──
-mkdir -p "${APP_DIR}/otelcol-storage"
-chown -R 10001:10001 "${APP_DIR}/otelcol-storage"
+# ── 2. otel-collector (→ Grafana Cloud). 재시작 동안의 데이터는 일부 유실될 수 있다 ──
 remove_container otel-collector
 docker run -d --name otel-collector --restart unless-stopped --memory=192m \
   --network "${DOCKER_NETWORK}" \
-  --env-file "${APP_DIR}/.env" \
+  --env-file "${APP_DIR}/.env" -e APP_CONTAINER_NAME="${CONTAINER_NAME}" \
   -v "${APP_DIR}/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro" \
   -v "${APP_DIR}/otelcol-storage:/var/lib/otelcol/storage" \
   "${OTEL_IMAGE}" --config /etc/otelcol-contrib/config.yaml

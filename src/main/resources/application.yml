@@ -25,6 +25,10 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      data-source-properties:
+        # Connector/J 자체 스팬 끔 (agent 의 JDBC 스팬과 중복)
+        openTelemetry: DISABLED
 
   jpa:
     hibernate:
@@ -164,20 +168,6 @@ openai:
 firebase:
   credentials-base64: ${FIREBASE_CREDENTIALS_BASE64:}
 
-# Sentry 에러. dsn 비면 비활성. 트레이스는 OTEL_* 환경변수(.env.example) 참고.
-sentry:
-  dsn: ${SENTRY_DSN:}
-  environment: ${SENTRY_ENVIRONMENT:local}
-  send-default-pii: false
-  # 구조화 로그(Sentry Logs)로 애플리케이션 로그 전송. 스타터가 SentryAppender 자동 등록.
-  logs:
-    enabled: ${SENTRY_LOGS_ENABLED:false}
-  logging:
-    # 이 레벨 이상 로그를 Sentry Logs로 전송(logs.enabled=true일 때). 기본 INFO.
-    minimum-level: ${SENTRY_LOG_MIN_LEVEL:info}
-    # 이 레벨 이상 로그를 Issue(이벤트)로 전송. 기본 ERROR — log.error가 스택트레이스와 함께 올라감.
-    minimum-event-level: ${SENTRY_LOG_EVENT_LEVEL:error}
-
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -192,7 +182,15 @@ management:
     web:
       base-path: /actuator
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: never
+  metrics:
+    tags:
+      env: ${spring.profiles.active:local}
+    # Grafana Free 10k series 예산: 시리즈만 많고 안 보는 것
+    enable:
+      spring.data.repository: false
+      spring.security: false
+      tomcat.sessions: false

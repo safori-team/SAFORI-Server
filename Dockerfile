@@ -12,7 +12,7 @@ COPY gradle gradle
 RUN chmod +x gradlew && sed -i 's/\r$//' gradlew
 
 COPY src src
-RUN ./gradlew clean bootJar -x test --no-build-cache
+RUN ./gradlew clean bootJar otelAgentJar -x test --no-build-cache
 
 FROM amazoncorretto:17.0.21-al2023-headless@sha256:20c64d400ce911a0b2aa8d4a0c577ebcfaeae7d8e1b59667e4f2a29d08ed3920
 
@@ -22,11 +22,15 @@ WORKDIR /app
 ENV TZ=Asia/Seoul
 
 COPY --from=builder /workspace/build/libs/*.jar app.jar
+COPY --from=builder /workspace/build/otel/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
 COPY docker/entrypoint.sh /app/entrypoint.sh
 
 RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 ENV JAVA_OPTS=""
+# DB 호출당 스팬이 3~4개씩 겹친다. SQL 이 보이는 JDBC 스팬만 남긴다.
+ENV OTEL_INSTRUMENTATION_HIBERNATE_ENABLED=false \
+    OTEL_INSTRUMENTATION_SPRING_DATA_ENABLED=false
 
 EXPOSE 8080 9082
 
