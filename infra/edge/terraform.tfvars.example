@@ -1,0 +1,12 @@
+# cp terraform.tfvars.example terraform.tfvars  (terraform.tfvars 는 커밋하지 않는다)
+# account / zone ID 는 TF_VAR_cloudflare_account_id, TF_VAR_cloudflare_zone_id 로 넣는다.
+
+environments = {
+  alpha = {
+    hostname = "alpha-api.example.com"
+  }
+  prod = {
+    hostname        = "api.example.com"
+    allowed_origins = ["https://example.com"]
+  }
+}
