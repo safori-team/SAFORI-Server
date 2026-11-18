@@ -33,6 +33,24 @@ public interface DiaryEmotionHistoryRepository extends JpaRepository<Voice, Long
                                        org.springframework.data.domain.Pageable pageable);
 
     /**
+     * 한 사용자의 분석 완료·미트리거 일기 ID. 운영자가 스케줄러를 기다리지 않고 바로 평가할 때 쓴다.
+     * 스캔 범위(분석 완료 시각) 제한은 두지 않는다 — 대상이 한 사용자라 범위가 이미 좁다.
+     */
+    @Query("""
+            SELECT v.id
+            FROM Voice v
+            JOIN VoiceComposite vc ON vc.voice.id = v.id
+            WHERE v.user.id = :userId
+              AND v.analysisStatus = com.safori.domain.voice.entity.Voice.AnalysisStatus.COMPLETED
+              AND NOT EXISTS (
+                  SELECT 1 FROM MindDiaryTrigger t WHERE t.voice.id = v.id
+              )
+            ORDER BY v.createdDate DESC
+            """)
+    List<Long> findUntriggeredVoiceIdsOfUser(@Param("userId") Long userId,
+                                             org.springframework.data.domain.Pageable pageable);
+
+    /**
      * 기간 내 일기의 대표 감정 원본 데이터.
      * 반환 컬럼: [0] voiceId(Long), [1] createdDate(LocalDateTime),
      * [2] aiTopEmotion(EmotionType), [3] reportedEmotion(EmotionType)

@@ -20,6 +20,13 @@ public interface DiaryEmotionHistoryPort {
     List<Long> findUntriggeredVoiceIds(LocalDateTime since, int limit);
 
     /**
+     * 한 사용자의 분석 완료·미트리거 일기 ID. 스캔 범위 제한 없음.
+     *
+     * @return 작성일 내림차순 (최신 일기부터)
+     */
+    List<Long> findUntriggeredVoiceIdsOfUser(Long userId, int limit);
+
+    /**
      * 지정 기간의 일별 대표 감정. 사용자 신고 감정이 있으면 그것을 우선 반영한다.
      *
      * @param from 시작일 (포함)
