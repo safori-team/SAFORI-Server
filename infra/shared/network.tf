@@ -1,6 +1,6 @@
 # alpha·prod 공용 VPC. 환경 분리는 SG/Tunnel/IAM/DB 사용자 단위로 한다.
 # public subnet: EC2 (인바운드 없음, 외부 API 호출용 public IP) / db subnet: RDS
-# NAT 없음: EC2 는 public IP 로 외부 API(Gemini/OpenAI/Sentry/FCM)에 나간다.
+# NAT 없음: EC2 는 public IP 로 외부 API(Gemini/OpenAI/Grafana Cloud/FCM)에 나간다.
 # 환경 스택은 태그 Name=safori-vpc, Tier=public|db 로 찾는다.
 
 variable "vpc_cidr" {

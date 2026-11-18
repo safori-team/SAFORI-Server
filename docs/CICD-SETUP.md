@@ -82,40 +82,40 @@ Settings → Environments 에서 **`prod`**, **`alpha`** 두 개 생성 후 각�
 - SSM: `SendCommand`, `ListCommands`, `ListCommandInvocations`, `GetCommandInvocation`, `PutParameter`(`/safori/<env>/deploy/*`)
 - 신뢰 정책: `token.actions.githubusercontent.com`, 레포 + 환경(`prod`/`alpha`) 조건
 
-## 모니터링 (Sentry + OpenTelemetry)
+## 모니터링 (OpenTelemetry → Grafana Cloud)
 
-에러와 트레이스를 **하이브리드**로 수집한다.
+| 신호 | 경로 |
+|---|---|
+| 트레이스·로그 | 앱(OTel Java agent, `-javaagent`) → OTLP push → `otel-collector` → Grafana Tempo / Loki |
+| 메트릭 | collector 가 `<CONTAINER_NAME>-blue/green:9082/actuator/prometheus` 를 60초마다 scrape → Grafana Mimir |
 
-| 신호 | 경로 | 근거 |
-|---|---|---|
-| 에러(Issue) | 앱 → Sentry SDK → DSN 직결 | Issue 그룹핑/스택트레이스/알림은 SDK 만 제대로 됨 |
-| 트레이스(응답시간·처리량·에러율) | 앱 → OTLP → `otel-collector` 사이드카 → Sentry OTLP | collector 가 앱과 별도 프로세스라 앱이 죽어도 이미 받은 스팬 유실 안 됨. 영속 큐로 재시작에도 버퍼 보존 |
+- agent 가 Spring MVC, JDBC, RestClient, AWS SDK(SQS·S3), OkHttp(Gemini), `@Scheduled` 를 코드 수정 없이 계측한다.
+- 쉬는 색깔은 항상 `up=0` 이다. 앱 다운 알림은 `max(up{job="safori"}) == 0`.
+- alpha/prod 는 Grafana stack(테넌트) 1개를 같이 쓴다. 구분은 메트릭 `env`, 트레이스·로그 `deployment.environment`.
+- Free 한도(메트릭 10k active series, 로그·트레이스 각 50GB/월, 보존 14일)도 같이 쓴다. 넘으면 과금 없이 초과분이 버려진다.
+- 메트릭 예산: 인스턴스당 기동 직후 약 105, 트래픽 후 약 850 series → 최악 약 3.5k. URI·사용자 ID 같은 태그를 새로 붙일 땐 시리즈 수를 먼저 본다.
 
-배포 시 `deploy.yml` 이 앱 컨테이너와 함께 `otel-collector` 컨테이너를 **같은 `DOCKER_NETWORK`** 에 띄운다.
-앱은 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector:4318/v1/traces` 로 스팬을 보내고,
-collector 가 `x-sentry-auth` 헤더를 붙여 Sentry 로 forward 한다.
+### Safori-Back-Env 에 추가할 것
 
-### Safori-Back-Env 에 추가할 것 (환경별)
+1. 이 레포 `docker/otel-collector-config.yaml` 을 env-repo **루트**에 복사 (alpha/prod 공용).
+2. `alpha.env` / `prod.env` 를 **같이** 맞춘다. 키가 빠지면 배포 스크립트의 collector 검증에서 배포가 멈춘다(기존 컨테이너는 그대로).
 
-1. **`otel-collector-config.yaml`** — 이 레포 `docker/otel-collector-config.yaml` 을 env-repo **루트**에 복사(비밀 아님, `${env:}` 치환). alpha/prod 공용.
-2. 각 `${SPRING_PROFILE}.env` 에 아래 키 추가 (`.env.example` 의 "모니터링" 섹션 참고):
+| 키 | 값 |
+|---|---|
+| `OTEL_SDK_DISABLED` | `false` |
+| `OTEL_SERVICE_NAME` | `safori-server` |
+| `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment=alpha` / `prod` |
+| `OTEL_PROPAGATORS` | `tracecontext,baggage` (기존 `sentry` 는 반드시 교체) |
+| `OTEL_TRACES_EXPORTER` / `OTEL_LOGS_EXPORTER` | `otlp` |
+| `OTEL_METRICS_EXPORTER` | `none` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4318` |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` |
+| `OTEL_TRACES_SAMPLER` / `OTEL_TRACES_SAMPLER_ARG` | `parentbased_traceidratio` / `1.0` |
+| `GRAFANA_OTLP_ENDPOINT` | `https://otlp-gateway-prod-<region>.grafana.net/otlp` |
+| `GRAFANA_OTLP_AUTH` | `Basic <base64(instanceId:token)>` |
+| `OTEL_LOG_MIN_SEVERITY` | alpha `13`(WARN) / prod `9`(INFO) |
 
-| 키 | 설명 | 예시 |
-|---|---|---|
-| `SENTRY_DSN` | Sentry 프로젝트 DSN | `https://<key>@o<org>.ingest.us.sentry.io/<proj>` |
-| `SENTRY_ENVIRONMENT` | Sentry environment 태그 | `alpha` / `prod` |
-| `OTEL_SDK_DISABLED` | OTel 마스터 스위치 | `false` |
-| `OTEL_SERVICE_NAME` | 서비스명 | `safori-server` |
-| `OTEL_PROPAGATORS` | 전파기 | `sentry` |
-| `OTEL_TRACES_EXPORTER` | 익스포터 | `otlp` |
-| `OTEL_LOGS_EXPORTER` / `OTEL_METRICS_EXPORTER` | 로그/메트릭 익스포터 | `none` |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | collector 주소 | `http://otel-collector:4318/v1/traces` |
-| `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` | 프로토콜 | `http/protobuf` |
-| `OTEL_TRACES_SAMPLER` / `OTEL_TRACES_SAMPLER_ARG` | 샘플러/비율 | `parentbased_traceidratio` / `1.0` |
-| `SENTRY_OTLP_TRACES_ENDPOINT` | collector→Sentry OTLP endpoint | `https://o<org>.ingest.us.sentry.io/api/<proj>/integration/otlp/v1/traces` |
-| `SENTRY_OTLP_AUTH_HEADER` | `x-sentry-auth` 헤더값 | `sentry sentry_key=<publicKey>` |
-
-> alpha/prod 를 Sentry 프로젝트로 분리하려면 프로젝트 2개 만들어 각 `.env` 에 서로 다른 DSN/OTLP 값을 넣는다.
+삭제: `SENTRY_*`, `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`.
 
 ### 타겟 EC2 참고
 
