@@ -31,6 +31,12 @@ processors:
   batch:
     send_batch_size: 512
     timeout: 5s
+  # health 체크(30초)·scrape(60초) 스팬은 버린다
+  filter/actuator:
+    error_mode: ignore
+    traces:
+      span:
+        - IsMatch(attributes["url.path"], "^/actuator")
   filter/log_severity:
     error_mode: ignore
     logs:
@@ -55,7 +61,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, filter/actuator, batch]
       exporters: [otlphttp/grafana]
     metrics:
       receivers: [prometheus]
