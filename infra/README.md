@@ -194,6 +194,7 @@ Environment secrets에는 다음 값을 등록한다.
 | `EDGE_ENVIRONMENTS_JSON` | terraform.tfvars의 `environments` 맵을 JSON 객체로 입력. 예: `{"alpha":{"hostname":"alpha-api.example.com","allowed_origins":["https://alpha.example.com"]}}` |
 
 alpha와 prod는 state를 공유한다. 이미 관리하는 환경을 모두 JSON에 포함하고 prod를 추가할 때는 alpha 항목도 유지한다.
+Cloudflare Access로 보호 중인 콘솔에도 점검 화면을 적용하려면 해당 환경에 선택 항목 `backoffice_hostname`을 추가한다. 콘솔의 `/v1/api/parking`은 조회 전용이고, EC2가 중지되면 콘솔 페이지 요청에는 엣지에서 점검 HTML을 제공한다.
 환경 누락이나 리소스 교체로 삭제가 계획되면 Action이 적용 전에 중단한다. 의도한 삭제·교체는 위의 수동 Terraform 절차에서 계획을 검토한다.
 
 OIDC 역할은 GitHub OIDC 공급자에 대해 `sts:AssumeRoleWithWebIdentity`를 허용하고,

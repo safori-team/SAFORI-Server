@@ -3,7 +3,8 @@
 
 environments = {
   alpha = {
-    hostname = "alpha-api.example.com"
+    hostname            = "alpha-api.example.com"
+    backoffice_hostname = "alpha-admin.example.com"
   }
   prod = {
     hostname        = "api.example.com"
