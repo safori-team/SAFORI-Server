@@ -273,23 +273,24 @@ Cron(1분) → https://<호스트>/actuator/health → 상태가 바뀔 때만 K
 | 요청 | 설명 |
 |---|---|
 | `GET /v1/api/parking` | 누구나. 서버와 무관하게 Worker 가 답한다. `result.parking`, `type`(`MANUAL`/`AUTO`), `reason`, `startAt`, `endAt`, `scheduled`(예약 점검) |
-| `PUT /v1/api/parking` | `X-Operator-Key` 필요. 본문 `{"reason": "...", "startAt"?: ISO-8601, "endAt"?: ISO-8601}`. `startAt` 이 미래면 예약 |
-| `DELETE /v1/api/parking` | `X-Operator-Key` 필요. 수동 파킹 해제 |
+| `PUT /v1/api/parking` | `X-Parking-Operator-Key` 필요. 본문 `{"reason": "...", "startAt"?: ISO-8601, "endAt"?: ISO-8601}`. `startAt` 이 미래면 예약 |
+| `DELETE /v1/api/parking` | `X-Parking-Operator-Key` 필요. 수동 파킹 해제 |
 
 - **파킹 응답**: HTTP `503`, 헤더 `X-Safori-Parking: MANUAL|AUTO`, `Retry-After`(초),
   본문은 서버와 같은 `{"isSuccess": false, "code": 503, "message": 사유, "result": {...}}`.
   웹·앱은 공통 인터셉터에서 이 헤더를 보고 파킹 화면을 띄우고, 앱 시작·복귀 때 `GET /v1/api/parking` 을 부른다.
 - **자동 파킹 판정**: 원본이 `502/503/504/520~527/530` 을 주거나 연결이 안 되면. 앱의 4xx·500 은 그대로 둔다.
-- **운영자 우회**: 수동 파킹 중에도 `X-Operator-Key` 를 붙인 요청은 원본으로 간다(점검 후 확인용).
+- **운영자 우회**: 수동 파킹 중에도 유효한 `X-Parking-Operator-Key` 를 보내면 Worker 가 이 헤더를 제거한 뒤 원본으로 전달한다.
+  서버 운영자 API를 호출할 때는 서버용 `X-Operator-Key` 도 함께 보낸다.
 - **반영 지연**: KV 는 다른 지역까지 최대 약 60초, Worker 는 isolate 마다 15초 캐시. 등록·해제 후 1분 정도 걸릴 수 있다.
 - **alpha** 는 평소 정지라 항상 자동 파킹으로 보인다(정상).
 - 예시
 
   ```bash
   H=api.example.com; K=$(aws ssm get-parameter --name /safori/prod/parking-operator-key --with-decryption --query Parameter.Value --output text)
-  curl -X PUT "https://${H}/v1/api/parking" -H "X-Operator-Key: ${K}" -H 'Content-Type: application/json' \
+  curl -X PUT "https://${H}/v1/api/parking" -H "X-Parking-Operator-Key: ${K}" -H 'Content-Type: application/json' \
     -d '{"reason":"DB 점검으로 02:00~03:00 이용이 제한됩니다.","endAt":"2026-11-20T03:00:00+09:00"}'
-  curl -X DELETE "https://${H}/v1/api/parking" -H "X-Operator-Key: ${K}"
+  curl -X DELETE "https://${H}/v1/api/parking" -H "X-Parking-Operator-Key: ${K}"
   ```
 
 ### prod 자동 복구 (ASG)

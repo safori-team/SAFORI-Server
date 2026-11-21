@@ -1,7 +1,7 @@
 // SAFORI 파킹(점검) Worker. API 호스트 앞에서 모든 요청을 받는다.
 //
 //   수동 파킹  운영자가 PUT /v1/api/parking 으로 사유를 등록하면 서버로 보내지 않고 503 을 준다.
-//              X-Operator-Key 를 붙인 요청은 통과시켜 점검 중에도 운영자가 확인할 수 있다.
+//              X-Parking-Operator-Key 를 붙인 요청은 통과시켜 점검 중에도 운영자가 확인할 수 있다.
 //   자동 파킹  서버가 꺼졌거나(Tunnel 끊김 530) 앱이 죽어(502/504/52x) 원본이 실패하면 같은 형식으로 바꿔 준다.
 //   헬스 체크  Cron 이 1분마다 HEALTH_URL 을 확인해 상태가 바뀔 때만 KV 에 쓴다(KV 무료 쓰기 하루 1,000건).
 //   상태 조회  GET /v1/api/parking 은 서버와 무관하게 Worker 가 답한다. 웹·앱이 시작할 때 호출한다.
@@ -10,7 +10,7 @@
 // 클라이언트가 본문을 보지 않고도 알 수 있게 X-Safori-Parking: MANUAL|AUTO 헤더를 붙인다.
 
 export const PARKING_PATH = '/v1/api/parking';
-export const OPERATOR_HEADER = 'X-Operator-Key';
+export const PARKING_OPERATOR_HEADER = 'X-Parking-Operator-Key';
 export const PARKING_HEADER = 'X-Safori-Parking';
 export const HEALTH_PATH = '/actuator/health';
 
@@ -67,7 +67,7 @@ function timingSafeEqual(a, b) {
 // 키가 설정되지 않았으면 아무도 통과시키지 않는다(빈 헤더 == 빈 키 방지)
 export function isOperator(request, env) {
   const key = env.OPERATOR_KEY;
-  const provided = request.headers.get(OPERATOR_HEADER);
+  const provided = request.headers.get(PARKING_OPERATOR_HEADER);
   return Boolean(key) && provided !== null && timingSafeEqual(key, provided);
 }
 
@@ -208,6 +208,13 @@ async function handleParkingApi(request, env, now) {
   return json(request, env, 405, { isSuccess: false, code: 405, message: 'Method Not Allowed', result: null });
 }
 
+function fetchOrigin(request) {
+  if (!request.headers.has(PARKING_OPERATOR_HEADER)) return fetch(request);
+  const upstream = new Request(request);
+  upstream.headers.delete(PARKING_OPERATOR_HEADER);
+  return fetch(upstream);
+}
+
 export async function handleFetch(request, env, now = Date.now()) {
   const url = new URL(request.url);
 
@@ -216,7 +223,7 @@ export async function handleFetch(request, env, now = Date.now()) {
   }
   if (url.pathname === HEALTH_PATH) {
     // Cron 헬스 체크가 수동 파킹에 막히지 않게 그대로 원본으로 보낸다(show-details: never 라 {"status":"UP"} 만 나옴)
-    return fetch(request);
+    return fetchOrigin(request);
   }
 
   const { manual, auto } = await readState(env, now);
@@ -226,7 +233,7 @@ export async function handleFetch(request, env, now = Date.now()) {
 
   let response;
   try {
-    response = await fetch(request);
+    response = await fetchOrigin(request);
   } catch {
     response = null;
   }

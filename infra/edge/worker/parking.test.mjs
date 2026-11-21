@@ -55,11 +55,36 @@ test('수동 파킹 중이면 원본에 가지 않고 503 + 사유', async () =>
   assert.equal(originCalls, 0);
 });
 
-test('운영자 키를 붙이면 수동 파킹 중에도 통과', async () => {
+test('점검 중 서버 운영자 API에는 서버 키와 요청 본문만 전달한다', async () => {
+  const e = env({ manual: { reason: '점검' } });
+  const url = `${API}/v1/api/operator/organizations`;
+  mockOrigin(async (req) => {
+    assert.equal(req.url, url);
+    assert.equal(req.method, 'POST');
+    assert.equal(req.headers.get('X-Operator-Key'), 'server-key');
+    assert.equal(req.headers.has('X-Parking-Operator-Key'), false);
+    assert.equal(await req.text(), '{"name":"test"}');
+    return new Response(null, { status: 201 });
+  });
+  const req = new Request(url, {
+    method: 'POST',
+    headers: { 'X-Parking-Operator-Key': 'secret', 'X-Operator-Key': 'server-key' },
+    body: '{"name":"test"}',
+  });
+  assert.equal((await handleFetch(req, e, NOW)).status, 201);
+});
+
+test('기존 서버 헤더만으로는 수동 파킹을 우회할 수 없다', async () => {
   const e = env({ manual: { reason: '점검' } });
   const req = new Request(`${API}/v1/api/users/me`, { headers: { 'X-Operator-Key': 'secret' } });
-  const res = await handleFetch(req, e, NOW);
-  assert.equal(res.status, 200);
+  assert.equal((await handleFetch(req, e, NOW)).status, 503);
+  assert.equal(originCalls, 0);
+});
+
+test('정상 서비스 중에도 파킹 헤더는 값에 관계없이 제거한다', async () => {
+  mockOrigin((req) => new Response(null, { status: req.headers.has('X-Parking-Operator-Key') ? 400 : 200 }));
+  const req = new Request(`${API}/v1/api/users/me`, { headers: { 'X-Parking-Operator-Key': 'wrong' } });
+  assert.equal((await handleFetch(req, env(), NOW)).status, 200);
 });
 
 test('예약 점검은 시작 전에는 막지 않는다', async () => {
@@ -115,19 +140,24 @@ test('등록·해제는 운영자 키가 있어야 한다', async () => {
   }), e, NOW);
 
   assert.equal((await put({}, { reason: 'x' })).status, 401);
-  assert.equal((await put({ 'X-Operator-Key': 'wrong' }, { reason: 'x' })).status, 401);
-  assert.equal((await put({ 'X-Operator-Key': 'secret' }, { reason: ' ' })).status, 400);
-  assert.equal((await put({ 'X-Operator-Key': 'secret' }, {
+  assert.equal((await put({ 'X-Operator-Key': 'secret' }, { reason: 'x' })).status, 401);
+  assert.equal((await put({ 'X-Parking-Operator-Key': 'wrong' }, { reason: 'x' })).status, 401);
+  assert.equal((await put({ 'X-Parking-Operator-Key': 'secret' }, { reason: ' ' })).status, 400);
+  assert.equal((await put({ 'X-Parking-Operator-Key': 'secret' }, {
     reason: 'x', startAt: '2026-11-18T13:00:00Z', endAt: '2026-11-18T12:00:00Z',
   })).status, 400);
 
-  const ok = await put({ 'X-Operator-Key': 'secret' }, { reason: '배포 점검', endAt: '2026-11-18T13:00:00Z' });
+  const ok = await put({ 'X-Parking-Operator-Key': 'secret' }, { reason: '배포 점검', endAt: '2026-11-18T13:00:00Z' });
   assert.equal(ok.status, 200);
   const blocked = await handleFetch(new Request(`${API}/v1/api/x`), e, NOW);
   assert.equal(blocked.status, 503);
 
-  const del = await handleFetch(new Request(`${API}/v1/api/parking`, {
+  const legacyDelete = new Request(`${API}/v1/api/parking`, {
     method: 'DELETE', headers: { 'X-Operator-Key': 'secret' },
+  });
+  assert.equal((await handleFetch(legacyDelete, e, NOW)).status, 401);
+  const del = await handleFetch(new Request(`${API}/v1/api/parking`, {
+    method: 'DELETE', headers: { 'X-Parking-Operator-Key': 'secret' },
   }), e, NOW);
   assert.equal(del.status, 200);
   assert.equal((await handleFetch(new Request(`${API}/v1/api/x`), e, NOW)).status, 200);
@@ -136,14 +166,16 @@ test('등록·해제는 운영자 키가 있어야 한다', async () => {
 test('운영자 키가 설정되지 않으면 아무도 등록 못 한다', async () => {
   const e = env({}, { OPERATOR_KEY: '' });
   const res = await handleFetch(new Request(`${API}/v1/api/parking`, {
-    method: 'DELETE', headers: { 'X-Operator-Key': '' },
+    method: 'DELETE', headers: { 'X-Parking-Operator-Key': '' },
   }), e, NOW);
   assert.equal(res.status, 401);
 });
 
 test('헬스 경로는 수동 파킹 중에도 원본으로', async () => {
   const e = env({ manual: { reason: '점검' } });
-  const res = await handleFetch(new Request(`${API}/actuator/health`), e, NOW);
+  mockOrigin((req) => new Response(null, { status: req.headers.has('X-Parking-Operator-Key') ? 400 : 200 }));
+  const req = new Request(`${API}/actuator/health`, { headers: { 'X-Parking-Operator-Key': 'secret' } });
+  const res = await handleFetch(req, e, NOW);
   assert.equal(res.status, 200);
 });
 
