@@ -151,7 +151,7 @@ Workers KV 에 있으므로 서버 없이도 등록·해제된다. 동작은 아
      --value "$(openssl rand -base64 32)"
    ```
 
-2. Tunnel 퍼블릭 호스트네임에 헬스 경로 규칙 추가 — "경로 제한" 표의 1번 위에 둔다.
+2. Tunnel 퍼블릭 호스트네임에 헬스 경로 규칙 추가 — 아래 "경로 제한" 표의 첫 번째 규칙이다.
    액추에이터는 `show-details: never` 라 `{"status":"UP"}` 만 나간다.
 
    | 호스트 | 경로(정규식) | 서비스 |
@@ -272,12 +272,13 @@ Tunnel → Public Hostname 에 경로 규칙을 위에서부터 매칭 순서대
 
 | 순서 | 호스트 | 경로(정규식) | 서비스 |
 |---|---|---|---|
-| 1 | prod 도메인 | `^/v1/api/dev/.*` | `http_status:404` |
-| 2 | 환경 도메인 | `^/v1/api/.*` | `http://safori-app:8080` |
-| 3 | alpha 도메인만 | `^/(swagger-ui.*\|v3/api-docs.*)` | `http://safori-app:8080` |
-| 4 | (catch-all) | — | `http_status:404` |
+| 1 | 파킹을 배포할 환경 도메인 | `^/actuator/health$` | `http://safori-app:9082` |
+| 2 | prod 도메인 | `^/v1/api/dev/.*` | `http_status:404` |
+| 3 | 환경 도메인 | `^/v1/api/.*` | `http://safori-app:8080` |
+| 4 | alpha 도메인만 | `^/(swagger-ui.*\|v3/api-docs.*)` | `http://safori-app:8080` |
+| 5 | (catch-all) | — | `http_status:404` |
 
-액추에이터(9082)는 Tunnel 에 연결하지 않으므로 규칙과 무관하게 외부에서 닿지 않는다.
+파킹을 배포할 환경에서는 관리 포트(9082)의 정확한 `/actuator/health` 경로만 공개한다. 서버가 켜져 있을 때 API 호스트에서 이 경로가 HTTP 200과 `{"status":"UP"}`을 반환하는지 확인한다.
 
 #### blue/green 배포
 
