@@ -174,7 +174,34 @@ terraform apply
 apply 후 대시보드 → Workers Routes 에서 라우트의 **요청 한도 실패 모드가 fail open** 인지 확인한다.
 무료 플랜 Worker 요청 한도(하루 10만)를 넘었을 때 Worker 를 건너뛰고 원본으로 보내 API 가 멈추지 않게 한다.
 
-Worker 코드만 바꿨으면 `terraform apply` 로 다시 올린다. 테스트는 `cd worker && npm test` (Node 18+, 의존성 없음).
+### GitHub Actions로 edge 배포
+
+`infra/edge/**` 또는 `.github/workflows/edge.yml`을 수정하면 PR에서 Worker 테스트, Terraform 포맷·스키마 검증을 실행한다.
+`main`에 머지하면 **Deploy parking Worker**가 `infra/edge`에서 plan을 만들고 같은 plan을 적용한다.
+재실행은 Actions → Deploy parking Worker → Run workflow에서 `main`을 선택한다.
+로컬 Worker 테스트는 `cd infra/edge/worker && npm test`로 실행한다.
+
+처음 사용하기 전에 GitHub Environment `edge`를 만들고 배포 브랜치를 `main`으로 지정한다.
+사람의 승인을 거쳐 배포하려면 이 Environment에 Required reviewers를 설정한다.
+Environment secrets에는 다음 값을 등록한다.
+
+| Secret | 값 |
+|---|---|
+| `AWS_ROLE_TO_ASSUME` | edge 배포용 AWS OIDC 역할 ARN |
+| `TF_STATE_BUCKET` | 기존 `edge/terraform.tfstate`가 있는 S3 버킷(신규 배포는 준비한 state 버킷) |
+| `CLOUDFLARE_API_TOKEN` | 위 사전 준비에서 만든 배포 토큰 |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID` | 대상 Cloudflare 계정과 zone |
+| `EDGE_ENVIRONMENTS_JSON` | terraform.tfvars의 `environments` 맵을 JSON 객체로 입력. 예: `{"alpha":{"hostname":"alpha-api.example.com","allowed_origins":["https://alpha.example.com"]}}` |
+
+alpha와 prod는 state를 공유한다. 이미 관리하는 환경을 모두 JSON에 포함하고 prod를 추가할 때는 alpha 항목도 유지한다.
+환경 누락이나 리소스 교체로 삭제가 계획되면 Action이 적용 전에 중단한다. 의도한 삭제·교체는 위의 수동 Terraform 절차에서 계획을 검토한다.
+
+OIDC 역할은 GitHub OIDC 공급자에 대해 `sts:AssumeRoleWithWebIdentity`를 허용하고,
+`aud=sts.amazonaws.com`, `sub=repo:safori-team/SAFORI-Server:environment:edge`로 신뢰 범위를 제한한다.
+state 버킷의 `s3:ListBucket`, `edge/terraform.tfstate`의 `s3:GetObject`·`s3:PutObject`,
+`edge/terraform.tfstate.tflock`의 `s3:GetObject`·`s3:PutObject`·`s3:DeleteObject`,
+대상 환경별 `/safori/<env>/parking-operator-key`의 `ssm:GetParameter` 권한이 필요하다.
+고객 관리형 KMS 키를 사용하면 해당 SSM 키의 복호화와 S3 state 암복호화에 필요한 권한도 부여한다.
 
 ## 6. DB 스키마·사용자 생성 (최초 1회)
 

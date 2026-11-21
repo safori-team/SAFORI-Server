@@ -17,6 +17,9 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - 'infra/edge/**'
+      - '.github/workflows/edge.yml'
   workflow_dispatch:
 
 permissions:
