@@ -59,8 +59,9 @@ variable "environments" {
     allowed_origins: 브라우저가 파킹 응답 본문을 읽을 수 있게 CORS 를 허용할 웹 출처. 같은 출처면 비워 둔다.
   EOT
   type = map(object({
-    hostname        = string
-    allowed_origins = optional(list(string), [])
+    hostname            = string
+    allowed_origins     = optional(list(string), [])
+    backoffice_hostname = optional(string)
   }))
 }
 
@@ -105,6 +106,11 @@ resource "cloudflare_workers_script" "parking" {
       namespace_id = cloudflare_workers_kv_namespace.parking[each.key].id
     },
     {
+      name = "BACKOFFICE_HOSTNAME"
+      type = "plain_text"
+      text = each.value.backoffice_hostname == null ? "" : each.value.backoffice_hostname
+    },
+    {
       name = "HEALTH_URL"
       type = "plain_text"
       text = "https://${each.value.hostname}/actuator/health"
@@ -129,6 +135,15 @@ resource "cloudflare_workers_route" "parking" {
 
   zone_id = var.cloudflare_zone_id
   pattern = "${each.value.hostname}/*"
+  script  = cloudflare_workers_script.parking[each.key].script_name
+}
+
+# Cloudflare Access checks the console hostname before routing to this Worker.
+resource "cloudflare_workers_route" "backoffice" {
+  for_each = { for name, env in var.environments : name => env if env.backoffice_hostname != null }
+
+  zone_id = var.cloudflare_zone_id
+  pattern = "${each.value.backoffice_hostname}/*"
   script  = cloudflare_workers_script.parking[each.key].script_name
 }
 

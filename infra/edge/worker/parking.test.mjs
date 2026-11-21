@@ -209,3 +209,28 @@ test('Cron: 상태가 바뀔 때만 KV 에 쓴다', async () => {
   assert.equal(e.PARKING.writes, 2);
   assert.equal(JSON.parse(e.PARKING.store.get('auto')).down, false);
 });
+
+test('원본이 꺼진 콘솔에 새로 방문하면 원래 주소에서 재확인할 수 있는 HTML을 받는다', async () => {
+  const e = env({}, { BACKOFFICE_HOSTNAME: 'console.example.com' });
+  mockOrigin(() => new Response('', { status: 530 }));
+  const req = new Request('https://console.example.com/organizations', { headers: { Accept: 'text/html' } });
+  const res = await handleFetch(req, e, NOW);
+  assert.equal(res.status, 503);
+  assert.equal(res.headers.get(PARKING_HEADER), 'AUTO');
+  assert.match(res.headers.get('content-type'), /text\/html/);
+  assert.match(await res.text(), /서비스 점검 중입니다/);
+  mockOrigin(() => new Response('console', { status: 200 }));
+  assert.equal(await (await handleFetch(req, e, NOW)).text(), 'console');
+});
+
+test('콘솔 점검 사유는 텍스트로 표시하고 콘솔에서는 파킹을 변경할 수 없다', async () => {
+  const e = env({ manual: { reason: '<b>점검</b>' } }, { BACKOFFICE_HOSTNAME: 'console.example.com' });
+  const req = new Request('https://console.example.com/', { headers: { Accept: 'text/html' } });
+  assert.match(await (await handleFetch(req, e, NOW)).text(), /&lt;b&gt;점검/);
+  const change = new Request('https://console.example.com/v1/api/parking', {
+    method: 'DELETE', headers: { 'X-Parking-Operator-Key': 'secret' },
+  });
+  assert.equal((await handleFetch(change, e, NOW)).status, 405);
+  const api = new Request('https://console.example.com/v1/api/operator/organizations', { headers: { Accept: 'text/html' } });
+  assert.match((await handleFetch(api, e, NOW)).headers.get('content-type'), /application\/json/);
+});

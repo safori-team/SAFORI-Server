@@ -127,7 +127,36 @@ export function parkingInfo(type, manual, auto) {
   };
 }
 
+function isBackoffice(request, env) {
+  return new URL(request.url).hostname === env.BACKOFFICE_HOSTNAME;
+}
+
+function consoleParkingPage(info, retry) {
+  const reason = info.reason.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60">
+<title>서비스 점검 중 · 사포리 운영 콘솔</title>
+<style>body{font:1.1rem/1.6 system-ui,sans-serif;color:#152c4a;margin:0}main{max-width:32rem;margin:20vh auto;padding:0 1.5rem}p{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#0c54b0}</style></head>
+<body><main><h1>서비스 점검 중</h1><p>${reason}</p><a href="">다시 확인</a></main></body></html>`;
+  return new Response(html, {
+    status: 503,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+      'Retry-After': String(retry),
+      [PARKING_HEADER]: info.type,
+    },
+  });
+}
+
 function parkingResponse(request, env, info, now, manual) {
+  if (isBackoffice(request, env) && request.method === 'GET' &&
+      !new URL(request.url).pathname.startsWith('/v1/') && request.headers.get('Accept')?.includes('text/html')) {
+    return consoleParkingPage(info, retryAfterSec(manual, now));
+  }
   if (request.method === 'OPTIONS') {
     // 서버가 꺼져 있으면 preflight 도 원본에 못 가므로 여기서 답한다
     return new Response(null, { status: 204, headers: corsHeaders(request, env) });
@@ -219,6 +248,9 @@ export async function handleFetch(request, env, now = Date.now()) {
   const url = new URL(request.url);
 
   if (url.pathname === PARKING_PATH) {
+    if (isBackoffice(request, env) && !['GET', 'OPTIONS'].includes(request.method)) {
+      return new Response(null, { status: 405, headers: { Allow: 'GET, OPTIONS' } });
+    }
     return handleParkingApi(request, env, now);
   }
   if (url.pathname === HEALTH_PATH) {
