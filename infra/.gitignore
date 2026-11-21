@@ -16,3 +16,6 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# edge 스택 로컬 변수 (도메인 등) — terraform.tfvars.example 참고
+edge/terraform.tfvars

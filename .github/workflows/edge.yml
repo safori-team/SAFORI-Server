@@ -1,0 +1,93 @@
+name: Deploy parking Worker
+
+on:
+  pull_request:
+    paths:
+      - 'infra/edge/**'
+      - '.github/workflows/edge.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/edge/**'
+      - '.github/workflows/edge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: infra/edge
+
+env:
+  TF_IN_AUTOMATION: 'true'
+  TF_INPUT: 'false'
+  TERRAFORM_VERSION: '1.13.5'
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix worker test
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -lockfile=readonly
+      - run: terraform validate
+
+  deploy:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: edge
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: terraform-edge
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ap-northeast-2
+          mask-aws-account-id: true
+      - name: Initialize edge state
+        env:
+          STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=${STATE_BUCKET:?}"
+      - name: Plan edge changes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_environments: ${{ secrets.EDGE_ENVIRONMENTS_JSON }}
+        run: |
+          set -euo pipefail
+          : "${CLOUDFLARE_API_TOKEN:?}" "${TF_VAR_cloudflare_account_id:?}" "${TF_VAR_cloudflare_zone_id:?}"
+          jq -en --argjson envs "${TF_VAR_environments:?}" \
+            '$envs | type == "object" and length > 0 and (keys - ["alpha", "prod"] == [])' >/dev/null
+          terraform plan -lock-timeout=5m -out="$RUNNER_TEMP/edge.tfplan" -json |
+            jq -r 'select(.type == "change_summary" or .type == "diagnostic") | (.diagnostic.summary // ."@message")'
+          terraform show -json "$RUNNER_TEMP/edge.tfplan" | jq -er '
+            [.resource_changes[]? | select(.change.actions | index("delete")) | .address] |
+            if length == 0 then "No edge resources to delete."
+            else error("Edge deletion needs manual review: " + join(", ")) end'
+      - name: Apply saved edge plan
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          terraform apply -lock-timeout=5m -json "$RUNNER_TEMP/edge.tfplan" |
+            jq -r 'select(.type == "change_summary" or .type == "diagnostic") | (.diagnostic.summary // ."@message")'

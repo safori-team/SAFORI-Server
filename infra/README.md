@@ -11,14 +11,15 @@
 infra/
 ├── shared/        공용: VPC, RDS MySQL 1대, ECR, API 문서 버킷, GitHub OIDC
 ├── modules/env/   환경 1개: EC2, SQS, S3, Lambda 껍데기, 배포 role, RDS 접근 규칙
-└── envs/
-    ├── alpha/     EC2 1대 → 스키마 safori_alpha (평소 정지)
-    └── prod/      EC2 1대 → 스키마 safori_prod
+├── envs/
+│   ├── alpha/     EC2 1대 → 스키마 safori_alpha (평소 정지)
+│   └── prod/      EC2 1대 → 스키마 safori_prod
+└── edge/          Cloudflare: 파킹(점검) Worker + KV + 라우트 + 헬스 Cron (환경별)
 ```
 
 | 흐름 | 경로 |
 |---|---|
-| 요청 | 사용자 → Cloudflare(HTTPS) ═ Tunnel ═ EC2 의 `cloudflared` → `safori-app:8080`(앱, blue/green) |
+| 요청 | 사용자 → Cloudflare(HTTPS) → 파킹 Worker ═ Tunnel ═ EC2 의 `cloudflared` → `safori-app:8080`(앱, blue/green) |
 | 인바운드 | **없음.** `cloudflared` 가 Cloudflare 로 먼저 연결한다 |
 | DB | EC2 → 공용 RDS `3306` (private subnet). 환경은 스키마 + DB 사용자로 분리 |
 | 접속 | SSH 없음. SSM Session Manager |
@@ -30,7 +31,7 @@ DNS 는 Tunnel 을 가리키므로 인스턴스 IP 가 바뀌어도(정지·교�
 ## 테라폼이 하지 않는 것 (수동)
 
 - DB 스키마·사용자 생성 (아래 절차)
-- Cloudflare Tunnel 생성, 토큰 SSM 등록, 퍼블릭 호스트네임 설정 (아래 절차)
+- Cloudflare Tunnel 생성, 토큰 SSM 등록, 퍼블릭 호스트네임 설정 (아래 절차). 파킹 Worker 는 `edge/` 가 관리
 - env-repo deploy key 등록, `Safori-Back-Env` 값 교체
 - GitHub Environments(`alpha`/`prod`) vars/secrets 교체
 - 옛 계정 S3 객체 복사(필요 시)
@@ -135,6 +136,73 @@ output:
 - `github_environment` → GitHub Environment 의 vars/secrets
 - `env_file_values` → `Safori-Back-Env` 의 `<profile>.env` 교체 값
 
+## 5-1. edge (파킹 Worker)
+
+서버가 꺼져 있거나 점검 중일 때 웹·앱이 받을 응답을 Cloudflare Worker 가 준다. 상태·사유는 서버 DB 가 아니라
+Workers KV 에 있으므로 서버 없이도 등록·해제된다. 동작은 아래 "파킹(점검)" 참고.
+
+**사전 준비 (환경별 1회)**
+
+1. 운영자 키 SSM 등록 — 서버의 `operator.api-key` 와 다른 값으로 만든다.
+
+   ```bash
+   E=alpha   # prod 도 반복
+   aws ssm put-parameter --name "/safori/${E}/parking-operator-key" --type SecureString \
+     --value "$(openssl rand -base64 32)"
+   ```
+
+2. Tunnel 퍼블릭 호스트네임에 헬스 경로 규칙 추가 — 아래 "경로 제한" 표의 첫 번째 규칙이다.
+   액추에이터는 `show-details: never` 라 `{"status":"UP"}` 만 나간다.
+
+   | 호스트 | 경로(정규식) | 서비스 |
+   |---|---|---|
+   | 환경 도메인 | `^/actuator/health$` | `http://safori-app:9082` |
+
+3. Cloudflare API 토큰 — 권한 `Account › Workers Scripts: Edit`, `Account › Workers KV Storage: Edit`,
+   `Zone › Workers Routes: Edit`.
+
+```bash
+cd ~/safori/infra/edge
+cp terraform.tfvars.example terraform.tfvars   # 도메인 채우기 (커밋 안 됨)
+export CLOUDFLARE_API_TOKEN=...                 # 위 토큰
+export TF_VAR_cloudflare_account_id=...         # 대시보드 → 계정 홈 오른쪽
+export TF_VAR_cloudflare_zone_id=...            # 대시보드 → 도메인 개요 오른쪽
+terraform init -backend-config="bucket=${TFSTATE}"
+terraform apply
+```
+
+apply 후 대시보드 → Workers Routes 에서 라우트의 **요청 한도 실패 모드가 fail open** 인지 확인한다.
+무료 플랜 Worker 요청 한도(하루 10만)를 넘었을 때 Worker 를 건너뛰고 원본으로 보내 API 가 멈추지 않게 한다.
+
+### GitHub Actions로 edge 배포
+
+`infra/edge/**` 또는 `.github/workflows/edge.yml`을 수정하면 PR에서 Worker 테스트, Terraform 포맷·스키마 검증을 실행한다.
+`main`에 머지하면 **Deploy parking Worker**가 `infra/edge`에서 plan을 만들고 같은 plan을 적용한다.
+재실행은 Actions → Deploy parking Worker → Run workflow에서 `main`을 선택한다.
+로컬 Worker 테스트는 `cd infra/edge/worker && npm test`로 실행한다.
+
+처음 사용하기 전에 GitHub Environment `edge`를 만들고 배포 브랜치를 `main`으로 지정한다.
+사람의 승인을 거쳐 배포하려면 이 Environment에 Required reviewers를 설정한다.
+Environment secrets에는 다음 값을 등록한다.
+
+| Secret | 값 |
+|---|---|
+| `AWS_ROLE_TO_ASSUME` | edge 배포용 AWS OIDC 역할 ARN |
+| `TF_STATE_BUCKET` | 기존 `edge/terraform.tfstate`가 있는 S3 버킷(신규 배포는 준비한 state 버킷) |
+| `CLOUDFLARE_API_TOKEN` | 위 사전 준비에서 만든 배포 토큰 |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID` | 대상 Cloudflare 계정과 zone |
+| `EDGE_ENVIRONMENTS_JSON` | terraform.tfvars의 `environments` 맵을 JSON 객체로 입력. 예: `{"alpha":{"hostname":"alpha-api.example.com","allowed_origins":["https://alpha.example.com"]}}` |
+
+alpha와 prod는 state를 공유한다. 이미 관리하는 환경을 모두 JSON에 포함하고 prod를 추가할 때는 alpha 항목도 유지한다.
+환경 누락이나 리소스 교체로 삭제가 계획되면 Action이 적용 전에 중단한다. 의도한 삭제·교체는 위의 수동 Terraform 절차에서 계획을 검토한다.
+
+OIDC 역할은 GitHub OIDC 공급자에 대해 `sts:AssumeRoleWithWebIdentity`를 허용하고,
+`aud=sts.amazonaws.com`, `sub=repo:safori-team/SAFORI-Server:environment:edge`로 신뢰 범위를 제한한다.
+state 버킷의 `s3:ListBucket`, `edge/terraform.tfstate`의 `s3:GetObject`·`s3:PutObject`,
+`edge/terraform.tfstate.tflock`의 `s3:GetObject`·`s3:PutObject`·`s3:DeleteObject`,
+대상 환경별 `/safori/<env>/parking-operator-key`의 `ssm:GetParameter` 권한이 필요하다.
+고객 관리형 KMS 키를 사용하면 해당 SSM 키의 복호화와 S3 state 암복호화에 필요한 권한도 부여한다.
+
 ## 6. DB 스키마·사용자 생성 (최초 1회)
 
 앱은 환경별 사용자로 접속하고, 각 사용자는 자기 스키마 권한만 가진다(alpha 에서 prod 데이터를 건드릴 수 없게).
@@ -204,12 +272,13 @@ Tunnel → Public Hostname 에 경로 규칙을 위에서부터 매칭 순서대
 
 | 순서 | 호스트 | 경로(정규식) | 서비스 |
 |---|---|---|---|
-| 1 | prod 도메인 | `^/v1/api/dev/.*` | `http_status:404` |
-| 2 | 환경 도메인 | `^/v1/api/.*` | `http://safori-app:8080` |
-| 3 | alpha 도메인만 | `^/(swagger-ui.*\|v3/api-docs.*)` | `http://safori-app:8080` |
-| 4 | (catch-all) | — | `http_status:404` |
+| 1 | 파킹을 배포할 환경 도메인 | `^/actuator/health$` | `http://safori-app:9082` |
+| 2 | prod 도메인 | `^/v1/api/dev/.*` | `http_status:404` |
+| 3 | 환경 도메인 | `^/v1/api/.*` | `http://safori-app:8080` |
+| 4 | alpha 도메인만 | `^/(swagger-ui.*\|v3/api-docs.*)` | `http://safori-app:8080` |
+| 5 | (catch-all) | — | `http_status:404` |
 
-액추에이터(9082)는 Tunnel 에 연결하지 않으므로 규칙과 무관하게 외부에서 닿지 않는다.
+파킹을 배포할 환경에서는 관리 포트(9082)의 정확한 `/actuator/health` 경로만 공개한다. 서버가 켜져 있을 때 API 호스트에서 이 경로가 HTTP 200과 `{"status":"UP"}`을 반환하는지 확인한다.
 
 #### blue/green 배포
 
@@ -219,6 +288,38 @@ Tunnel → Public Hostname 에 경로 규칙을 위에서부터 매칭 순서대
   새 앱이 실패하면 새 색깔만 지우고 이전 색깔이 계속 서비스한다.
 - 현재 색깔은 `/opt/safori/active-color`. 앱 메모리 상한 2GB(두 색깔이 잠깐 겹쳐도 4GB 안).
 - 인스턴스를 늘리면 같은 토큰으로 replica 가 더 붙는다(장애 시 넘김). 균등 분산이 필요하면 Cloudflare Load Balancing.
+
+### 파킹(점검)
+
+```
+사용자 → Cloudflare → 파킹 Worker ─┬─ 수동 파킹 ON  → 503 + 운영자 사유 (원본에 안 감)
+                                    ├─ 원본 정상     → 원본 응답 그대로
+                                    └─ 원본 실패     → 503 + 기본 문구 (자동 파킹)
+Cron(1분) → https://<호스트>/actuator/health → 상태가 바뀔 때만 KV(auto) 에 기록
+```
+
+| 요청 | 설명 |
+|---|---|
+| `GET /v1/api/parking` | 누구나. 서버와 무관하게 Worker 가 답한다. `result.parking`, `type`(`MANUAL`/`AUTO`), `reason`, `startAt`, `endAt`, `scheduled`(예약 점검) |
+| `PUT /v1/api/parking` | `X-Parking-Operator-Key` 필요. 본문 `{"reason": "...", "startAt"?: ISO-8601, "endAt"?: ISO-8601}`. `startAt` 이 미래면 예약 |
+| `DELETE /v1/api/parking` | `X-Parking-Operator-Key` 필요. 수동 파킹 해제 |
+
+- **파킹 응답**: HTTP `503`, 헤더 `X-Safori-Parking: MANUAL|AUTO`, `Retry-After`(초),
+  본문은 서버와 같은 `{"isSuccess": false, "code": 503, "message": 사유, "result": {...}}`.
+  웹·앱은 공통 인터셉터에서 이 헤더를 보고 파킹 화면을 띄우고, 앱 시작·복귀 때 `GET /v1/api/parking` 을 부른다.
+- **자동 파킹 판정**: 원본이 `502/503/504/520~527/530` 을 주거나 연결이 안 되면. 앱의 4xx·500 은 그대로 둔다.
+- **운영자 우회**: 수동 파킹 중에도 유효한 `X-Parking-Operator-Key` 를 보내면 Worker 가 이 헤더를 제거한 뒤 원본으로 전달한다.
+  서버 운영자 API를 호출할 때는 서버용 `X-Operator-Key` 도 함께 보낸다.
+- **반영 지연**: KV 는 다른 지역까지 최대 약 60초, Worker 는 isolate 마다 15초 캐시. 등록·해제 후 1분 정도 걸릴 수 있다.
+- **alpha** 는 평소 정지라 항상 자동 파킹으로 보인다(정상).
+- 예시
+
+  ```bash
+  H=api.example.com; K=$(aws ssm get-parameter --name /safori/prod/parking-operator-key --with-decryption --query Parameter.Value --output text)
+  curl -X PUT "https://${H}/v1/api/parking" -H "X-Parking-Operator-Key: ${K}" -H 'Content-Type: application/json' \
+    -d '{"reason":"DB 점검으로 02:00~03:00 이용이 제한됩니다.","endAt":"2026-11-20T03:00:00+09:00"}'
+  curl -X DELETE "https://${H}/v1/api/parking" -H "X-Parking-Operator-Key: ${K}"
+  ```
 
 ### prod 자동 복구 (ASG)
 

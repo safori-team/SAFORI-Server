@@ -11,6 +11,15 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - 'infra/edge/**'
+      - '.github/workflows/edge.yml'
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/docs.yml'
+      - 'infra/README.md'
+      - 'infra/.gitignore'
+
+  workflow_dispatch:
 
 permissions:
   id-token: write
