@@ -136,14 +136,127 @@ function consoleParkingPage(info, retry) {
   const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60">
 <title>서비스 점검 중 · 사포리 운영 콘솔</title>
-<style>body{font:1.1rem/1.6 system-ui,sans-serif;color:#152c4a;margin:0}main{max-width:32rem;margin:20vh auto;padding:0 1.5rem}p{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#0c54b0}</style></head>
-<body><main><h1>서비스 점검 중</h1><p>${reason}</p><a href="">다시 확인</a></main></body></html>`;
+<style>
+body { margin: 0; }
+.parking-shell {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 clamp(22px, 6vw, 96px);
+  background: #f8faff;
+  color: #152c4a;
+  font-family: "Noto Sans KR Variable", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.parking-brand, .parking-layout {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.parking-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 0;
+  border-bottom: 1px solid #d9e3ef;
+  color: #475b75;
+  font-size: 14px;
+}
+.parking-brand strong {
+  color: #173b70;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+.parking-brand span { border-left: 1px solid #b9c9dd; padding-left: 12px; }
+.parking-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.28fr);
+  grid-template-areas: "copy art";
+  gap: clamp(36px, 6vw, 100px);
+  align-content: center;
+  align-items: center;
+  padding: clamp(40px, 9vh, 116px) 0;
+}
+.parking-art {
+  grid-area: art;
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 28% 20px 28% 20px / 36% 20px 36% 20px;
+}
+.parking-copy { grid-area: copy; }
+.parking-copy h1 {
+  margin: 0;
+  font-size: clamp(32px, 4.2vw, 56px);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.055em;
+}
+.parking-reason {
+  margin: 20px 0 32px;
+  max-width: 32ch;
+  color: #405571;
+  font-size: clamp(17px, 1.45vw, 20px);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.parking-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  box-sizing: border-box;
+  padding: 12px 30px;
+  border: 0;
+  border-radius: 14px;
+  background: #0c54b0;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.parking-action:hover { background: #064699; }
+.parking-action:focus-visible { outline: 3px solid #0c54b0; outline-offset: 4px; }
+.parking-action:disabled { background: #48688e; cursor: wait; }
+.parking-hint { margin: 16px 0 0; font-size: 14px; line-height: 1.55; color: #536781; }
+@media (max-width: 720px) {
+  .parking-layout {
+    max-width: 460px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "art" "copy";
+    gap: 30px;
+    padding: 28px 0 40px;
+  }
+  .parking-brand { padding: 16px 0; }
+  .parking-reason { margin: 14px 0 24px; }
+  .parking-action { width: 100%; }
+}
+</style></head>
+<body class="parking-shell">
+  <header class="parking-brand"><strong>사포리</strong><span>운영 콘솔</span></header>
+  <main class="parking-layout">
+    <img class="parking-art" src="data:image/webp;base64,__PARKING_SCENE_BASE64__" width="960" height="640" alt="">
+    <div class="parking-copy">
+      <h1>서비스 점검 중</h1>
+      <p class="parking-reason">${reason}</p>
+      <a class="parking-action" href="">다시 확인</a>
+      <p class="parking-hint">복구되면 자동으로 돌아갑니다.</p>
+    </div>
+  </main>
+</body></html>`;
   return new Response(html, {
     status: 503,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+      'Content-Security-Policy': "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
       'Retry-After': String(retry),
