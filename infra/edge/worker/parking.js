@@ -131,6 +131,9 @@ function isBackoffice(request, env) {
   return new URL(request.url).hostname === env.BACKOFFICE_HOSTNAME;
 }
 
+// Terraform embeds these images so the console page can render with the origin offline.
+const parkingArtwork = /* inline artwork */ {};
+
 function consoleParkingPage(info, retry) {
   const reason = info.reason.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8">
@@ -183,12 +186,21 @@ body { margin: 0; }
   align-items: center;
   padding: clamp(40px, 9vh, 116px) 0;
 }
+.parking-brand-icon { width: 36px; height: 36px; border-radius: 10px; }
 .parking-art {
   grid-area: art;
-  display: block;
-  width: 100%;
-  height: auto;
+  position: relative;
+  overflow: hidden;
   border-radius: 28% 20px 28% 20px / 36% 20px 36% 20px;
+}
+.parking-landscape { display: block; width: 100%; height: auto; }
+.parking-dorani {
+  position: absolute;
+  bottom: 4%;
+  left: 37%;
+  height: 37%;
+  width: auto;
+  pointer-events: none;
 }
 .parking-copy { grid-area: copy; }
 .parking-copy h1 {
@@ -240,9 +252,15 @@ body { margin: 0; }
 }
 </style></head>
 <body class="parking-shell">
-  <header class="parking-brand"><strong>사포리</strong><span>운영 콘솔</span></header>
+  <header class="parking-brand">
+    <img class="parking-brand-icon" src="${parkingArtwork.icon}" width="36" height="36" alt="">
+    <strong>사포리</strong><span>운영 콘솔</span>
+  </header>
   <main class="parking-layout">
-    <img class="parking-art" src="data:image/webp;base64,__PARKING_SCENE_BASE64__" width="960" height="640" alt="">
+    <div class="parking-art" aria-hidden="true">
+      <img class="parking-landscape" src="${parkingArtwork.scene}" width="900" height="600" alt="">
+      <img class="parking-dorani" src="${parkingArtwork.dorani}" width="259" height="320" alt="">
+    </div>
     <div class="parking-copy">
       <h1>서비스 점검 중</h1>
       <p class="parking-reason">${reason}</p>
