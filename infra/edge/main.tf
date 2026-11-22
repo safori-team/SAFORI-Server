@@ -80,7 +80,12 @@ data "aws_ssm_parameter" "operator_key" {
 }
 
 locals {
-  worker_source = file("${path.module}/worker/parking.js")
+  # 원본이 꺼져 있어도 첫 방문 HTML 안에서 바로 그림을 표시한다.
+  worker_source = replace(
+    file("${path.module}/worker/parking.js"),
+    "__PARKING_SCENE_BASE64__",
+    filebase64("${path.module}/worker/parking-scene.webp"),
+  )
 }
 
 resource "cloudflare_workers_kv_namespace" "parking" {
